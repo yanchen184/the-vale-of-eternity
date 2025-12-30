@@ -34,7 +34,7 @@ export enum CreatureType {
 /**
  * App version
  */
-export const APP_VERSION = '1.0.0'
+export const APP_VERSION = '1.1.0'
 
 /**
  * Game configuration
@@ -180,6 +180,7 @@ export const STORAGE_KEYS = {
   USER_SETTINGS: 'vale-user-settings',
   LAST_ROOM_CODE: 'vale-last-room-code',
   PLAYER_NAME: 'vale-player-name',
+  USER_ID: 'vale-user-id',
 } as const
 
 /**

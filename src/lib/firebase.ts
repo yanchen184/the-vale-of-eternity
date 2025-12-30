@@ -1,11 +1,10 @@
 /**
- * Firebase initialization and configuration
- * @version 1.0.0
+ * Firebase initialization and configuration (Database only)
+ * @version 1.1.0
  */
-console.log('[firebase.ts] v1.0.0 loaded')
+console.log('[firebase.ts] v1.1.0 loaded')
 
 import { initializeApp } from 'firebase/app'
-import { getAuth, connectAuthEmulator } from 'firebase/auth'
 import { getDatabase, connectDatabaseEmulator } from 'firebase/database'
 
 const firebaseConfig = {
@@ -22,15 +21,13 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig)
 
-// Initialize services
-export const auth = getAuth(app)
+// Initialize database only
 export const database = getDatabase(app)
 
 // Connect to emulators in development
 if (import.meta.env.DEV && import.meta.env.VITE_USE_EMULATOR === 'true') {
-  connectAuthEmulator(auth, 'http://localhost:9099')
   connectDatabaseEmulator(database, 'localhost', 9000)
-  console.log('[Firebase] Connected to emulators')
+  console.log('[Firebase] Connected to database emulator')
 }
 
 export default app

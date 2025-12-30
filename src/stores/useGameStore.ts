@@ -1,25 +1,28 @@
 /**
- * Game State Store for MVP 1.0
+ * Game State Store for Single Player Mode v3.0.0
  * Using Zustand for state management
- * Based on GAME_ENGINE_SPEC.md
- * @version 1.0.0
+ * Supports single-player game with Stone Economy System
+ * @version 3.0.0
  */
-console.log('[stores/useGameStore.ts] v1.0.0 loaded')
+console.log('[stores/useGameStore.ts] v3.0.0 loaded')
 
 import { create } from 'zustand'
 import { devtools, subscribeWithSelector } from 'zustand/middleware'
-import type { CardInstance } from '@/types/cards'
+import type { CardInstance, StoneType } from '@/types/cards'
 import {
-  GameEngine,
-  GamePhase,
-  ActionType,
-  type MVPGameState,
-  type MVPPlayerState,
-  type GameAction,
-  type VictoryResult,
-  GameError,
-  GameErrorCode,
-} from '@/lib/game-engine'
+  type SinglePlayerGameState,
+  type StonePool,
+  type ScoreBreakdown,
+  SinglePlayerPhase,
+  SinglePlayerActionType,
+  calculateStonePoolValue,
+} from '@/types/game'
+import {
+  SinglePlayerEngine,
+  SinglePlayerError,
+  SinglePlayerErrorCode,
+  SINGLE_PLAYER_CONSTANTS,
+} from '@/lib/single-player-engine'
 
 // ============================================
 // STORE INTERFACE
@@ -28,65 +31,55 @@ import {
 interface GameStore {
   // === State ===
   /** Current game state */
-  gameState: MVPGameState | null
+  gameState: SinglePlayerGameState | null
   /** Game engine instance */
-  engine: GameEngine
+  engine: SinglePlayerEngine
   /** Loading state */
   isLoading: boolean
   /** Error message */
   error: string | null
-  /** Local player index (for UI purposes) */
-  localPlayerIndex: 0 | 1
 
   // === Game Lifecycle ===
-  /** Initialize a new game */
-  initGame: (player1Name: string, player2Name: string) => void
+  /** Start a new single-player game */
+  startGame: (playerName: string) => void
   /** Reset the game */
   resetGame: () => void
 
-  // === Hunting Phase Actions ===
-  /** Select a card from market (take to hand) */
-  takeMarketCard: (cardInstanceId: string) => void
-  /** Tame a card directly from market */
-  tameMarketCard: (cardInstanceId: string) => void
+  // === Draw Phase Actions ===
+  /** Draw a card from deck */
+  drawCard: () => void
 
   // === Action Phase Actions ===
-  /** Tame a card from hand */
-  tameFromHand: (cardInstanceId: string) => void
-  /** Sell a card from hand */
-  sellCard: (cardInstanceId: string) => void
-  /** Pass turn */
+  /** Tame a creature */
+  tameCreature: (cardInstanceId: string, from: 'HAND' | 'MARKET') => void
+  /** Pass turn (continue to next draw phase) */
   pass: () => void
-
-  // === Phase Control ===
-  /** End current phase and move to next */
-  endPhase: () => void
-  /** Start next round */
-  nextRound: () => void
+  /** Manually end the game */
+  endGame: () => void
+  /** Exchange stones */
+  exchangeStones: (fromType: StoneType, toType: StoneType, amount: number) => void
 
   // === Queries ===
-  /** Get current player */
-  getCurrentPlayer: () => MVPPlayerState | null
-  /** Get opponent player */
-  getOpponent: () => MVPPlayerState | null
-  /** Get valid actions for current player */
-  getValidActions: () => ActionType[]
   /** Check if a card can be tamed */
   canTameCard: (cardInstanceId: string) => boolean
-  /** Check if a card can be sold */
-  canSellCard: (cardInstanceId: string) => boolean
-  /** Check if it's local player's turn */
-  isMyTurn: () => boolean
+  /** Get the cost of a card */
+  getCardCost: (cardInstanceId: string) => number
+  /** Get available actions */
+  getAvailableActions: () => SinglePlayerActionType[]
+  /** Get total stone value */
+  getTotalStoneValue: () => number
+  /** Get cards that can be tamed from hand */
+  getTameableFromHand: () => CardInstance[]
+  /** Get cards that can be tamed from market */
+  getTameableFromMarket: () => CardInstance[]
 
   // === Internal ===
   /** Set loading state */
   setLoading: (loading: boolean) => void
   /** Set error message */
   setError: (error: string | null) => void
-  /** Update game state from engine */
+  /** Sync state from engine */
   syncState: () => void
-  /** Set local player index */
-  setLocalPlayerIndex: (index: 0 | 1) => void
 }
 
 // ============================================
@@ -97,15 +90,15 @@ export const useGameStore = create<GameStore>()(
   devtools(
     subscribeWithSelector((set, get) => {
       // Create engine instance
-      const engine = new GameEngine()
+      const engine = new SinglePlayerEngine()
 
       // Subscribe to engine state changes
       engine.onStateChange(state => {
         set({ gameState: state, error: null })
       })
 
-      engine.onGameEnd(result => {
-        console.log('[GameStore] Game ended:', result)
+      engine.onGameEnd(state => {
+        console.log('[GameStore] Game ended with score:', state.finalScore)
       })
 
       return {
@@ -114,71 +107,52 @@ export const useGameStore = create<GameStore>()(
         engine,
         isLoading: false,
         error: null,
-        localPlayerIndex: 0,
 
         // === Game Lifecycle ===
-        initGame: (player1Name: string, player2Name: string) => {
+        startGame: (playerName: string) => {
           set({ isLoading: true, error: null })
           try {
-            const state = engine.initializeGame(player1Name, player2Name)
+            const state = engine.initGame(playerName)
             set({ gameState: state, isLoading: false })
           } catch (err) {
-            const message = err instanceof GameError ? err.message : 'Failed to initialize game'
+            const message = err instanceof SinglePlayerError
+              ? err.message
+              : 'Failed to start game'
             set({ error: message, isLoading: false })
           }
         },
 
         resetGame: () => {
           engine.resetGame()
-          set({ gameState: null, error: null, localPlayerIndex: 0 })
+          set({ gameState: null, error: null })
         },
 
-        // === Hunting Phase Actions ===
-        takeMarketCard: (cardInstanceId: string) => {
+        // === Draw Phase Actions ===
+        drawCard: () => {
           const { gameState } = get()
           if (!gameState) return
 
           try {
-            engine.selectMarketCard(gameState.currentPlayerIndex, cardInstanceId, 'TAKE')
+            engine.drawCard()
           } catch (err) {
-            const message = err instanceof GameError ? err.message : 'Failed to take card'
-            set({ error: message })
-          }
-        },
-
-        tameMarketCard: (cardInstanceId: string) => {
-          const { gameState } = get()
-          if (!gameState) return
-
-          try {
-            engine.selectMarketCard(gameState.currentPlayerIndex, cardInstanceId, 'TAME')
-          } catch (err) {
-            const message = err instanceof GameError ? err.message : 'Failed to tame card'
+            const message = err instanceof SinglePlayerError
+              ? err.message
+              : 'Failed to draw card'
             set({ error: message })
           }
         },
 
         // === Action Phase Actions ===
-        tameFromHand: (cardInstanceId: string) => {
+        tameCreature: (cardInstanceId: string, from: 'HAND' | 'MARKET') => {
           const { gameState } = get()
           if (!gameState) return
 
           try {
-            engine.tameFromHand(gameState.currentPlayerIndex, cardInstanceId)
+            engine.tameCreature(cardInstanceId, from)
           } catch (err) {
-            const message = err instanceof GameError ? err.message : 'Failed to tame card'
-            set({ error: message })
-          }
-        },
-
-        sellCard: (cardInstanceId: string) => {
-          const { gameState } = get()
-          if (!gameState) return
-
-          try {
-            engine.sellCard(gameState.currentPlayerIndex, cardInstanceId)
-          } catch (err) {
-            const message = err instanceof GameError ? err.message : 'Failed to sell card'
+            const message = err instanceof SinglePlayerError
+              ? err.message
+              : 'Failed to tame creature'
             set({ error: message })
           }
         },
@@ -188,70 +162,72 @@ export const useGameStore = create<GameStore>()(
           if (!gameState) return
 
           try {
-            engine.pass(gameState.currentPlayerIndex)
+            engine.pass()
           } catch (err) {
-            const message = err instanceof GameError ? err.message : 'Failed to pass'
+            const message = err instanceof SinglePlayerError
+              ? err.message
+              : 'Failed to pass'
             set({ error: message })
           }
         },
 
-        // === Phase Control ===
-        endPhase: () => {
+        endGame: () => {
           const { gameState } = get()
           if (!gameState) return
 
           try {
-            if (gameState.phase === GamePhase.RESOLUTION && !gameState.isGameOver) {
-              engine.startNextRound()
-            }
+            engine.endGame()
           } catch (err) {
-            const message = err instanceof GameError ? err.message : 'Failed to end phase'
+            const message = err instanceof SinglePlayerError
+              ? err.message
+              : 'Failed to end game'
             set({ error: message })
           }
         },
 
-        nextRound: () => {
+        exchangeStones: (fromType: StoneType, toType: StoneType, amount: number) => {
           const { gameState } = get()
-          if (!gameState || gameState.isGameOver) return
+          if (!gameState) return
 
           try {
-            engine.startNextRound()
+            engine.exchangeStones(fromType, toType, amount)
           } catch (err) {
-            const message = err instanceof GameError ? err.message : 'Failed to start next round'
+            const message = err instanceof SinglePlayerError
+              ? err.message
+              : 'Failed to exchange stones'
             set({ error: message })
           }
         },
 
         // === Queries ===
-        getCurrentPlayer: () => {
-          const { gameState } = get()
-          if (!gameState) return null
-          return gameState.players[gameState.currentPlayerIndex]
-        },
-
-        getOpponent: () => {
-          const { gameState } = get()
-          if (!gameState) return null
-          const opponentIndex = gameState.currentPlayerIndex === 0 ? 1 : 0
-          return gameState.players[opponentIndex]
-        },
-
-        getValidActions: () => {
-          return engine.getValidActions()
-        },
-
         canTameCard: (cardInstanceId: string) => {
           return engine.canTameCard(cardInstanceId)
         },
 
-        canSellCard: (cardInstanceId: string) => {
-          return engine.canSellCard(cardInstanceId)
+        getCardCost: (cardInstanceId: string) => {
+          return engine.getCardCost(cardInstanceId)
         },
 
-        isMyTurn: () => {
-          const { gameState, localPlayerIndex } = get()
-          if (!gameState) return false
-          return gameState.currentPlayerIndex === localPlayerIndex
+        getAvailableActions: () => {
+          return engine.getAvailableActions()
+        },
+
+        getTotalStoneValue: () => {
+          const { gameState } = get()
+          if (!gameState) return 0
+          return calculateStonePoolValue(gameState.player.stones)
+        },
+
+        getTameableFromHand: () => {
+          const { gameState, canTameCard } = get()
+          if (!gameState) return []
+          return gameState.player.hand.filter(card => canTameCard(card.instanceId))
+        },
+
+        getTameableFromMarket: () => {
+          const { gameState, canTameCard } = get()
+          if (!gameState) return []
+          return gameState.market.filter(card => canTameCard(card.instanceId))
         },
 
         // === Internal ===
@@ -269,13 +245,9 @@ export const useGameStore = create<GameStore>()(
             set({ gameState: state })
           }
         },
-
-        setLocalPlayerIndex: (index: 0 | 1) => {
-          set({ localPlayerIndex: index })
-        },
       }
     }),
-    { name: 'game-store' }
+    { name: 'single-player-game-store' }
   )
 )
 
@@ -286,7 +258,7 @@ export const useGameStore = create<GameStore>()(
 /**
  * Select current game phase
  */
-export const selectPhase = (state: GameStore): GamePhase | null =>
+export const selectPhase = (state: GameStore): SinglePlayerPhase | null =>
   state.gameState?.phase ?? null
 
 /**
@@ -302,51 +274,28 @@ export const selectMarket = (state: GameStore): CardInstance[] =>
   state.gameState?.market ?? []
 
 /**
- * Select player by index
+ * Select player hand
  */
-export const selectPlayer = (state: GameStore, index: 0 | 1): MVPPlayerState | null =>
-  state.gameState?.players[index] ?? null
+export const selectHand = (state: GameStore): CardInstance[] =>
+  state.gameState?.player.hand ?? []
 
 /**
- * Select local player
+ * Select player field
  */
-export const selectLocalPlayer = (state: GameStore): MVPPlayerState | null =>
-  state.gameState?.players[state.localPlayerIndex] ?? null
+export const selectField = (state: GameStore): CardInstance[] =>
+  state.gameState?.player.field ?? []
 
 /**
- * Select opponent
+ * Select player stones
  */
-export const selectOpponentPlayer = (state: GameStore): MVPPlayerState | null => {
-  if (!state.gameState) return null
-  const opponentIndex = state.localPlayerIndex === 0 ? 1 : 0
-  return state.gameState.players[opponentIndex]
-}
+export const selectStones = (state: GameStore): StonePool | null =>
+  state.gameState?.player.stones ?? null
 
 /**
- * Select if game is over
+ * Select deck size
  */
-export const selectIsGameOver = (state: GameStore): boolean =>
-  state.gameState?.isGameOver ?? false
-
-/**
- * Select winner
- */
-export const selectWinner = (state: GameStore): 0 | 1 | 'draw' | null =>
-  state.gameState?.winner ?? null
-
-/**
- * Select end reason
- */
-export const selectEndReason = (state: GameStore): string | null =>
-  state.gameState?.endReason ?? null
-
-/**
- * Select if it's the local player's turn
- */
-export const selectIsLocalPlayerTurn = (state: GameStore): boolean => {
-  if (!state.gameState) return false
-  return state.gameState.currentPlayerIndex === state.localPlayerIndex
-}
+export const selectDeckSize = (state: GameStore): number =>
+  state.gameState?.deck.length ?? 0
 
 /**
  * Select discard pile
@@ -355,10 +304,34 @@ export const selectDiscardPile = (state: GameStore): CardInstance[] =>
   state.gameState?.discardPile ?? []
 
 /**
- * Select deck size (for display)
+ * Select if game is over
  */
-export const selectDeckSize = (state: GameStore): number =>
-  state.gameState?.deck.length ?? 0
+export const selectIsGameOver = (state: GameStore): boolean =>
+  state.gameState?.isGameOver ?? false
+
+/**
+ * Select final score
+ */
+export const selectFinalScore = (state: GameStore): number | null =>
+  state.gameState?.finalScore ?? null
+
+/**
+ * Select score breakdown
+ */
+export const selectScoreBreakdown = (state: GameStore): ScoreBreakdown | null =>
+  state.gameState?.scoreBreakdown ?? null
+
+/**
+ * Select end reason
+ */
+export const selectEndReason = (state: GameStore): string | null =>
+  state.gameState?.endReason ?? null
+
+/**
+ * Select player name
+ */
+export const selectPlayerName = (state: GameStore): string =>
+  state.gameState?.player.name ?? ''
 
 // ============================================
 // HOOKS
@@ -367,7 +340,7 @@ export const selectDeckSize = (state: GameStore): number =>
 /**
  * Hook to get current phase
  */
-export function useGamePhase(): GamePhase | null {
+export function useGamePhase(): SinglePlayerPhase | null {
   return useGameStore(selectPhase)
 }
 
@@ -386,41 +359,103 @@ export function useMarket(): CardInstance[] {
 }
 
 /**
- * Hook to get local player
+ * Hook to get player hand
  */
-export function useLocalPlayer(): MVPPlayerState | null {
-  return useGameStore(selectLocalPlayer)
+export function useHand(): CardInstance[] {
+  return useGameStore(selectHand)
 }
 
 /**
- * Hook to get opponent
+ * Hook to get player field
  */
-export function useOpponent(): MVPPlayerState | null {
-  return useGameStore(selectOpponentPlayer)
+export function useField(): CardInstance[] {
+  return useGameStore(selectField)
 }
 
 /**
- * Hook to check if it's local player's turn
+ * Hook to get player stones
  */
-export function useIsMyTurn(): boolean {
-  return useGameStore(selectIsLocalPlayerTurn)
+export function useStones(): StonePool | null {
+  return useGameStore(selectStones)
+}
+
+/**
+ * Hook to get deck size
+ */
+export function useDeckSize(): number {
+  return useGameStore(selectDeckSize)
+}
+
+/**
+ * Hook to get discard pile
+ */
+export function useDiscardPile(): CardInstance[] {
+  return useGameStore(selectDiscardPile)
 }
 
 /**
  * Hook to get game over state
  */
-export function useGameOver(): { isOver: boolean; winner: 0 | 1 | 'draw' | null; reason: string | null } {
+export function useGameOver(): {
+  isOver: boolean
+  score: number | null
+  reason: string | null
+  breakdown: ScoreBreakdown | null
+} {
   const isOver = useGameStore(selectIsGameOver)
-  const winner = useGameStore(selectWinner)
+  const score = useGameStore(selectFinalScore)
   const reason = useGameStore(selectEndReason)
-  return { isOver, winner, reason }
+  const breakdown = useGameStore(selectScoreBreakdown)
+  return { isOver, score, reason, breakdown }
+}
+
+/**
+ * Hook to get player name
+ */
+export function usePlayerName(): string {
+  return useGameStore(selectPlayerName)
+}
+
+/**
+ * Hook to get total stone value
+ */
+export function useTotalStoneValue(): number {
+  return useGameStore(state => state.getTotalStoneValue())
+}
+
+/**
+ * Hook to get available actions
+ */
+export function useAvailableActions(): SinglePlayerActionType[] {
+  return useGameStore(state => state.getAvailableActions())
+}
+
+/**
+ * Hook to get tameable cards from hand
+ */
+export function useTameableFromHand(): CardInstance[] {
+  return useGameStore(state => state.getTameableFromHand())
+}
+
+/**
+ * Hook to get tameable cards from market
+ */
+export function useTameableFromMarket(): CardInstance[] {
+  return useGameStore(state => state.getTameableFromMarket())
 }
 
 // ============================================
 // RE-EXPORTS
 // ============================================
 
-export { GamePhase, ActionType, GameError, GameErrorCode }
-export type { MVPGameState, MVPPlayerState, GameAction, VictoryResult }
+export {
+  SinglePlayerPhase,
+  SinglePlayerActionType,
+  SinglePlayerError,
+  SinglePlayerErrorCode,
+  SINGLE_PLAYER_CONSTANTS,
+}
+
+export type { SinglePlayerGameState, StonePool, ScoreBreakdown }
 
 export default useGameStore

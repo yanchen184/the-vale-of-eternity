@@ -1,33 +1,44 @@
 /**
- * Lobby page component for MVP 1.0
- * Start a local multiplayer game
- * @version 1.0.0
+ * Lobby page component for Single Player Mode v3.0.0
+ * Start a single-player game
+ * @version 3.0.0
  */
-console.log('[pages/Lobby.tsx] v1.0.0 loaded')
+console.log('[pages/Lobby.tsx] v3.0.0 loaded')
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Play, Users, Info } from 'lucide-react'
+import { Play, User, Info, Library } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { useGameStore } from '@/stores'
 
 export function Lobby() {
   const navigate = useNavigate()
-  const initGame = useGameStore(state => state.initGame)
-  const [player1Name, setPlayer1Name] = useState('Player 1')
-  const [player2Name, setPlayer2Name] = useState('Player 2')
+  const startGame = useGameStore(state => state.startGame)
+  const [playerName, setPlayerName] = useState(
+    localStorage.getItem('playerName') || 'Player'
+  )
   const [isLoading, setIsLoading] = useState(false)
 
   const handleStartGame = async () => {
     setIsLoading(true)
     try {
-      initGame(player1Name || 'Player 1', player2Name || 'Player 2')
-      navigate('/game/local')
+      // Save player name
+      localStorage.setItem('playerName', playerName || 'Player')
+
+      // Start game
+      startGame(playerName || 'Player')
+
+      // Navigate to game page
+      navigate('/game')
     } catch (error) {
       console.error('Failed to start game:', error)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleViewCards = () => {
+    navigate('/cards')
   }
 
   return (
@@ -39,46 +50,30 @@ export function Lobby() {
         {/* Header */}
         <header className="text-center py-8">
           <h1 className="text-4xl font-bold text-slate-100">The Vale of Eternity</h1>
-          <p className="mt-2 text-slate-400">Local Multiplayer - MVP 1.0</p>
+          <p className="mt-2 text-slate-400">Single Player Mode - v3.0.0</p>
         </header>
 
         {/* Game Setup */}
         <section className="mt-8 bg-slate-800/50 rounded-xl p-6 border border-slate-700">
           <div className="flex items-center gap-2 mb-6">
-            <Users className="h-5 w-5 text-slate-400" />
+            <User className="h-5 w-5 text-slate-400" />
             <h2 className="text-lg font-semibold text-slate-200">Player Setup</h2>
           </div>
 
           <div className="space-y-4">
-            {/* Player 1 */}
+            {/* Player Name */}
             <div>
-              <label htmlFor="player1" className="block text-sm text-slate-400 mb-2">
-                Player 1 Name
+              <label htmlFor="playerName" className="block text-sm text-slate-400 mb-2">
+                Your Name
               </label>
               <input
-                id="player1"
+                id="playerName"
                 type="text"
-                value={player1Name}
-                onChange={e => setPlayer1Name(e.target.value)}
-                placeholder="Enter name..."
+                value={playerName}
+                onChange={e => setPlayerName(e.target.value)}
+                placeholder="Enter your name..."
                 className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-vale-500"
-                data-testid="player1-input"
-              />
-            </div>
-
-            {/* Player 2 */}
-            <div>
-              <label htmlFor="player2" className="block text-sm text-slate-400 mb-2">
-                Player 2 Name
-              </label>
-              <input
-                id="player2"
-                type="text"
-                value={player2Name}
-                onChange={e => setPlayer2Name(e.target.value)}
-                placeholder="Enter name..."
-                className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-vale-500"
-                data-testid="player2-input"
+                data-testid="player-name-input"
               />
             </div>
           </div>
@@ -88,18 +83,33 @@ export function Lobby() {
         <section className="mt-6 bg-slate-800/30 rounded-xl p-6 border border-slate-700">
           <div className="flex items-center gap-2 mb-4">
             <Info className="h-5 w-5 text-slate-400" />
-            <h3 className="text-sm font-medium text-slate-400">Game Rules</h3>
+            <h3 className="text-sm font-medium text-slate-400">How to Play</h3>
           </div>
           <ul className="text-sm text-slate-500 space-y-2">
-            <li>- 2 players take turns on the same device (hot-seat)</li>
-            <li>- Each round has 3 phases: Hunting, Action, Resolution</li>
-            <li>- Win by reaching 60 points or having the highest score after 10 rounds</li>
-            <li>- Collect creatures, build synergies, and manage your stones wisely!</li>
+            <li>1. Draw Phase: Draw 1 card from the deck</li>
+            <li>2. Action Phase: Tame creatures from hand or market by paying stone costs</li>
+            <li>3. Build your collection to maximize your score</li>
+            <li>4. Game ends when deck is empty or you choose to end</li>
+            <li>5. Final score = Card points + Effect bonuses + Stone value</li>
           </ul>
         </section>
 
-        {/* Start Button */}
-        <div className="mt-8">
+        {/* Stone Economy Info */}
+        <section className="mt-6 bg-slate-800/30 rounded-xl p-6 border border-slate-700">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-lg">&#128142;</span>
+            <h3 className="text-sm font-medium text-slate-400">Stone Economy</h3>
+          </div>
+          <ul className="text-sm text-slate-500 space-y-2">
+            <li>- 7 types of stones: 1-point, 3-point, 6-point, and 4 element types</li>
+            <li>- Pay stone costs to tame creatures</li>
+            <li>- Element stones can be used for matching element cards</li>
+            <li>- Earn stones through card effects</li>
+          </ul>
+        </section>
+
+        {/* Action Buttons */}
+        <div className="mt-8 space-y-4">
           <Button
             className="w-full py-4 text-lg"
             leftIcon={<Play className="h-6 w-6" />}
@@ -109,11 +119,21 @@ export function Lobby() {
           >
             Start Game
           </Button>
+
+          <Button
+            variant="secondary"
+            className="w-full py-3"
+            leftIcon={<Library className="h-5 w-5" />}
+            onClick={handleViewCards}
+            data-testid="view-cards-btn"
+          >
+            View Card Gallery
+          </Button>
         </div>
 
         {/* Version Info */}
         <div className="mt-8 text-center text-slate-600 text-sm">
-          MVP 1.0.0 | 20 Cards | Local Multiplayer
+          v3.0.0 | 70 Cards | Stone Economy System | Single Player
         </div>
       </div>
     </div>

@@ -1,35 +1,53 @@
 /**
- * Stores barrel export
- * @version 1.0.0
+ * Stores barrel export v3.0.0
+ * Single Player Mode
+ * @version 3.0.0
  */
-console.log('[stores/index.ts] v1.0.0 loaded')
+console.log('[stores/index.ts] v3.0.0 loaded')
 
+// Single Player Game Store
 export {
   useGameStore,
   useGamePhase,
   useRound,
   useMarket,
-  useLocalPlayer,
-  useOpponent,
-  useIsMyTurn,
+  useHand,
+  useField,
+  useStones,
+  useDeckSize,
+  useDiscardPile,
   useGameOver,
+  usePlayerName,
+  useTotalStoneValue,
+  useAvailableActions,
+  useTameableFromHand,
+  useTameableFromMarket,
   selectPhase,
   selectRound,
   selectMarket,
-  selectPlayer,
-  selectLocalPlayer,
-  selectOpponentPlayer,
-  selectIsGameOver,
-  selectWinner,
-  selectEndReason,
-  selectIsLocalPlayerTurn,
-  selectDiscardPile,
+  selectHand,
+  selectField,
+  selectStones,
   selectDeckSize,
-  GamePhase,
-  ActionType,
-  GameError,
-  GameErrorCode,
+  selectDiscardPile,
+  selectIsGameOver,
+  selectFinalScore,
+  selectScoreBreakdown,
+  selectEndReason,
+  selectPlayerName,
+  SinglePlayerPhase,
+  SinglePlayerActionType,
+  SinglePlayerError,
+  SinglePlayerErrorCode,
+  SINGLE_PLAYER_CONSTANTS,
 } from './useGameStore'
-export type { MVPGameState, MVPPlayerState, GameAction, VictoryResult } from './useGameStore'
+
+export type {
+  SinglePlayerGameState,
+  StonePool,
+  ScoreBreakdown,
+} from './useGameStore'
+
+// Other stores
 export { useLobbyStore } from './useLobbyStore'
 export { useToastStore } from './useToastStore'

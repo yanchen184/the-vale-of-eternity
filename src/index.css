@@ -1,6 +1,7 @@
 /**
  * Global styles with Tailwind CSS
- * @version 1.0.0
+ * Enhanced with fantasy/medieval theme and animations
+ * @version 2.0.0
  */
 
 /* Import Google Fonts for game title - must be first */
@@ -42,7 +43,7 @@
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-slate-800;
+    @apply bg-slate-800/50;
   }
 
   ::-webkit-scrollbar-thumb {
@@ -51,6 +52,11 @@
 
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-slate-500;
+  }
+
+  /* Remove default button styles */
+  button {
+    -webkit-tap-highlight-color: transparent;
   }
 }
 
@@ -103,6 +109,66 @@
   .text-gradient {
     @apply text-transparent bg-clip-text bg-gradient-to-r from-vale-400 to-purple-400;
   }
+
+  /* Fantasy panel styles */
+  .fantasy-panel {
+    @apply relative rounded-2xl overflow-hidden;
+    @apply bg-gradient-to-b from-slate-800/90 to-slate-900/95;
+    @apply border-2 border-slate-700/50;
+    @apply shadow-xl shadow-slate-950/50;
+  }
+
+  .fantasy-panel::before {
+    content: '';
+    @apply absolute inset-0 pointer-events-none;
+    @apply bg-gradient-to-b from-white/5 to-transparent;
+    @apply opacity-50;
+  }
+
+  /* Glow effects */
+  .glow-vale {
+    box-shadow: 0 0 20px theme('colors.vale.500 / 30%'),
+                0 0 40px theme('colors.vale.500 / 20%'),
+                0 0 60px theme('colors.vale.500 / 10%');
+  }
+
+  .glow-amber {
+    box-shadow: 0 0 20px theme('colors.amber.500 / 30%'),
+                0 0 40px theme('colors.amber.500 / 20%'),
+                0 0 60px theme('colors.amber.500 / 10%');
+  }
+
+  .glow-purple {
+    box-shadow: 0 0 20px theme('colors.purple.500 / 30%'),
+                0 0 40px theme('colors.purple.500 / 20%'),
+                0 0 60px theme('colors.purple.500 / 10%');
+  }
+
+  /* Shimmer effect */
+  .shimmer {
+    @apply relative overflow-hidden;
+  }
+
+  .shimmer::after {
+    content: '';
+    @apply absolute inset-0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.1) 50%,
+      transparent 100%
+    );
+    animation: shimmer 2s infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
 }
 
 @layer utilities {
@@ -129,6 +195,18 @@
     animation-delay: 300ms;
   }
 
+  .animate-delay-500 {
+    animation-delay: 500ms;
+  }
+
+  .animate-delay-700 {
+    animation-delay: 700ms;
+  }
+
+  .animate-delay-1000 {
+    animation-delay: 1000ms;
+  }
+
   /* Card flip animation */
   .card-flip-inner {
     transform-style: preserve-3d;
@@ -146,5 +224,183 @@
 
   .card-back {
     transform: rotateY(180deg);
+  }
+
+  /* Float animation */
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  /* Glow pulse animation */
+  .animate-glow-pulse {
+    animation: glowPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes glowPulse {
+    0%, 100% {
+      filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.3));
+    }
+    50% {
+      filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.6));
+    }
+  }
+
+  /* Rotate animation */
+  .animate-rotate {
+    animation: rotate 20s linear infinite;
+  }
+
+  @keyframes rotate {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* Scale up animation */
+  .animate-scale-up {
+    animation: scaleUp 0.3s ease-out forwards;
+  }
+
+  @keyframes scaleUp {
+    from {
+      transform: scale(0.9);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  /* Bounce in animation */
+  .animate-bounce-in {
+    animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  @keyframes bounceIn {
+    0% {
+      transform: scale(0);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.1);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  /* Shake animation */
+  .animate-shake {
+    animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  }
+
+  @keyframes shake {
+    10%, 90% {
+      transform: translateX(-1px);
+    }
+    20%, 80% {
+      transform: translateX(2px);
+    }
+    30%, 50%, 70% {
+      transform: translateX(-4px);
+    }
+    40%, 60% {
+      transform: translateX(4px);
+    }
+  }
+
+  /* Gradient border */
+  .gradient-border {
+    position: relative;
+    background: linear-gradient(var(--tw-gradient-stops));
+    z-index: 0;
+  }
+
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    background: theme('colors.slate.900');
+    border-radius: inherit;
+    z-index: -1;
+  }
+
+  /* Text shadow utilities */
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  }
+
+  .text-shadow-lg {
+    text-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+  }
+
+  .text-shadow-glow {
+    text-shadow: 0 0 10px rgba(56, 189, 248, 0.5),
+                 0 0 20px rgba(56, 189, 248, 0.3);
+  }
+
+  /* Backdrop blur variations */
+  .backdrop-blur-xs {
+    backdrop-filter: blur(2px);
+  }
+
+  /* Transform perspective */
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+
+  /* Mask gradient */
+  .mask-gradient-to-b {
+    mask-image: linear-gradient(to bottom, black, transparent);
+    -webkit-mask-image: linear-gradient(to bottom, black, transparent);
+  }
+
+  .mask-gradient-to-t {
+    mask-image: linear-gradient(to top, black, transparent);
+    -webkit-mask-image: linear-gradient(to top, black, transparent);
+  }
+
+  /* Line clamp utilities */
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-4 {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }

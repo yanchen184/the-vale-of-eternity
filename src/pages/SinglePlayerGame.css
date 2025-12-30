@@ -1,0 +1,500 @@
+/**
+ * Single Player Game Styles v3.0.0
+ * @version 3.0.0
+ */
+
+/* ============================================
+   LAYOUT
+   ============================================ */
+
+.single-player-game {
+  display: grid;
+  grid-template-areas:
+    "header header"
+    "sidebar main";
+  grid-template-columns: 200px 1fr;
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+  background: var(--color-bg-dark, #1a1a2e);
+  color: var(--color-text, #eaeaea);
+}
+
+.single-player-game--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-spinner {
+  font-size: 1.5rem;
+  color: var(--color-primary, #e94560);
+}
+
+/* ============================================
+   HEADER
+   ============================================ */
+
+.single-player-game__header {
+  grid-area: header;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background: var(--color-bg-darker, #16213e);
+  border-bottom: 2px solid var(--color-primary, #e94560);
+}
+
+.single-player-game__info {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+}
+
+.single-player-game__player {
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+.single-player-game__round,
+.single-player-game__phase,
+.single-player-game__deck {
+  padding: 0.25rem 0.75rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.single-player-game__phase {
+  background: var(--color-primary, #e94560);
+  color: white;
+  text-transform: uppercase;
+}
+
+.single-player-game__actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.single-player-game__button {
+  padding: 0.5rem 1.25rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--color-secondary, #0f3460);
+  color: white;
+}
+
+.single-player-game__button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.single-player-game__button--primary {
+  background: var(--color-success, #4caf50);
+}
+
+.single-player-game__button--danger {
+  background: var(--color-danger, #f44336);
+}
+
+/* ============================================
+   ERROR DISPLAY
+   ============================================ */
+
+.single-player-game__error {
+  grid-column: 1 / -1;
+  padding: 0.75rem 1rem;
+  background: var(--color-danger, #f44336);
+  color: white;
+  text-align: center;
+}
+
+/* ============================================
+   SIDEBAR (STONE DISPLAY)
+   ============================================ */
+
+.single-player-game__sidebar {
+  grid-area: sidebar;
+  padding: 1rem;
+  background: var(--color-bg-darker, #16213e);
+}
+
+.stone-display {
+  position: sticky;
+  top: 1rem;
+}
+
+.stone-display__title {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  text-align: center;
+  color: var(--color-primary, #e94560);
+}
+
+.stone-display__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.stone-display__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.stone-display__icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: white;
+}
+
+.stone-display__item--one .stone-display__icon { background: #888; }
+.stone-display__item--three .stone-display__icon { background: #666; }
+.stone-display__item--six .stone-display__icon { background: #444; }
+.stone-display__item--water .stone-display__icon { background: #2196f3; }
+.stone-display__item--fire .stone-display__icon { background: #f44336; }
+.stone-display__item--earth .stone-display__icon { background: #8bc34a; }
+.stone-display__item--wind .stone-display__icon { background: #9c27b0; }
+
+.stone-display__count {
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
+.stone-display__total {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+/* ============================================
+   MAIN AREA
+   ============================================ */
+
+.single-player-game__main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  gap: 1.5rem;
+  overflow-y: auto;
+}
+
+.single-player-game__section-title {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  color: var(--color-text-muted, #aaa);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ============================================
+   CARD ROW & GRID
+   ============================================ */
+
+.single-player-game__card-row {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.single-player-game__card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.75rem;
+}
+
+/* ============================================
+   CARD
+   ============================================ */
+
+.card {
+  min-width: 120px;
+  width: 120px;
+  height: 170px;
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--card-bg-start, #2d3436) 0%, var(--card-bg-end, #1e272e) 100%);
+  border: 2px solid var(--card-border, #444);
+  cursor: default;
+  transition: all 0.2s;
+}
+
+.card--tameable {
+  cursor: pointer;
+  border-color: var(--color-success, #4caf50);
+  box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+}
+
+.card--tameable:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(76, 175, 80, 0.4);
+}
+
+.card--selected {
+  border-color: var(--color-primary, #e94560);
+  box-shadow: 0 0 15px rgba(233, 69, 96, 0.5);
+}
+
+/* Element colors */
+.card--fire { --card-bg-start: #b71c1c; --card-bg-end: #7f0000; --card-border: #f44336; }
+.card--water { --card-bg-start: #0d47a1; --card-bg-end: #002171; --card-border: #2196f3; }
+.card--earth { --card-bg-start: #33691e; --card-bg-end: #1b5e20; --card-border: #8bc34a; }
+.card--wind { --card-bg-start: #4a148c; --card-bg-end: #311b92; --card-border: #9c27b0; }
+.card--dragon { --card-bg-start: #ff6f00; --card-bg-end: #e65100; --card-border: #ff9800; }
+
+.card__header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.card__cost,
+.card__element {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.card__cost {
+  background: rgba(0, 0, 0, 0.5);
+  color: #ffd700;
+}
+
+.card__element {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.card__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.card__name {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.2;
+}
+
+.card__name-en {
+  margin: 0.25rem 0 0;
+  font-size: 0.65rem;
+  opacity: 0.7;
+}
+
+.card__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card__score {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #ffd700;
+}
+
+.card__effect-indicator {
+  color: #ffd700;
+  font-size: 1rem;
+}
+
+/* ============================================
+   GAME SECTIONS
+   ============================================ */
+
+.single-player-game__market {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.single-player-game__field {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 1rem;
+  border-radius: 8px;
+  min-height: 200px;
+}
+
+.single-player-game__hand {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+/* ============================================
+   GAME OVER OVERLAY
+   ============================================ */
+
+.game-over-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.game-over-overlay__content {
+  background: var(--color-bg-darker, #16213e);
+  padding: 2rem 3rem;
+  border-radius: 12px;
+  text-align: center;
+  max-width: 400px;
+  width: 90%;
+  border: 2px solid var(--color-primary, #e94560);
+}
+
+.game-over-overlay__title {
+  margin: 0 0 1.5rem;
+  font-size: 2rem;
+  color: var(--color-primary, #e94560);
+}
+
+.game-over-overlay__score {
+  margin-bottom: 1.5rem;
+}
+
+.game-over-overlay__label {
+  display: block;
+  font-size: 1rem;
+  color: var(--color-text-muted, #aaa);
+  margin-bottom: 0.5rem;
+}
+
+.game-over-overlay__value {
+  font-size: 3rem;
+  font-weight: bold;
+  color: #ffd700;
+}
+
+.game-over-overlay__breakdown {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  text-align: left;
+}
+
+.game-over-overlay__breakdown h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  color: var(--color-text-muted, #aaa);
+}
+
+.game-over-overlay__breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.25rem 0;
+}
+
+.game-over-overlay__breakdown-row--total {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  font-weight: bold;
+  color: #ffd700;
+}
+
+.game-over-overlay__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.game-over-overlay__button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--color-primary, #e94560);
+  color: white;
+}
+
+.game-over-overlay__button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(233, 69, 96, 0.4);
+}
+
+.game-over-overlay__button--secondary {
+  background: var(--color-secondary, #0f3460);
+}
+
+.game-over-overlay__button--secondary:hover {
+  box-shadow: 0 4px 12px rgba(15, 52, 96, 0.4);
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 768px) {
+  .single-player-game {
+    grid-template-areas:
+      "header"
+      "main"
+      "sidebar";
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto;
+  }
+
+  .single-player-game__sidebar {
+    order: 3;
+    padding: 0.75rem;
+  }
+
+  .stone-display__grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .single-player-game__header {
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  .single-player-game__info {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+  }
+
+  .card {
+    min-width: 100px;
+    width: 100px;
+    height: 140px;
+  }
+
+  .card__name {
+    font-size: 0.75rem;
+  }
+}

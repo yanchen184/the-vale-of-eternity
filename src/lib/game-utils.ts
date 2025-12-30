@@ -1,9 +1,9 @@
 /**
- * Game utility functions for MVP 1.0
- * Based on GAME_ENGINE_SPEC.md
- * @version 1.0.0
+ * Game utility functions for Single Player Mode v3.0.0
+ * Based on GAME_FLOW.md specifications
+ * @version 3.0.0
  */
-console.log('[lib/game-utils.ts] v1.0.0 loaded')
+console.log('[lib/game-utils.ts] v3.0.0 loaded')
 
 import type { CardInstance } from '@/types/cards'
 import { Element, EffectType, CardLocation } from '@/types/cards'
@@ -81,8 +81,33 @@ export function calculateCardScore(
 ): number {
   let score = card.baseScore + card.scoreModifier
 
+  // Use new effects array format
+  for (const effect of card.effects) {
+    if (effect.trigger === 'ON_SCORE') {
+      switch (effect.type) {
+        case EffectType.EARN_PER_ELEMENT:
+          if (effect.targetElement) {
+            const elementCount = playerField.filter(
+              fieldCard => fieldCard.element === effect.targetElement
+            ).length
+            score += elementCount * (effect.value ?? 1)
+          }
+          break
+
+        case EffectType.EARN_PER_FAMILY: {
+          const dragonCount = playerField.filter(
+            fieldCard => fieldCard.element === Element.DRAGON
+          ).length
+          score += dragonCount * (effect.value ?? 2)
+          break
+        }
+      }
+    }
+  }
+
+  // Legacy support
   switch (card.effectType) {
-    case EffectType.SCORE_PER_ELEMENT:
+    case EffectType.EARN_PER_ELEMENT:
       if (card.effectTarget) {
         const elementCount = playerField.filter(
           fieldCard => fieldCard.element === card.effectTarget
@@ -91,7 +116,7 @@ export function calculateCardScore(
       }
       break
 
-    case EffectType.SCORE_PER_DRAGON: {
+    case EffectType.EARN_PER_FAMILY: {
       const dragonCount = playerField.filter(
         fieldCard => fieldCard.element === Element.DRAGON
       ).length
