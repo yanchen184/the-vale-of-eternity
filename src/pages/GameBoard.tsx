@@ -5,7 +5,7 @@
  */
 console.log('[pages/GameBoard.tsx] v1.0.0 loaded')
 
-import { useEffect, useCallback, useState } from 'react'
+import { useEffect, useCallback, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Home, RefreshCw, HelpCircle, Pause } from 'lucide-react'
 import { Button } from '@/components/ui'
@@ -363,12 +363,16 @@ export function GameBoard() {
   const [showHelpModal, setShowHelpModal] = useState(false)
   const [showPauseModal, setShowPauseModal] = useState(false)
 
-  // Initialize game if not started
+  // Track if game has been initialized
+  const hasInitialized = useRef(false)
+
+  // Initialize game if not started (only once)
   useEffect(() => {
-    if (!gameState) {
+    if (!gameState && !hasInitialized.current) {
+      hasInitialized.current = true
       startGame('Player')
     }
-  }, [gameState, startGame])
+  }, []) // Empty dependency array - run only once on mount
 
   // Clear error after 3 seconds
   useEffect(() => {
