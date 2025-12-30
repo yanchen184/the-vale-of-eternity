@@ -514,7 +514,7 @@ export function CardGallery() {
                 )}
               </div>
             ) : viewMode === 'grid' ? (
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {cardInstances.map((card, index) => (
                   <div
                     key={card.instanceId}

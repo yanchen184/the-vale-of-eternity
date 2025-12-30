@@ -16,7 +16,7 @@ import {
   type CardInstanceData,
   type GamePhase,
 } from '@/services/multiplayer-game'
-import { PlayerHand, PlayField, MarketArea, StonePool } from '@/components/game'
+import { PlayerHand, PlayField, MarketArea, StonePool, Card } from '@/components/game'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { cn } from '@/lib/utils'
@@ -327,27 +327,29 @@ function HuntingPhaseUI({ marketCards, isYourTurn, currentPlayerName, onSelectCa
         </p>
       </div>
 
-      <div className="grid grid-cols-3 lg:grid-cols-6 gap-4 justify-items-center">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 justify-items-center">
         {marketCards.map((card, index) => (
-          <button
+          <div
             key={card.instanceId}
-            onClick={() => isYourTurn && onSelectCard(card.instanceId)}
-            disabled={!isYourTurn}
             className={cn(
-              'relative p-4 rounded-xl border-2 transition-all',
+              'transition-all',
               isYourTurn
-                ? 'hover:border-blue-400 hover:bg-blue-900/30 cursor-pointer border-slate-600'
-                : 'border-slate-700 opacity-60 cursor-not-allowed'
+                ? 'hover:scale-105 cursor-pointer'
+                : 'opacity-60 cursor-not-allowed'
             )}
             data-testid={`hunting-card-${index}`}
           >
-            <div className="text-center">
-              <div className="text-lg font-bold text-slate-200">{card.name}</div>
-              <div className="text-sm text-slate-400">{card.nameTw}</div>
-              <div className="mt-2 text-amber-400">Cost: {card.cost}</div>
-              <div className="text-emerald-400">Score: {card.baseScore}</div>
-            </div>
-          </button>
+            <Card
+              card={card}
+              index={index}
+              onClick={() => isYourTurn && onSelectCard(card.instanceId)}
+              className={cn(
+                isYourTurn
+                  ? 'hover:border-blue-400 hover:shadow-blue-500/50'
+                  : ''
+              )}
+            />
+          </div>
         ))}
       </div>
     </div>

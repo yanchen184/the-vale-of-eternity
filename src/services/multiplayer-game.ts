@@ -320,8 +320,9 @@ export class MultiplayerGameService {
     })
     await set(ref(database, `games/${gameId}/cards`), cardUpdates)
 
-    // Take 6 cards for market (2 cards × player count)
-    const marketSize = 6
+    // Take cards for market (2 cards × player count)
+    // 2 players: 4 cards, 3 players: 6 cards, 4 players: 8 cards
+    const marketSize = game.playerIds.length * 2
     const marketCards = shuffledDeck.slice(0, marketSize)
     const remainingDeck = shuffledDeck.slice(marketSize)
 

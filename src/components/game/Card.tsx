@@ -1,9 +1,9 @@
 /**
  * Card Component with Image Display
  * Renders a game card with its image and stats
- * @version 2.2.0 - Enhanced cost label and element icons
+ * @version 2.3.0 - Enhanced cost label and larger element icons
  */
-console.log('[components/game/Card.tsx] v2.2.0 loaded')
+console.log('[components/game/Card.tsx] v2.3.0 loaded')
 
 import { useState, useCallback, memo } from 'react'
 import { Flame, Droplets, TreePine, Wind, Crown, Gem } from 'lucide-react'
@@ -38,10 +38,10 @@ const ELEMENT_ICON_COLORS: Record<Element, string> = {
 }
 
 const ELEMENT_ICON_SIZES: Record<string, string> = {
-  sm: 'w-4 h-4',
-  md: 'w-6 h-6',
-  lg: 'w-8 h-8',
-  xl: 'w-10 h-10',
+  sm: 'w-5 h-5',
+  md: 'w-7 h-7',
+  lg: 'w-10 h-10',
+  xl: 'w-14 h-14',
 }
 
 function ElementIcon({ element, size = 'md', className = '' }: ElementIconProps) {
@@ -319,7 +319,7 @@ export const Card = memo(function Card({
       className={`
         relative rounded-lg overflow-hidden border-2
         ${borderClass} ${bgClass}
-        w-36 h-52 flex-shrink-0 cursor-pointer
+        w-52 h-72 flex-shrink-0 cursor-pointer
         transition-all duration-200 hover:scale-105 hover:shadow-lg
         ${isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900' : ''}
         ${className}
@@ -341,10 +341,10 @@ export const Card = memo(function Card({
       <div className="absolute inset-0 flex flex-col justify-between p-2 bg-gradient-to-t from-black/90 via-black/20 to-black/60">
         {/* Header: Cost and Element */}
         <div className="flex justify-between items-start">
-          {/* Cost badge with clear label */}
-          <div className="flex items-center gap-1 bg-gradient-to-r from-slate-900/95 to-slate-800/90 text-amber-400 text-sm font-bold px-2 py-1 rounded-lg border border-amber-500/40 shadow-lg">
-            <Gem className="w-4 h-4 text-amber-300" />
-            <span>{card.cost}</span>
+          {/* Cost badge - icon and number only */}
+          <div className="flex items-center gap-1 bg-gradient-to-r from-amber-900/90 to-amber-950/90 px-2 py-1 rounded-lg border-2 border-amber-500/60 shadow-lg">
+            <Gem className="w-5 h-5 text-amber-300 drop-shadow-lg" />
+            <span className="text-lg font-bold text-amber-100 leading-none drop-shadow-lg">{card.cost}</span>
           </div>
           {/* Larger element icon with background */}
           <div className="bg-slate-900/80 p-1.5 rounded-lg border border-slate-600/50 shadow-lg">
@@ -352,18 +352,9 @@ export const Card = memo(function Card({
           </div>
         </div>
 
-        {/* Center: Score */}
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-white drop-shadow-lg">
-              {card.baseScore + card.scoreModifier}
-            </div>
-            {card.scoreModifier !== 0 && (
-              <div className={`text-xs ${card.scoreModifier > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                ({card.scoreModifier > 0 ? '+' : ''}{card.scoreModifier})
-              </div>
-            )}
-          </div>
+        {/* Center: Card Name */}
+        <div className="flex-1 flex items-center justify-center pointer-events-none">
+          {/* Empty - let the image shine through */}
         </div>
 
         {/* Footer: Name and Effect */}

@@ -28,10 +28,10 @@ export interface ImagePreviewModalProps {
   initialZoom?: number
 }
 
-// Default zoom level for card images (150%)
-const DEFAULT_ZOOM = 1.5
-// Maximum zoom level (400%)
-const MAX_ZOOM = 4
+// Default zoom level for card images (200%)
+const DEFAULT_ZOOM = 2.0
+// Maximum zoom level (500%)
+const MAX_ZOOM = 5
 // Minimum zoom level (50%)
 const MIN_ZOOM = 0.5
 
