@@ -1,0 +1,150 @@
+/**
+ * Global styles with Tailwind CSS
+ * @version 1.0.0
+ */
+
+/* Import Google Fonts for game title - must be first */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Global styles */
+  html {
+    @apply antialiased;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-slate-900 text-slate-200 min-h-screen;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Focus styles for accessibility */
+  :focus-visible {
+    @apply outline-none ring-2 ring-vale-400 ring-offset-2 ring-offset-slate-900;
+  }
+
+  /* Selection color */
+  ::selection {
+    @apply bg-vale-500/30 text-slate-100;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-slate-800;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-600 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-500;
+  }
+}
+
+@layer components {
+  /* Card styling */
+  .game-card {
+    @apply relative rounded-lg overflow-hidden transition-all duration-200;
+    @apply border-2 border-slate-600;
+    @apply bg-gradient-to-b from-slate-700 to-slate-800;
+    aspect-ratio: 2/3;
+  }
+
+  .game-card:hover {
+    @apply border-vale-400 shadow-lg shadow-vale-500/20;
+    transform: translateY(-4px);
+  }
+
+  .game-card.selected {
+    @apply border-vale-400 ring-2 ring-vale-400/50;
+  }
+
+  /* Element-specific card borders */
+  .game-card.fire {
+    @apply border-fire;
+  }
+
+  .game-card.water {
+    @apply border-water;
+  }
+
+  .game-card.earth {
+    @apply border-earth;
+  }
+
+  .game-card.wind {
+    @apply border-slate-400;
+  }
+
+  /* Button hover effects */
+  .btn-glow:hover {
+    @apply shadow-lg shadow-vale-500/30;
+  }
+
+  /* Glass effect */
+  .glass {
+    @apply bg-slate-800/50 backdrop-blur-sm border border-slate-700/50;
+  }
+
+  /* Gradient text */
+  .text-gradient {
+    @apply text-transparent bg-clip-text bg-gradient-to-r from-vale-400 to-purple-400;
+  }
+}
+
+@layer utilities {
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Animation utilities */
+  .animate-delay-100 {
+    animation-delay: 100ms;
+  }
+
+  .animate-delay-200 {
+    animation-delay: 200ms;
+  }
+
+  .animate-delay-300 {
+    animation-delay: 300ms;
+  }
+
+  /* Card flip animation */
+  .card-flip-inner {
+    transform-style: preserve-3d;
+    transition: transform 0.6s;
+  }
+
+  .card-flip-inner.flipped {
+    transform: rotateY(180deg);
+  }
+
+  .card-front,
+  .card-back {
+    backface-visibility: hidden;
+  }
+
+  .card-back {
+    transform: rotateY(180deg);
+  }
+}

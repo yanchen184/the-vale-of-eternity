@@ -1,0 +1,1404 @@
+{
+  "version": "2.0.0",
+  "totalCards": 70,
+  "cards": {
+    "F001": {
+      "name": "Hestia",
+      "nameTw": "赫斯提亞",
+      "cost": 0,
+      "score": 0,
+      "element": "FIRE",
+      "effects": [
+        {
+          "type": "PERMANENT",
+          "effectType": "INCREASE_STONE_LIMIT",
+          "description": "Your stone limit increases by 2.",
+          "descriptionTw": "你的石頭上限增加 2。",
+          "value": 2,
+          "target": null
+        }
+      ],
+      "flavorText": "Guardian of hearth and home.",
+      "flavorTextTw": "家與爐火的守護者，賜予你更多承載力量的空間。",
+      "imageUrl": "200px-Hestia.webp",
+      "imageExists": true
+    },
+    "F002": {
+      "name": "Imp",
+      "nameTw": "小惡魔",
+      "cost": 1,
+      "score": 2,
+      "element": "FIRE",
+      "effects": [],
+      "flavorText": "Small but mischievous.",
+      "flavorTextTw": "頑皮的火焰精靈，雖然弱小但忠誠。",
+      "imageUrl": "200px-Imp.webp",
+      "imageExists": true
+    },
+    "F003": {
+      "name": "Succubus",
+      "nameTw": "魅魔",
+      "cost": 1,
+      "score": 1,
+      "element": "FIRE",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "STEAL_STONES",
+          "description": "When tamed, steal 1 stone from an opponent.",
+          "descriptionTw": "馴服時，從對手偷取 1 顆石頭。",
+          "value": 1,
+          "target": null
+        }
+      ],
+      "flavorText": "Beauty can be deceiving.",
+      "flavorTextTw": "魅惑人心的惡魔，從他人處奪取力量。",
+      "imageUrl": "200px-Succubus.webp",
+      "imageExists": true
+    },
+    "F004": {
+      "name": "Firefox",
+      "nameTw": "火狐",
+      "cost": 2,
+      "score": 3,
+      "element": "FIRE",
+      "effects": [
+        {
+          "type": "SCORING",
+          "effectType": "SCORE_PER_ELEMENT",
+          "description": "Score +1 for each Fire card you have.",
+          "descriptionTw": "你的每張火卡額外 +1 分。",
+          "value": 1,
+          "target": "FIRE"
+        }
+      ],
+      "flavorText": "Nine tails blaze in the night.",
+      "flavorTextTw": "九尾之火在夜空中閃耀，照亮同族的榮光。",
+      "imageUrl": "200px-Firefox.webp",
+      "imageExists": true
+    },
+    "F005": {
+      "name": "Salamander",
+      "nameTw": "火蜥蜴",
+      "cost": 2,
+      "score": 2,
+      "element": "FIRE",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "GAIN_STONES",
+          "description": "When tamed, gain 2 stones.",
+          "descriptionTw": "馴服時，獲得 2 顆石頭。",
+          "value": 2,
+          "target": null
+        }
+      ],
+      "flavorText": "Born from the flames themselves.",
+      "flavorTextTw": "火焰的化身，將熾熱轉化為可用的能量。",
+      "imageUrl": "200px-Salamander.webp",
+      "imageExists": true
+    },
+    "F006": {
+      "name": "Horned Salamander",
+      "nameTw": "角火蜥蜴",
+      "cost": 3,
+      "score": 4,
+      "element": "FIRE",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "GAIN_STONES",
+          "description": "When tamed, gain 3 stones.",
+          "descriptionTw": "馴服時，獲得 3 顆石頭。",
+          "value": 3,
+          "target": null
+        }
+      ],
+      "flavorText": "Ancient and powerful.",
+      "flavorTextTw": "比普通火蜥蜴更加強大的古老存在。",
+      "imageUrl": "200px-Hornedsalamander.webp",
+      "imageExists": true
+    },
+    "F007": {
+      "name": "Ifrit",
+      "nameTw": "伊夫利特",
+      "cost": 3,
+      "score": 4,
+      "element": "FIRE",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "OPPONENT_DISCARD",
+          "description": "When tamed, opponent discards 1 card from hand.",
+          "descriptionTw": "馴服時，對手棄掉手牌中的 1 張卡。",
+          "value": 1,
+          "target": null
+        }
+      ],
+      "flavorText": "Djinn of flames.",
+      "flavorTextTw": "火焰精靈王，令敵人恐懼。",
+      "imageUrl": "200px-Ifrit.webp",
+      "imageExists": true
+    },
+    "F008": {
+      "name": "Incubus",
+      "nameTw": "夢魔",
+      "cost": 3,
+      "score": 3,
+      "element": "FIRE",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "STEAL_STONES",
+          "description": "When tamed, steal 2 stones from an opponent.",
+          "descriptionTw": "馴服時，從對手偷取 2 顆石頭。",
+          "value": 2,
+          "target": null
+        }
+      ],
+      "flavorText": "Haunter of dreams.",
+      "flavorTextTw": "潛入夢境的惡魔，掠奪沉睡者的力量。",
+      "imageUrl": "200px-Incubus.webp",
+      "imageExists": true
+    },
+    "F009": {
+      "name": "Burning Skull",
+      "nameTw": "燃燒骷髏",
+      "cost": 4,
+      "score": 5,
+      "element": "FIRE",
+      "effects": [
+        {
+          "type": "SCORING",
+          "effectType": "SCORE_PER_ELEMENT",
+          "description": "Score +1 for each Fire card you have.",
+          "descriptionTw": "你的每張火卡額外 +1 分。",
+          "value": 1,
+          "target": "FIRE"
+        }
+      ],
+      "flavorText": "Flames of vengeance.",
+      "flavorTextTw": "不滅的復仇之火，永遠燃燒。",
+      "imageUrl": "200px-Burningskull.webp",
+      "imageExists": true
+    },
+    "F010": {
+      "name": "Lava Giant",
+      "nameTw": "熔岩巨人",
+      "cost": 4,
+      "score": 6,
+      "element": "FIRE",
+      "effects": [],
+      "flavorText": "Molten rock given form.",
+      "flavorTextTw": "由熔岩凝聚而成的巨大存在。",
+      "imageUrl": "200px-Lavagiant.webp",
+      "imageExists": true
+    },
+    "F011": {
+      "name": "Phoenix",
+      "nameTw": "鳳凰",
+      "cost": 4,
+      "score": 4,
+      "element": "FIRE",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "DRAW_FROM_DISCARD",
+          "description": "When tamed, return 1 card from discard to hand.",
+          "descriptionTw": "馴服時，從棄牌堆取回 1 張卡到手牌。",
+          "value": 1,
+          "target": null
+        }
+      ],
+      "flavorText": "Rising from ashes.",
+      "flavorTextTw": "從灰燼中重生的不死鳥。",
+      "imageUrl": "200px-Phoenix.webp",
+      "imageExists": true
+    },
+    "F012": {
+      "name": "Agni",
+      "nameTw": "阿耆尼",
+      "cost": 5,
+      "score": 6,
+      "element": "FIRE",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "GAIN_STONES",
+          "description": "When tamed, gain 4 stones.",
+          "descriptionTw": "馴服時，獲得 4 顆石頭。",
+          "value": 4,
+          "target": null
+        }
+      ],
+      "flavorText": "God of fire.",
+      "flavorTextTw": "印度神話中的火神，帶來豐饒的祝福。",
+      "imageUrl": "200px-Agni.webp",
+      "imageExists": true
+    },
+    "F013": {
+      "name": "Asmodeus",
+      "nameTw": "阿斯莫德",
+      "cost": 5,
+      "score": 5,
+      "element": "FIRE",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "STEAL_STONES",
+          "description": "When tamed, steal 3 stones from an opponent.",
+          "descriptionTw": "馴服時，從對手偷取 3 顆石頭。",
+          "value": 3,
+          "target": null
+        }
+      ],
+      "flavorText": "Prince of demons.",
+      "flavorTextTw": "七宗罪之一的惡魔王子，代表慾望。",
+      "imageUrl": "200px-Asmodeus.webp",
+      "imageExists": true
+    },
+    "F014": {
+      "name": "Balog",
+      "nameTw": "巴洛格",
+      "cost": 6,
+      "score": 8,
+      "element": "FIRE",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "OPPONENT_DISCARD",
+          "description": "When tamed, opponent discards 2 cards from hand.",
+          "descriptionTw": "馴服時，對手棄掉手牌中的 2 張卡。",
+          "value": 2,
+          "target": null
+        }
+      ],
+      "flavorText": "Demon of shadow and flame.",
+      "flavorTextTw": "影與火焰的惡魔，深淵的恐怖。",
+      "imageUrl": "200px-Balog.webp",
+      "imageExists": true
+    },
+    "F015": {
+      "name": "Surtr",
+      "nameTw": "蘇爾特爾",
+      "cost": 6,
+      "score": 7,
+      "element": "FIRE",
+      "effects": [
+        {
+          "type": "SCORING",
+          "effectType": "SCORE_PER_ELEMENT",
+          "description": "Score +2 for each Fire card you have.",
+          "descriptionTw": "你的每張火卡額外 +2 分。",
+          "value": 2,
+          "target": "FIRE"
+        }
+      ],
+      "flavorText": "Bringer of Ragnarok.",
+      "flavorTextTw": "北歐神話中的火焰巨人之王，諸神黃昏的先驅。",
+      "imageUrl": "200px-Surtr.webp",
+      "imageExists": true
+    },
+    "W001": {
+      "name": "Yuki Onna",
+      "nameTw": "雪女",
+      "cost": 0,
+      "score": 0,
+      "element": "WATER",
+      "effects": [
+        {
+          "type": "PERMANENT",
+          "effectType": "INCREASE_STONE_LIMIT",
+          "description": "Your stone limit increases by 2.",
+          "descriptionTw": "你的石頭上限增加 2。",
+          "value": 2,
+          "target": null
+        }
+      ],
+      "flavorText": "Spirit of the frozen wastes.",
+      "flavorTextTw": "冰雪中的幽靈美人，帶來寒冬的祝福。",
+      "imageUrl": "200px-Yukionna.webp",
+      "imageExists": true
+    },
+    "W002": {
+      "name": "Kappa",
+      "nameTw": "河童",
+      "cost": 1,
+      "score": 2,
+      "element": "WATER",
+      "effects": [],
+      "flavorText": "Mischievous river spirit.",
+      "flavorTextTw": "棲息於河川的古老妖怪，頭頂之水是力量的泉源。",
+      "imageUrl": "200px-Kappa.webp",
+      "imageExists": true
+    },
+    "W003": {
+      "name": "Sea Spirit",
+      "nameTw": "海之靈",
+      "cost": 1,
+      "score": 1,
+      "element": "WATER",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "DRAW_FROM_DECK",
+          "description": "When tamed, draw 1 card from deck.",
+          "descriptionTw": "馴服時，從牌庫抽 1 張卡。",
+          "value": 1,
+          "target": null
+        }
+      ],
+      "flavorText": "Whispers of the deep.",
+      "flavorTextTw": "深海的記憶守護者，傳遞海洋的知識。",
+      "imageUrl": "200px-Seaspirit.webp",
+      "imageExists": true
+    },
+    "W004": {
+      "name": "Undine",
+      "nameTw": "水精靈",
+      "cost": 2,
+      "score": 3,
+      "element": "WATER",
+      "effects": [
+        {
+          "type": "SCORING",
+          "effectType": "SCORE_PER_ELEMENT",
+          "description": "Score +1 for each Water card you have.",
+          "descriptionTw": "你的每張水卡額外 +1 分。",
+          "value": 1,
+          "target": "WATER"
+        }
+      ],
+      "flavorText": "Grace of flowing water.",
+      "flavorTextTw": "水的化身，流動的優雅蘊含著純淨的力量。",
+      "imageUrl": "200px-Undine.webp",
+      "imageExists": true
+    },
+    "W005": {
+      "name": "Nessie",
+      "nameTw": "尼斯湖水怪",
+      "cost": 2,
+      "score": 3,
+      "element": "WATER",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "PEEK_DECK",
+          "description": "When tamed, look at top 3 cards of deck.",
+          "descriptionTw": "馴服時，查看牌庫頂端 3 張卡。",
+          "value": 3,
+          "target": null
+        }
+      ],
+      "flavorText": "Elusive legend of the lake.",
+      "flavorTextTw": "湖中的神秘生物，窺視未來的奧秘。",
+      "imageUrl": "200px-Nessie.webp",
+      "imageExists": true
+    },
+    "W006": {
+      "name": "Hae-tae",
+      "nameTw": "獬豸",
+      "cost": 3,
+      "score": 4,
+      "element": "WATER",
+      "effects": [
+        {
+          "type": "PERMANENT",
+          "effectType": "PROTECTION",
+          "description": "Protects from opponent steal effects.",
+          "descriptionTw": "保護你免受對手的偷取效果。",
+          "value": null,
+          "target": null
+        }
+      ],
+      "flavorText": "Guardian of justice.",
+      "flavorTextTw": "正義的守護獸，保護主人免受邪惡侵害。",
+      "imageUrl": "200px-Hae-tae.webp",
+      "imageExists": true
+    },
+    "W007": {
+      "name": "Snail Maiden",
+      "nameTw": "蝸牛姑娘",
+      "cost": 3,
+      "score": 3,
+      "element": "WATER",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "GAIN_STONES",
+          "description": "When tamed, gain 3 stones.",
+          "descriptionTw": "馴服時，獲得 3 顆石頭。",
+          "value": 3,
+          "target": null
+        }
+      ],
+      "flavorText": "Gentle spirit of the shore.",
+      "flavorTextTw": "溫柔的海岸精靈，緩慢但穩定地積累力量。",
+      "imageUrl": "200px-Snailmaiden.webp",
+      "imageExists": true
+    },
+    "W008": {
+      "name": "Undine Queen",
+      "nameTw": "水精靈女王",
+      "cost": 3,
+      "score": 4,
+      "element": "WATER",
+      "effects": [
+        {
+          "type": "SCORING",
+          "effectType": "SCORE_PER_ELEMENT",
+          "description": "Score +1 for each Water card you have.",
+          "descriptionTw": "你的每張水卡額外 +1 分。",
+          "value": 1,
+          "target": "WATER"
+        }
+      ],
+      "flavorText": "Ruler of water spirits.",
+      "flavorTextTw": "統領所有水精靈的女王，水之力量的化身。",
+      "imageUrl": "200px-Undinequeen.webp",
+      "imageExists": true
+    },
+    "W009": {
+      "name": "Yuki Onna Exalted",
+      "nameTw": "崇高雪女",
+      "cost": 4,
+      "score": 5,
+      "element": "WATER",
+      "effects": [
+        {
+          "type": "PERMANENT",
+          "effectType": "INCREASE_STONE_LIMIT",
+          "description": "Your stone limit increases by 3.",
+          "descriptionTw": "你的石頭上限增加 3。",
+          "value": 3,
+          "target": null
+        }
+      ],
+      "flavorText": "Ascended spirit of winter.",
+      "flavorTextTw": "超越凡俗的冰雪女神，賜予無限的容量。",
+      "imageUrl": "200px-Yukionnaexalted.webp",
+      "imageExists": true
+    },
+    "W010": {
+      "name": "Hydra",
+      "nameTw": "九頭蛇",
+      "cost": 4,
+      "score": 5,
+      "element": "WATER",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "DRAW_FROM_DISCARD",
+          "description": "When tamed, return 2 cards from discard to hand.",
+          "descriptionTw": "馴服時，從棄牌堆取回 2 張卡到手牌。",
+          "value": 2,
+          "target": null
+        }
+      ],
+      "flavorText": "Cut one head, two grow back.",
+      "flavorTextTw": "砍掉一個頭，會長出兩個，永不消亡的怪獸。",
+      "imageUrl": "200px-Hydra.webp",
+      "imageExists": true
+    },
+    "W011": {
+      "name": "Leviathan",
+      "nameTw": "利維坦",
+      "cost": 4,
+      "score": 6,
+      "element": "WATER",
+      "effects": [],
+      "flavorText": "Beast of the abyss.",
+      "flavorTextTw": "深淵的巨獸，海洋的霸主。",
+      "imageUrl": "200px-Leviathan.webp",
+      "imageExists": true
+    },
+    "W012": {
+      "name": "Triton",
+      "nameTw": "特里同",
+      "cost": 5,
+      "score": 6,
+      "element": "WATER",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "DRAW_FROM_DECK",
+          "description": "When tamed, draw 2 cards from deck.",
+          "descriptionTw": "馴服時，從牌庫抽 2 張卡。",
+          "value": 2,
+          "target": null
+        }
+      ],
+      "flavorText": "Messenger of the sea.",
+      "flavorTextTw": "海神的使者，吹響海螺召喚潮汐。",
+      "imageUrl": "200px-Triton.webp",
+      "imageExists": true
+    },
+    "W013": {
+      "name": "Water Giant",
+      "nameTw": "水巨人",
+      "cost": 5,
+      "score": 7,
+      "element": "WATER",
+      "effects": [],
+      "flavorText": "Living tsunami.",
+      "flavorTextTw": "由海水凝聚而成的巨大存在。",
+      "imageUrl": "200px-Watergiant.webp",
+      "imageExists": true
+    },
+    "W014": {
+      "name": "Charybdis",
+      "nameTw": "卡律布狄斯",
+      "cost": 6,
+      "score": 7,
+      "element": "WATER",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "RETURN_TO_HAND",
+          "description": "When tamed, return 1 opponent field card to their hand.",
+          "descriptionTw": "馴服時，將對手場上 1 張卡送回其手牌。",
+          "value": 1,
+          "target": null
+        }
+      ],
+      "flavorText": "The great whirlpool.",
+      "flavorTextTw": "吞噬一切的大漩渦，連船隻都無法逃脫。",
+      "imageUrl": "200px-Charybdis.webp",
+      "imageExists": true
+    },
+    "W015": {
+      "name": "Poseidon",
+      "nameTw": "波賽頓",
+      "cost": 6,
+      "score": 7,
+      "element": "WATER",
+      "effects": [
+        {
+          "type": "SCORING",
+          "effectType": "SCORE_PER_ELEMENT",
+          "description": "Score +2 for each Water card you have.",
+          "descriptionTw": "你的每張水卡額外 +2 分。",
+          "value": 2,
+          "target": "WATER"
+        }
+      ],
+      "flavorText": "God of the seas.",
+      "flavorTextTw": "希臘神話中的海神，統御所有海洋生物。",
+      "imageUrl": "200px-Poseidon.webp",
+      "imageExists": true
+    },
+    "E001": {
+      "name": "Young Forest Spirit",
+      "nameTw": "幼年森靈",
+      "cost": 0,
+      "score": 1,
+      "element": "EARTH",
+      "effects": [],
+      "flavorText": "Newly awakened from the ancient tree.",
+      "flavorTextTw": "剛從古樹中誕生的精靈，帶著森林的祝福。",
+      "imageUrl": "200px-Youngforestspirit.webp",
+      "imageExists": true
+    },
+    "E003": {
+      "name": "Goblin",
+      "nameTw": "哥布林",
+      "cost": 1,
+      "score": 2,
+      "element": "EARTH",
+      "effects": [],
+      "flavorText": "Small but cunning.",
+      "flavorTextTw": "洞穴中的小矮人，貪婪但意外地好用。",
+      "imageUrl": "200px-Goblin.webp",
+      "imageExists": true
+    },
+    "E004": {
+      "name": "Mud Slime",
+      "nameTw": "泥漿史萊姆",
+      "cost": 1,
+      "score": 1,
+      "element": "EARTH",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "GAIN_STONES",
+          "description": "When tamed, gain 1 stone.",
+          "descriptionTw": "馴服時，獲得 1 顆石頭。",
+          "value": 1,
+          "target": null
+        }
+      ],
+      "flavorText": "Sticky but useful.",
+      "flavorTextTw": "黏糊糊的泥巴生物，體內藏有寶石。",
+      "imageUrl": "200px-Mudslime.webp",
+      "imageExists": true
+    },
+    "E005": {
+      "name": "Forest Spirit",
+      "nameTw": "森林精靈",
+      "cost": 2,
+      "score": 3,
+      "element": "EARTH",
+      "effects": [
+        {
+          "type": "SCORING",
+          "effectType": "SCORE_PER_ELEMENT",
+          "description": "Score +1 for each Earth card you have.",
+          "descriptionTw": "你的每張土卡額外 +1 分。",
+          "value": 1,
+          "target": "EARTH"
+        }
+      ],
+      "flavorText": "Guardian of the grove.",
+      "flavorTextTw": "古老森林的守護者，與大地共鳴。",
+      "imageUrl": "200px-Forestspirit.webp",
+      "imageExists": true
+    },
+    "E006": {
+      "name": "Gargoyle",
+      "nameTw": "石像鬼",
+      "cost": 2,
+      "score": 3,
+      "element": "EARTH",
+      "effects": [
+        {
+          "type": "PERMANENT",
+          "effectType": "PROTECTION",
+          "description": "Protects from opponent discard effects.",
+          "descriptionTw": "保護你免受對手的棄牌效果。",
+          "value": null,
+          "target": null
+        }
+      ],
+      "flavorText": "Stone guardian awakened.",
+      "flavorTextTw": "沉睡於古堡的石獸，覺醒時堅不可摧。",
+      "imageUrl": "200px-Gargoyle.webp",
+      "imageExists": true
+    },
+    "E007": {
+      "name": "Basilisk",
+      "nameTw": "蛇怪",
+      "cost": 3,
+      "score": 4,
+      "element": "EARTH",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "OPPONENT_DISCARD",
+          "description": "When tamed, opponent discards 1 card from hand.",
+          "descriptionTw": "馴服時，對手棄掉手牌中的 1 張卡。",
+          "value": 1,
+          "target": null
+        }
+      ],
+      "flavorText": "Its gaze turns flesh to stone.",
+      "flavorTextTw": "凝視即化為石像的恐怖蛇王。",
+      "imageUrl": "200px-Basilisk.webp",
+      "imageExists": true
+    },
+    "E008": {
+      "name": "Troll",
+      "nameTw": "巨魔",
+      "cost": 3,
+      "score": 5,
+      "element": "EARTH",
+      "effects": [],
+      "flavorText": "Beware the bridge.",
+      "flavorTextTw": "橋下的恐怖，力大無窮的巨魔。",
+      "imageUrl": "200px-Troll.webp",
+      "imageExists": true
+    },
+    "E009": {
+      "name": "Goblin Soldier",
+      "nameTw": "哥布林士兵",
+      "cost": 3,
+      "score": 3,
+      "element": "EARTH",
+      "effects": [
+        {
+          "type": "SCORING",
+          "effectType": "SCORE_PER_ELEMENT",
+          "description": "Score +1 for each Earth card you have.",
+          "descriptionTw": "你的每張土卡額外 +1 分。",
+          "value": 1,
+          "target": "EARTH"
+        }
+      ],
+      "flavorText": "Armed and dangerous.",
+      "flavorTextTw": "受過訓練的哥布林戰士，團結就是力量。",
+      "imageUrl": "200px-Goblinsoldier.webp",
+      "imageExists": true
+    },
+    "E010": {
+      "name": "Medusa",
+      "nameTw": "美杜莎",
+      "cost": 4,
+      "score": 5,
+      "element": "EARTH",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "RETURN_TO_HAND",
+          "description": "When tamed, return 1 opponent field card to their hand.",
+          "descriptionTw": "馴服時，將對手場上 1 張卡送回其手牌。",
+          "value": 1,
+          "target": null
+        }
+      ],
+      "flavorText": "Do not meet her gaze.",
+      "flavorTextTw": "蛇髮女妖，凝視者將化為石像。",
+      "imageUrl": "200px-Medusa.webp",
+      "imageExists": true
+    },
+    "E011": {
+      "name": "Cerberus",
+      "nameTw": "地獄犬",
+      "cost": 4,
+      "score": 5,
+      "element": "EARTH",
+      "effects": [
+        {
+          "type": "PERMANENT",
+          "effectType": "PROTECTION",
+          "description": "Protects all your cards from being returned to hand.",
+          "descriptionTw": "保護你所有的卡片不會被送回手牌。",
+          "value": null,
+          "target": null
+        }
+      ],
+      "flavorText": "Guardian of the underworld.",
+      "flavorTextTw": "守護冥界入口的三頭犬。",
+      "imageUrl": "200px-Cerberus.webp",
+      "imageExists": true
+    },
+    "E012": {
+      "name": "Mimic",
+      "nameTw": "擬態怪",
+      "cost": 4,
+      "score": 3,
+      "element": "EARTH",
+      "effects": [
+        {
+          "type": "PERMANENT",
+          "effectType": "COPY_ABILITY",
+          "description": "Copy the ability of another card on your field.",
+          "descriptionTw": "複製你場上另一張卡的能力。",
+          "value": null,
+          "target": null
+        }
+      ],
+      "flavorText": "It could be anything.",
+      "flavorTextTw": "偽裝成寶箱的怪物，能模仿任何能力。",
+      "imageUrl": "200px-Mimic.webp",
+      "imageExists": true
+    },
+    "E013": {
+      "name": "Rock Golem",
+      "nameTw": "岩石魔像",
+      "cost": 5,
+      "score": 7,
+      "element": "EARTH",
+      "effects": [],
+      "flavorText": "Animated stone.",
+      "flavorTextTw": "由魔法賦予生命的岩石巨人。",
+      "imageUrl": "200px-Rockgolem.webp",
+      "imageExists": true
+    },
+    "E014": {
+      "name": "Stone Golem",
+      "nameTw": "石魔像",
+      "cost": 5,
+      "score": 6,
+      "element": "EARTH",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "GAIN_STONES",
+          "description": "When tamed, gain 4 stones.",
+          "descriptionTw": "馴服時，獲得 4 顆石頭。",
+          "value": 4,
+          "target": null
+        }
+      ],
+      "flavorText": "Heart of precious gems.",
+      "flavorTextTw": "體內蘊含珍貴寶石的石像巨人。",
+      "imageUrl": "200px-Stonegolem.webp",
+      "imageExists": true
+    },
+    "E015": {
+      "name": "Behemoth",
+      "nameTw": "貝希摩斯",
+      "cost": 6,
+      "score": 8,
+      "element": "EARTH",
+      "effects": [],
+      "flavorText": "First beast of the land.",
+      "flavorTextTw": "陸地上最強大的巨獸，無可匹敵。",
+      "imageUrl": "200px-Behemoth.webp",
+      "imageExists": true
+    },
+    "E016": {
+      "name": "Sand Giant",
+      "nameTw": "沙漠巨人",
+      "cost": 6,
+      "score": 7,
+      "element": "EARTH",
+      "effects": [
+        {
+          "type": "SCORING",
+          "effectType": "SCORE_PER_ELEMENT",
+          "description": "Score +2 for each Earth card you have.",
+          "descriptionTw": "你的每張土卡額外 +2 分。",
+          "value": 2,
+          "target": "EARTH"
+        }
+      ],
+      "flavorText": "Lord of the dunes.",
+      "flavorTextTw": "沙漠的主宰，由無數沙粒凝聚而成。",
+      "imageUrl": "200px-Sandgiant.webp",
+      "imageExists": true
+    },
+    "A015": {
+      "name": "Dandelion Spirit",
+      "nameTw": "蒲公英精靈",
+      "cost": 0,
+      "score": 0,
+      "element": "WIND",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "DRAW_FROM_DECK",
+          "description": "When tamed, draw 1 card from deck.",
+          "descriptionTw": "馴服時，從牌庫抽 1 張卡。",
+          "value": 1,
+          "target": null
+        }
+      ],
+      "flavorText": "Seeds of hope carried by wind.",
+      "flavorTextTw": "隨風飄散的希望種子，帶來新的可能。",
+      "imageUrl": "200px-Dandelionspirit.webp",
+      "imageExists": true
+    },
+    "A001": {
+      "name": "Harpy",
+      "nameTw": "鷹身女妖",
+      "cost": 1,
+      "score": 2,
+      "element": "WIND",
+      "effects": [],
+      "flavorText": "Swift and deadly.",
+      "flavorTextTw": "風暴中的掠食者，尖銳的叫聲劃破天際。",
+      "imageUrl": "200px-Harpy.webp",
+      "imageExists": true
+    },
+    "A002": {
+      "name": "Pegasus",
+      "nameTw": "飛馬",
+      "cost": 1,
+      "score": 1,
+      "element": "WIND",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "GAIN_STONES",
+          "description": "When tamed, gain 1 stone.",
+          "descriptionTw": "馴服時，獲得 1 顆石頭。",
+          "value": 1,
+          "target": null
+        }
+      ],
+      "flavorText": "Divine steed of the gods.",
+      "flavorTextTw": "翱翔於雲端的神駒，帶來天界的饋贈。",
+      "imageUrl": "200px-Pegasus.webp",
+      "imageExists": true
+    },
+    "A003": {
+      "name": "Tengu",
+      "nameTw": "天狗",
+      "cost": 2,
+      "score": 3,
+      "element": "WIND",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "DRAW_FROM_DECK",
+          "description": "When tamed, draw 1 card from deck.",
+          "descriptionTw": "馴服時，從牌庫抽 1 張卡。",
+          "value": 1,
+          "target": null
+        }
+      ],
+      "flavorText": "Master of the mountain winds.",
+      "flavorTextTw": "山間的長鼻妖怪，操控風的大師。",
+      "imageUrl": "200px-Tengu.webp",
+      "imageExists": true
+    },
+    "A004": {
+      "name": "Boreas",
+      "nameTw": "波瑞阿斯",
+      "cost": 2,
+      "score": 2,
+      "element": "WIND",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "RETURN_TO_HAND",
+          "description": "When tamed, return 1 card from your field to hand.",
+          "descriptionTw": "馴服時，將你場上 1 張卡送回手牌。",
+          "value": 1,
+          "target": null
+        }
+      ],
+      "flavorText": "North wind incarnate.",
+      "flavorTextTw": "北風之神，能召回你派出的夥伴。",
+      "imageUrl": "200px-Boreas.webp",
+      "imageExists": true
+    },
+    "A005": {
+      "name": "Genie",
+      "nameTw": "精靈",
+      "cost": 3,
+      "score": 4,
+      "element": "WIND",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "GAIN_STONES",
+          "description": "When tamed, gain 3 stones.",
+          "descriptionTw": "馴服時，獲得 3 顆石頭。",
+          "value": 3,
+          "target": null
+        }
+      ],
+      "flavorText": "Your wish is my command.",
+      "flavorTextTw": "來自神燈的精靈，實現你的願望。",
+      "imageUrl": "200px-Genie.webp",
+      "imageExists": true
+    },
+    "A006": {
+      "name": "Hippogriff",
+      "nameTw": "駿鷹",
+      "cost": 3,
+      "score": 4,
+      "element": "WIND",
+      "effects": [
+        {
+          "type": "SCORING",
+          "effectType": "SCORE_PER_ELEMENT",
+          "description": "Score +1 for each Wind card you have.",
+          "descriptionTw": "你的每張風卡額外 +1 分。",
+          "value": 1,
+          "target": "WIND"
+        }
+      ],
+      "flavorText": "Half eagle, half horse.",
+      "flavorTextTw": "鷹與馬的結合體，高貴而迅捷。",
+      "imageUrl": "200px-Hippogriff.webp",
+      "imageExists": true
+    },
+    "A007": {
+      "name": "Sylph",
+      "nameTw": "風精靈",
+      "cost": 3,
+      "score": 3,
+      "element": "WIND",
+      "effects": [
+        {
+          "type": "SCORING",
+          "effectType": "SCORE_PER_ELEMENT",
+          "description": "Score +1 for each Wind card you have.",
+          "descriptionTw": "你的每張風卡額外 +1 分。",
+          "value": 1,
+          "target": "WIND"
+        }
+      ],
+      "flavorText": "Dance upon the breeze.",
+      "flavorTextTw": "微風中的舞者，聚集同伴的力量。",
+      "imageUrl": "200px-Sylph.webp",
+      "imageExists": true
+    },
+    "A008": {
+      "name": "Genie Exalted",
+      "nameTw": "崇高精靈",
+      "cost": 4,
+      "score": 5,
+      "element": "WIND",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "GAIN_STONES",
+          "description": "When tamed, gain 4 stones.",
+          "descriptionTw": "馴服時，獲得 4 顆石頭。",
+          "value": 4,
+          "target": null
+        }
+      ],
+      "flavorText": "Unlimited power!",
+      "flavorTextTw": "超越凡俗的精靈，能實現更大的願望。",
+      "imageUrl": "200px-Genieexalted.webp",
+      "imageExists": true
+    },
+    "A009": {
+      "name": "Valkyrie",
+      "nameTw": "女武神",
+      "cost": 4,
+      "score": 5,
+      "element": "WIND",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "DRAW_FROM_DISCARD",
+          "description": "When tamed, return 1 card from discard to hand.",
+          "descriptionTw": "馴服時，從棄牌堆取回 1 張卡到手牌。",
+          "value": 1,
+          "target": null
+        }
+      ],
+      "flavorText": "Chooser of the slain.",
+      "flavorTextTw": "選擇英靈的戰士女神，帶回逝去的勇者。",
+      "imageUrl": "200px-Valkyrie.webp",
+      "imageExists": true
+    },
+    "A010": {
+      "name": "Griffon",
+      "nameTw": "獅鷲",
+      "cost": 4,
+      "score": 6,
+      "element": "WIND",
+      "effects": [],
+      "flavorText": "King of all creatures.",
+      "flavorTextTw": "獅子與鷹的結合，萬獸之王。",
+      "imageUrl": "200px-Griffon.webp",
+      "imageExists": true
+    },
+    "A011": {
+      "name": "Odin",
+      "nameTw": "奧丁",
+      "cost": 5,
+      "score": 6,
+      "element": "WIND",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "PEEK_DECK",
+          "description": "When tamed, look at top 5 cards of deck and reorder them.",
+          "descriptionTw": "馴服時，查看牌庫頂端 5 張卡並重新排列。",
+          "value": 5,
+          "target": null
+        }
+      ],
+      "flavorText": "All-Father, seeker of wisdom.",
+      "flavorTextTw": "北歐眾神之父，為智慧獻出一切。",
+      "imageUrl": "200px-Odin.webp",
+      "imageExists": true
+    },
+    "A012": {
+      "name": "Freyja",
+      "nameTw": "芙蕾雅",
+      "cost": 5,
+      "score": 6,
+      "element": "WIND",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "DRAW_FROM_DECK",
+          "description": "When tamed, draw 2 cards from deck.",
+          "descriptionTw": "馴服時，從牌庫抽 2 張卡。",
+          "value": 2,
+          "target": null
+        }
+      ],
+      "flavorText": "Goddess of love and war.",
+      "flavorTextTw": "愛與戰爭的女神，統御華納神族。",
+      "imageUrl": "200px-Freyja.webp",
+      "imageExists": true
+    },
+    "A013": {
+      "name": "Rudra",
+      "nameTw": "樓陀羅",
+      "cost": 6,
+      "score": 7,
+      "element": "WIND",
+      "effects": [
+        {
+          "type": "INSTANT",
+          "effectType": "OPPONENT_DISCARD",
+          "description": "When tamed, opponent discards 2 cards from hand.",
+          "descriptionTw": "馴服時，對手棄掉手牌中的 2 張卡。",
+          "value": 2,
+          "target": null
+        }
+      ],
+      "flavorText": "God of storms and destruction.",
+      "flavorTextTw": "風暴與毀滅之神，印度神話中的原始力量。",
+      "imageUrl": "200px-Rudra.webp",
+      "imageExists": true
+    },
+    "A014": {
+      "name": "Gi-rin",
+      "nameTw": "麒麟",
+      "cost": 6,
+      "score": 7,
+      "element": "WIND",
+      "effects": [
+        {
+          "type": "SCORING",
+          "effectType": "SCORE_PER_ELEMENT",
+          "description": "Score +2 for each Wind card you have.",
+          "descriptionTw": "你的每張風卡額外 +2 分。",
+          "value": 2,
+          "target": "WIND"
+        }
+      ],
+      "flavorText": "Auspicious beast of the east.",
+      "flavorTextTw": "祥瑞之獸，只在聖人出現時降臨人間。",
+      "imageUrl": "200px-Gi-rin.webp",
+      "imageExists": true
+    },
+    "D001": {
+      "name": "Dragon Egg",
+      "nameTw": "龍蛋",
+      "cost": 0,
+      "score": 0,
+      "element": "DRAGON",
+      "effects": [
+        {
+          "type": "SCORING",
+          "effectType": "SCORE_PER_DRAGON",
+          "description": "Score +2 for each Dragon card you have.",
+          "descriptionTw": "你的每張龍卡額外 +2 分。",
+          "value": 2,
+          "target": null
+        }
+      ],
+      "flavorText": "Infinite potential sleeps within.",
+      "flavorTextTw": "蘊含無限可能的神秘之卵，與龍族共鳴。",
+      "imageUrl": "200px-Dragonegg.webp",
+      "imageExists": true
+    },
+    "D002": {
+      "name": "Tidal",
+      "nameTw": "潮汐龍",
+      "cost": 3,
+      "score": 4,
+      "element": "DRAGON",
+      "effects": [
+        {
+          "type": "SCORING",
+          "effectType": "SCORE_PER_ELEMENT",
+          "description": "Score +1 for each Water card you have.",
+          "descriptionTw": "你的每張水卡額外 +1 分。",
+          "value": 1,
+          "target": "WATER"
+        }
+      ],
+      "flavorText": "Born from ocean depths.",
+      "flavorTextTw": "統領海洋的幼龍，與水之生物同調。",
+      "imageUrl": "200px-Tidal.webp",
+      "imageExists": true
+    },
+    "D003": {
+      "name": "Ember",
+      "nameTw": "熾焰龍",
+      "cost": 3,
+      "score": 4,
+      "element": "DRAGON",
+      "effects": [
+        {
+          "type": "SCORING",
+          "effectType": "SCORE_PER_ELEMENT",
+          "description": "Score +1 for each Fire card you have.",
+          "descriptionTw": "你的每張火卡額外 +1 分。",
+          "value": 1,
+          "target": "FIRE"
+        }
+      ],
+      "flavorText": "Heart of living flame.",
+      "flavorTextTw": "烈焰之心的幼龍，與火焰生物心意相通。",
+      "imageUrl": "200px-Ember.webp",
+      "imageExists": true
+    },
+    "D004": {
+      "name": "Marina",
+      "nameTw": "瑪琳娜龍",
+      "cost": 4,
+      "score": 5,
+      "element": "DRAGON",
+      "effects": [
+        {
+          "type": "SCORING",
+          "effectType": "SCORE_PER_ELEMENT",
+          "description": "Score +2 for each Water card you have.",
+          "descriptionTw": "你的每張水卡額外 +2 分。",
+          "value": 2,
+          "target": "WATER"
+        }
+      ],
+      "flavorText": "Queen of the deep.",
+      "flavorTextTw": "深海女王龍，所有水族的守護者。",
+      "imageUrl": "200px-Marina.webp",
+      "imageExists": true
+    },
+    "D005": {
+      "name": "Boulder",
+      "nameTw": "磐石龍",
+      "cost": 4,
+      "score": 5,
+      "element": "DRAGON",
+      "effects": [
+        {
+          "type": "SCORING",
+          "effectType": "SCORE_PER_ELEMENT",
+          "description": "Score +1 for each Earth card you have.",
+          "descriptionTw": "你的每張土卡額外 +1 分。",
+          "value": 1,
+          "target": "EARTH"
+        }
+      ],
+      "flavorText": "Unshakable as mountains.",
+      "flavorTextTw": "山脈的守護者，堅如磐石的巨龍。",
+      "imageUrl": "200px-Boulder.webp",
+      "imageExists": true
+    },
+    "D006": {
+      "name": "Gust",
+      "nameTw": "疾風龍",
+      "cost": 4,
+      "score": 5,
+      "element": "DRAGON",
+      "effects": [
+        {
+          "type": "SCORING",
+          "effectType": "SCORE_PER_ELEMENT",
+          "description": "Score +1 for each Wind card you have.",
+          "descriptionTw": "你的每張風卡額外 +1 分。",
+          "value": 1,
+          "target": "WIND"
+        }
+      ],
+      "flavorText": "Swift as the tempest.",
+      "flavorTextTw": "如疾風般迅速的龍，與風共舞。",
+      "imageUrl": "200px-Gust.webp",
+      "imageExists": true
+    },
+    "D007": {
+      "name": "Aeris",
+      "nameTw": "天空龍",
+      "cost": 5,
+      "score": 6,
+      "element": "DRAGON",
+      "effects": [
+        {
+          "type": "SCORING",
+          "effectType": "SCORE_PER_ELEMENT",
+          "description": "Score +2 for each Wind card you have.",
+          "descriptionTw": "你的每張風卡額外 +2 分。",
+          "value": 2,
+          "target": "WIND"
+        }
+      ],
+      "flavorText": "Lord of the skies.",
+      "flavorTextTw": "天空的主宰，統御所有飛翔的生靈。",
+      "imageUrl": "200px-Aeris.webp",
+      "imageExists": true
+    },
+    "D008": {
+      "name": "Scorch",
+      "nameTw": "焦炎龍",
+      "cost": 5,
+      "score": 6,
+      "element": "DRAGON",
+      "effects": [
+        {
+          "type": "SCORING",
+          "effectType": "SCORE_PER_ELEMENT",
+          "description": "Score +2 for each Fire card you have.",
+          "descriptionTw": "你的每張火卡額外 +2 分。",
+          "value": 2,
+          "target": "FIRE"
+        }
+      ],
+      "flavorText": "Its breath melts steel.",
+      "flavorTextTw": "吐息能融化鋼鐵的火焰龍王。",
+      "imageUrl": "200px-Scorch.webp",
+      "imageExists": true
+    },
+    "D009": {
+      "name": "Willow",
+      "nameTw": "柳樹龍",
+      "cost": 5,
+      "score": 6,
+      "element": "DRAGON",
+      "effects": [
+        {
+          "type": "SCORING",
+          "effectType": "SCORE_PER_ELEMENT",
+          "description": "Score +2 for each Earth card you have.",
+          "descriptionTw": "你的每張土卡額外 +2 分。",
+          "value": 2,
+          "target": "EARTH"
+        }
+      ],
+      "flavorText": "Ancient as the forests.",
+      "flavorTextTw": "與古老森林共生的龍，大地的守護神。",
+      "imageUrl": "200px-Willow.webp",
+      "imageExists": true
+    },
+    "D010": {
+      "name": "Eternity",
+      "nameTw": "永恆龍",
+      "cost": 6,
+      "score": 6,
+      "element": "DRAGON",
+      "effects": [
+        {
+          "type": "SCORING",
+          "effectType": "SCORE_PER_UNIQUE_ELEMENT",
+          "description": "Score +3 for each different element on your field.",
+          "descriptionTw": "你場上每種不同元素額外 +3 分。",
+          "value": 3,
+          "target": null
+        }
+      ],
+      "flavorText": "The dragon that gave the Vale its name.",
+      "flavorTextTw": "賦予永恆之谷其名的傳說龍，萬物的起源。",
+      "imageUrl": "200px-Eternity.webp",
+      "imageExists": true
+    }
+  },
+  "statistics": {
+    "byElement": {
+      "FIRE": 15,
+      "WATER": 15,
+      "EARTH": 15,
+      "WIND": 15,
+      "DRAGON": 10
+    },
+    "byCost": {
+      "0": 5,
+      "1": 8,
+      "2": 8,
+      "3": 14,
+      "4": 15,
+      "5": 11,
+      "6": 9
+    },
+    "byEffectType": {
+      "INCREASE_STONE_LIMIT": 3,
+      "NONE": 12,
+      "STEAL_STONES": 3,
+      "SCORE_PER_ELEMENT": 20,
+      "GAIN_STONES": 9,
+      "OPPONENT_DISCARD": 4,
+      "DRAW_FROM_DISCARD": 3,
+      "DRAW_FROM_DECK": 5,
+      "PEEK_DECK": 2,
+      "PROTECTION": 3,
+      "RETURN_TO_HAND": 3,
+      "COPY_ABILITY": 1,
+      "SCORE_PER_DRAGON": 1,
+      "SCORE_PER_UNIQUE_ELEMENT": 1
+    },
+    "imagesFound": 70,
+    "imagesMissing": 0
+  }
+}
