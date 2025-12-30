@@ -1,8 +1,8 @@
 /**
  * Game constants and configurations
- * @version 1.1.1
+ * @version 1.1.2
  */
-console.log('[data/constants.ts] v1.1.1 loaded')
+console.log('[data/constants.ts] v1.1.2 loaded')
 
 import { Element } from '@/types'
 
@@ -34,7 +34,7 @@ export enum CreatureType {
 /**
  * App version
  */
-export const APP_VERSION = '1.1.1'
+export const APP_VERSION = '1.1.2'
 
 /**
  * Game configuration

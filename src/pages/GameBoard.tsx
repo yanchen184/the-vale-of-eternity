@@ -1,22 +1,28 @@
 /**
  * GameBoard Page
  * Main game interface integrating all core UI components
- * @version 1.0.0
+ * @version 1.3.0 - 完整中文化
  */
-console.log('[pages/GameBoard.tsx] v1.0.0 loaded')
+console.log('[pages/GameBoard.tsx] v1.3.0 loaded')
 
 import { useEffect, useCallback, useState, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Home, RefreshCw, HelpCircle, Pause } from 'lucide-react'
-import { shallow } from 'zustand/shallow'
 import { Button } from '@/components/ui'
-import { PlayerHand, PlayField, MarketArea, StonePool } from '@/components/game'
+import {
+  PlayerHand,
+  PlayField,
+  MarketArea,
+  StonePool,
+  GameModeToggle,
+  ManualControlPanel,
+} from '@/components/game'
 import {
   useGameStore,
   SinglePlayerPhase,
-  SinglePlayerActionType,
 } from '@/stores'
 import { calculateStonePoolValue } from '@/types/game'
+import { GameMode } from '@/types/manual'
 import { Modal } from '@/components/ui/Modal'
 import { cn } from '@/lib/utils'
 
@@ -65,9 +71,9 @@ function GameHeader({
   onPause,
 }: GameHeaderProps) {
   const phaseLabels: Record<SinglePlayerPhase, string> = {
-    [SinglePlayerPhase.DRAW]: 'Draw Phase',
-    [SinglePlayerPhase.ACTION]: 'Action Phase',
-    [SinglePlayerPhase.SCORE]: 'Score Phase',
+    [SinglePlayerPhase.DRAW]: '抽牌階段',
+    [SinglePlayerPhase.ACTION]: '行動階段',
+    [SinglePlayerPhase.SCORE]: '計分階段',
   }
 
   return (
@@ -84,13 +90,13 @@ function GameHeader({
             </h1>
             <div className="flex items-center gap-4 text-sm">
               <span className="text-slate-400">
-                Player: <span className="text-vale-400 font-medium">{playerName}</span>
+                玩家：<span className="text-vale-400 font-medium">{playerName}</span>
               </span>
               <span className="text-slate-400">
-                Round: <span className="text-amber-400 font-medium">{round}</span>
+                回合：<span className="text-amber-400 font-medium">{round}</span>
               </span>
               <span className="text-slate-400">
-                Deck: <span className="text-slate-300 font-medium">{deckSize}</span>
+                牌庫：<span className="text-slate-300 font-medium">{deckSize}</span>
               </span>
             </div>
           </div>
@@ -117,7 +123,7 @@ function GameHeader({
             leftIcon={<HelpCircle className="h-4 w-4" />}
             data-testid="help-btn"
           >
-            Help
+            說明
           </Button>
           <Button
             variant="ghost"
@@ -126,7 +132,7 @@ function GameHeader({
             leftIcon={<Pause className="h-4 w-4" />}
             data-testid="pause-btn"
           >
-            Pause
+            暫停
           </Button>
           <Button
             variant="ghost"
@@ -135,7 +141,7 @@ function GameHeader({
             leftIcon={<RefreshCw className="h-4 w-4" />}
             data-testid="restart-btn"
           >
-            Restart
+            重新開始
           </Button>
           <Button
             variant="ghost"
@@ -144,7 +150,7 @@ function GameHeader({
             leftIcon={<Home className="h-4 w-4" />}
             data-testid="home-btn"
           >
-            Home
+            主選單
           </Button>
         </div>
       </div>
@@ -160,30 +166,30 @@ function PhaseInstructions({ phase }: PhaseIndicatorProps) {
     switch (phase) {
       case SinglePlayerPhase.DRAW:
         return {
-          title: 'Draw Phase',
-          description: 'Draw a card from the deck to add to your hand.',
-          actions: ['Click the deck or "Draw Card" button'],
+          title: '抽牌階段',
+          description: '從牌庫抽取一張卡片加入你的手牌。',
+          actions: ['點擊牌庫或「抽牌」按鈕'],
         }
       case SinglePlayerPhase.ACTION:
         return {
-          title: 'Action Phase',
-          description: 'Tame creatures from your hand or the market, or pass to end your turn.',
+          title: '行動階段',
+          description: '從手牌或市場馴服生物，或選擇跳過回合。',
           actions: [
-            'Tame from hand: Play a creature to your field',
-            'Tame from market: Purchase and play a creature',
-            'Pass: Skip to next round',
+            '從手牌馴服：將生物打出到你的場地',
+            '從市場馴服：購買並打出市場中的生物',
+            '跳過：結束本回合',
           ],
         }
       case SinglePlayerPhase.SCORE:
         return {
-          title: 'Scoring Phase',
-          description: 'Game has ended. View your final score.',
+          title: '計分階段',
+          description: '遊戲已結束，查看你的最終分數。',
           actions: [],
         }
       default:
         return {
-          title: 'Waiting...',
-          description: 'Game is loading.',
+          title: '等待中...',
+          description: '遊戲載入中。',
           actions: [],
         }
     }
@@ -229,14 +235,14 @@ function GameOverModal({ isOpen, score, reason, onRestart, onHome }: GameOverMod
     <Modal
       isOpen={isOpen}
       onClose={() => {}}
-      title="Game Over"
+      title="遊戲結束"
       showCloseButton={false}
       size="md"
     >
       <div className="text-center py-6">
         {/* Score Display */}
         <div className="mb-6">
-          <div className="text-sm text-slate-400 mb-2">Final Score</div>
+          <div className="text-sm text-slate-400 mb-2">最終分數</div>
           <div className="text-6xl font-bold text-vale-400 mb-2">{score ?? 0}</div>
           <div className="text-sm text-slate-500">
             {reason && reasonText[reason as keyof typeof reasonText]}
@@ -246,10 +252,10 @@ function GameOverModal({ isOpen, score, reason, onRestart, onHome }: GameOverMod
         {/* Actions */}
         <div className="flex gap-4 justify-center">
           <Button onClick={onRestart} data-testid="play-again-btn">
-            Play Again
+            再玩一次
           </Button>
           <Button variant="secondary" onClick={onHome} data-testid="go-home-btn">
-            Home
+            主選單
           </Button>
         </div>
       </div>
@@ -284,7 +290,7 @@ function ActionButtons({
           className="px-8"
           data-testid="draw-card-btn"
         >
-          Draw Card
+          抽牌
         </Button>
       )}
 
@@ -335,6 +341,7 @@ export function GameBoard() {
   const endGame = useGameStore((state) => state.endGame)
   const canTameCard = useGameStore((state) => state.canTameCard)
   const getCardCost = useGameStore((state) => state.getCardCost)
+  const setGameMode = useGameStore((state) => state.setGameMode)
 
   // Derive values from gameState
   const phase = gameState?.phase ?? null
@@ -348,6 +355,7 @@ export function GameBoard() {
   const score = gameState?.finalScore ?? null
   const reason = gameState?.endReason ?? null
   const playerName = gameState?.player.name ?? ''
+  const gameMode = gameState?.gameMode ?? GameMode.AUTOMATIC
 
   // Compute stone value with useMemo to prevent infinite loop
   const totalStoneValue = useMemo(() => {
@@ -478,6 +486,15 @@ export function GameBoard() {
 
       {/* Main Game Area */}
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+        {/* Game Mode Toggle */}
+        <GameModeToggle
+          currentMode={gameMode}
+          onModeChange={setGameMode}
+        />
+
+        {/* Manual Control Panel (only in MANUAL mode) */}
+        {gameMode === GameMode.MANUAL && <ManualControlPanel />}
+
         {/* Stone Pool */}
         <StonePool
           stones={stones}
