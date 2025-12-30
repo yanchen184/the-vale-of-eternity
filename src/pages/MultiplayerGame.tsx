@@ -504,21 +504,21 @@ export function MultiplayerGame() {
 
   // Get cards for different areas
   const marketCards = useMemo(() => {
-    if (!gameRoom) return []
+    if (!gameRoom?.marketIds) return []
     return gameRoom.marketIds
       .map(convertToCardInstance)
       .filter((c): c is CardInstance => c !== null)
   }, [gameRoom, convertToCardInstance])
 
   const handCards = useMemo(() => {
-    if (!currentPlayer) return []
+    if (!currentPlayer?.hand) return []
     return currentPlayer.hand
       .map(convertToCardInstance)
       .filter((c): c is CardInstance => c !== null)
   }, [currentPlayer, convertToCardInstance])
 
   const fieldCards = useMemo(() => {
-    if (!currentPlayer) return []
+    if (!currentPlayer?.field) return []
     return currentPlayer.field
       .map(convertToCardInstance)
       .filter((c): c is CardInstance => c !== null)
