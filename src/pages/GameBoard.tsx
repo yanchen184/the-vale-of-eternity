@@ -5,27 +5,18 @@
  */
 console.log('[pages/GameBoard.tsx] v1.0.0 loaded')
 
-import { useEffect, useCallback, useState, useRef } from 'react'
+import { useEffect, useCallback, useState, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Home, RefreshCw, HelpCircle, Pause } from 'lucide-react'
+import { shallow } from 'zustand/shallow'
 import { Button } from '@/components/ui'
 import { PlayerHand, PlayField, MarketArea, StonePool } from '@/components/game'
 import {
   useGameStore,
-  useGamePhase,
-  useRound,
-  useMarket,
-  useHand,
-  useField,
-  useStones,
-  useDeckSize,
-  useGameOver,
-  usePlayerName,
-  useTotalStoneValue,
-  useAvailableActions,
   SinglePlayerPhase,
   SinglePlayerActionType,
 } from '@/stores'
+import { calculateStonePoolValue } from '@/types/game'
 import { Modal } from '@/components/ui/Modal'
 import { cn } from '@/lib/utils'
 
@@ -46,7 +37,6 @@ interface GameHeaderProps {
 
 interface PhaseIndicatorProps {
   phase: SinglePlayerPhase | null
-  availableActions: SinglePlayerActionType[]
 }
 
 interface GameOverModalProps {
@@ -272,20 +262,19 @@ function GameOverModal({ isOpen, score, reason, onRestart, onHome }: GameOverMod
  */
 function ActionButtons({
   phase,
-  availableActions,
   onDrawCard,
   onPass,
   onEndGame,
 }: {
   phase: SinglePlayerPhase | null
-  availableActions: SinglePlayerActionType[]
   onDrawCard: () => void
   onPass: () => void
   onEndGame: () => void
 }) {
-  const canDraw = availableActions.includes(SinglePlayerActionType.DRAW_CARD)
-  const canPass = availableActions.includes(SinglePlayerActionType.PASS)
-  const canEnd = availableActions.includes(SinglePlayerActionType.END_GAME)
+  // Determine available actions based on phase
+  const canDraw = phase === SinglePlayerPhase.DRAW
+  const canPass = phase === SinglePlayerPhase.ACTION
+  const canEnd = phase === SinglePlayerPhase.ACTION
 
   return (
     <div className="flex gap-3 justify-center" data-testid="action-buttons">
@@ -332,10 +321,12 @@ function ActionButtons({
 export function GameBoard() {
   const navigate = useNavigate()
 
-  // Store hooks
+  // Get gameState directly - don't destructure arrays to avoid reference changes
   const gameState = useGameStore((state) => state.gameState)
   const error = useGameStore((state) => state.error)
   const setError = useGameStore((state) => state.setError)
+
+  // Get actions
   const startGame = useGameStore((state) => state.startGame)
   const resetGame = useGameStore((state) => state.resetGame)
   const drawCard = useGameStore((state) => state.drawCard)
@@ -345,18 +336,23 @@ export function GameBoard() {
   const canTameCard = useGameStore((state) => state.canTameCard)
   const getCardCost = useGameStore((state) => state.getCardCost)
 
-  // Selector hooks
-  const phase = useGamePhase()
-  const round = useRound()
-  const market = useMarket()
-  const hand = useHand()
-  const field = useField()
-  const stones = useStones()
-  const deckSize = useDeckSize()
-  const { isOver, score, reason } = useGameOver()
-  const playerName = usePlayerName()
-  const totalStoneValue = useTotalStoneValue()
-  const availableActions = useAvailableActions()
+  // Derive values from gameState
+  const phase = gameState?.phase ?? null
+  const round = gameState?.round ?? 0
+  const market = gameState?.market ?? []
+  const hand = gameState?.player.hand ?? []
+  const field = gameState?.player.field ?? []
+  const stones = gameState?.player.stones ?? null
+  const deckSize = gameState?.deck.length ?? 0
+  const isOver = gameState?.isGameOver ?? false
+  const score = gameState?.finalScore ?? null
+  const reason = gameState?.endReason ?? null
+  const playerName = gameState?.player.name ?? ''
+
+  // Compute stone value with useMemo to prevent infinite loop
+  const totalStoneValue = useMemo(() => {
+    return stones ? calculateStonePoolValue(stones) : 0
+  }, [stones])
 
   // Local state
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
@@ -518,7 +514,6 @@ export function GameBoard() {
         {/* Action Buttons */}
         <ActionButtons
           phase={phase}
-          availableActions={availableActions}
           onDrawCard={handleDrawCard}
           onPass={handlePass}
           onEndGame={handleEndGame}
@@ -537,7 +532,7 @@ export function GameBoard() {
         />
 
         {/* Phase Instructions */}
-        <PhaseInstructions phase={phase} availableActions={availableActions} />
+        <PhaseInstructions phase={phase} />
       </main>
 
       {/* Game Over Modal */}

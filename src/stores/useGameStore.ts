@@ -93,6 +93,7 @@ export const useGameStore = create<GameStore>()(
       const engine = new SinglePlayerEngine()
 
       // Subscribe to engine state changes
+      // This is the ONLY place where gameState should be updated
       engine.onStateChange(state => {
         set({ gameState: state, error: null })
       })
@@ -112,8 +113,9 @@ export const useGameStore = create<GameStore>()(
         startGame: (playerName: string) => {
           set({ isLoading: true, error: null })
           try {
-            const state = engine.initGame(playerName)
-            set({ gameState: state, isLoading: false })
+            // engine.initGame() will trigger onStateChange callback which will set gameState
+            engine.initGame(playerName)
+            set({ isLoading: false })
           } catch (err) {
             const message = err instanceof SinglePlayerError
               ? err.message
@@ -416,19 +418,8 @@ export function usePlayerName(): string {
   return useGameStore(selectPlayerName)
 }
 
-/**
- * Hook to get total stone value
- */
-export function useTotalStoneValue(): number {
-  return useGameStore(state => state.getTotalStoneValue())
-}
-
-/**
- * Hook to get available actions
- */
-export function useAvailableActions(): SinglePlayerActionType[] {
-  return useGameStore(state => state.getAvailableActions())
-}
+// Note: useTotalStoneValue and useAvailableActions removed due to infinite loop issues
+// Use store methods getTotalStoneValue() and getAvailableActions() directly in components
 
 /**
  * Hook to get tameable cards from hand

@@ -18,8 +18,7 @@ export {
   useDiscardPile,
   useGameOver,
   usePlayerName,
-  useTotalStoneValue,
-  useAvailableActions,
+  // useTotalStoneValue and useAvailableActions removed - use store methods directly
   useTameableFromHand,
   useTameableFromMarket,
   selectPhase,

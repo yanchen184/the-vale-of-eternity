@@ -1,19 +1,19 @@
 /**
  * Main App component
- * Single Player Mode v3.1.0
- * @version 3.1.0
+ * Single Player Mode v3.2.0
+ * @version 3.2.0
  */
-console.log('[App.tsx] v3.1.0 loaded')
+console.log('[App.tsx] v3.2.0 loaded')
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { Home, Lobby, SinglePlayerGame, Tutorial, CardGallery, GameBoard } from '@/pages'
+import { Home, Lobby, SinglePlayerGame, Tutorial, CardGallery, GameBoard, MultiplayerGame } from '@/pages'
 import { MultiplayerLobby } from '@/pages/MultiplayerLobby'
 import { ToastContainer } from '@/components/ui'
 import { useToastStore } from '@/stores'
 import { APP_VERSION } from '@/data/constants'
 
 // Log version on app start
-console.log(`[The Vale of Eternity] v${APP_VERSION} - Single Player Mode`)
+console.log(`[The Vale of Eternity] v${APP_VERSION} - Multiplayer Mode Enabled`)
 
 function App() {
   const { toasts, removeToast } = useToastStore()
@@ -25,8 +25,7 @@ function App() {
           <Route path="/" element={<Home />} />
           {/* Multiplayer Mode */}
           <Route path="/multiplayer" element={<MultiplayerLobby />} />
-          {/* TODO: Add MultiplayerGameRoom route */}
-          {/* <Route path="/multiplayer/:gameId" element={<MultiplayerGameRoom />} /> */}
+          <Route path="/multiplayer/:gameId" element={<MultiplayerGame />} />
           {/* Single Player Mode */}
           <Route path="/play" element={<Lobby />} />
           <Route path="/game" element={<SinglePlayerGame />} />

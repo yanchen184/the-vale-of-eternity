@@ -5,7 +5,7 @@
  */
 console.log('[pages/SinglePlayerGame.tsx] v3.0.0 loaded')
 
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   useGameStore,
@@ -18,9 +18,9 @@ import {
   useGameOver,
   usePlayerName,
   useRound,
-  useTotalStoneValue,
   SinglePlayerPhase,
 } from '@/stores/useGameStore'
+import { calculateStonePoolValue } from '@/types/game'
 import type { CardInstance } from '@/types/cards'
 import type { StonePool } from '@/types/game'
 import './SinglePlayerGame.css'
@@ -197,7 +197,6 @@ export default function SinglePlayerGame() {
   const { isOver, score, breakdown } = useGameOver()
   const playerName = usePlayerName()
   const round = useRound()
-  const totalStoneValue = useTotalStoneValue()
 
   // Store actions
   const {
@@ -210,6 +209,11 @@ export default function SinglePlayerGame() {
     canTameCard,
     error,
   } = useGameStore()
+
+  // Compute stone value with useMemo to prevent infinite loop
+  const totalStoneValue = useMemo(() => {
+    return stones ? calculateStonePoolValue(stones) : 0
+  }, [stones])
 
   // Initialize game if not started
   useEffect(() => {
