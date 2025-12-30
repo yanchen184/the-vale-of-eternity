@@ -1,9 +1,9 @@
 /**
  * Image Preview Modal Component
  * Full-screen image preview with smooth animations
- * @version 1.0.0
+ * @version 1.1.0 - Increased default zoom and max size
  */
-console.log('[components/ui/ImagePreviewModal.tsx] v1.0.0 loaded')
+console.log('[components/ui/ImagePreviewModal.tsx] v1.1.0 loaded')
 
 import { useEffect, useCallback, useState } from 'react'
 import { X, ZoomIn, ZoomOut, RotateCw } from 'lucide-react'
@@ -24,7 +24,16 @@ export interface ImagePreviewModalProps {
   subtitle?: string
   /** Additional content to render below image */
   children?: React.ReactNode
+  /** Initial zoom level (default: 1.5 for 150%) */
+  initialZoom?: number
 }
+
+// Default zoom level for card images (150%)
+const DEFAULT_ZOOM = 1.5
+// Maximum zoom level (400%)
+const MAX_ZOOM = 4
+// Minimum zoom level (50%)
+const MIN_ZOOM = 0.5
 
 export function ImagePreviewModal({
   src,
@@ -34,9 +43,10 @@ export function ImagePreviewModal({
   title,
   subtitle,
   children,
+  initialZoom = DEFAULT_ZOOM,
 }: ImagePreviewModalProps) {
   const [isLoading, setIsLoading] = useState(true)
-  const [scale, setScale] = useState(1)
+  const [scale, setScale] = useState(initialZoom)
   const [hasError, setHasError] = useState(false)
 
   // Handle escape key
@@ -53,7 +63,7 @@ export function ImagePreviewModal({
   useEffect(() => {
     if (isOpen) {
       setIsLoading(true)
-      setScale(1)
+      setScale(initialZoom)
       setHasError(false)
       document.addEventListener('keydown', handleEscape)
       document.body.style.overflow = 'hidden'
@@ -63,19 +73,19 @@ export function ImagePreviewModal({
       document.removeEventListener('keydown', handleEscape)
       document.body.style.overflow = 'unset'
     }
-  }, [isOpen, handleEscape])
+  }, [isOpen, handleEscape, initialZoom])
 
   const handleZoomIn = useCallback(() => {
-    setScale(prev => Math.min(prev + 0.25, 3))
+    setScale(prev => Math.min(prev + 0.25, MAX_ZOOM))
   }, [])
 
   const handleZoomOut = useCallback(() => {
-    setScale(prev => Math.max(prev - 0.25, 0.5))
+    setScale(prev => Math.max(prev - 0.25, MIN_ZOOM))
   }, [])
 
   const handleResetZoom = useCallback(() => {
-    setScale(1)
-  }, [])
+    setScale(initialZoom)
+  }, [initialZoom])
 
   if (!isOpen) return null
 
@@ -188,11 +198,11 @@ export function ImagePreviewModal({
           </div>
         </div>
 
-        {/* Image container */}
+        {/* Image container - Larger size for better viewing */}
         <div
           className={cn(
             'relative flex items-center justify-center',
-            'max-w-full max-h-[70vh]',
+            'max-w-[95vw] max-h-[85vh]',
             'transition-transform duration-300 ease-out'
           )}
           style={{ transform: `scale(${scale})` }}
@@ -201,24 +211,24 @@ export function ImagePreviewModal({
           {/* Loading spinner */}
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-12 h-12 border-4 border-vale-500/30 border-t-vale-500 rounded-full animate-spin" />
+              <div className="w-16 h-16 border-4 border-vale-500/30 border-t-vale-500 rounded-full animate-spin" />
             </div>
           )}
 
           {/* Error state */}
           {hasError ? (
-            <div className="flex flex-col items-center justify-center p-8 bg-slate-800/50 rounded-xl">
-              <span className="text-6xl mb-4">🖼️</span>
-              <p className="text-slate-400">Failed to load image</p>
+            <div className="flex flex-col items-center justify-center p-12 bg-slate-800/50 rounded-xl">
+              <span className="text-8xl mb-6">🖼️</span>
+              <p className="text-slate-400 text-xl">無法載入圖片</p>
             </div>
           ) : (
             <img
               src={src}
               alt={alt}
               className={cn(
-                'max-w-full max-h-[70vh] object-contain',
+                'max-w-[95vw] max-h-[85vh] object-contain',
                 'rounded-xl shadow-2xl',
-                'ring-4 ring-slate-700/50',
+                'ring-4 ring-slate-600/60',
                 'transition-opacity duration-300',
                 isLoading ? 'opacity-0' : 'opacity-100'
               )}
@@ -245,19 +255,18 @@ export function ImagePreviewModal({
           </div>
         )}
 
-        {/* Zoom indicator */}
-        {scale !== 1 && (
-          <div
-            className={cn(
-              'absolute bottom-20 left-1/2 -translate-x-1/2',
-              'px-3 py-1 rounded-full',
-              'bg-slate-800/80 text-slate-300 text-sm',
-              'animate-fade-in'
-            )}
-          >
-            {Math.round(scale * 100)}%
-          </div>
-        )}
+        {/* Zoom indicator - Always show current zoom level */}
+        <div
+          className={cn(
+            'absolute bottom-20 left-1/2 -translate-x-1/2',
+            'px-4 py-2 rounded-full',
+            'bg-slate-800/90 text-slate-200 text-base font-medium',
+            'border border-slate-600/50',
+            'animate-fade-in'
+          )}
+        >
+          {Math.round(scale * 100)}%
+        </div>
       </div>
     </div>
   )

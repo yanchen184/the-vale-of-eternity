@@ -1,9 +1,9 @@
 /**
  * Card Gallery Page - Display all 70 cards
  * Redesigned with improved UX and image preview
- * @version 3.1.0 - 完整中文化
+ * @version 3.2.0 - Enhanced card detail panel and larger preview
  */
-console.log('[pages/CardGallery.tsx] v3.1.0 loaded')
+console.log('[pages/CardGallery.tsx] v3.2.0 loaded')
 
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -20,6 +20,9 @@ import {
   TreePine,
   Wind,
   Crown,
+  Gem,
+  Star,
+  ZoomIn,
 } from 'lucide-react'
 import { Button, ImagePreviewModal } from '@/components/ui'
 import { Card } from '@/components/game'
@@ -190,6 +193,7 @@ interface CardDetailPanelProps {
 
 function CardDetailPanel({ card, onImageClick }: CardDetailPanelProps) {
   const config = ELEMENT_CONFIG[card.element]
+  const Icon = config.icon
   const cardInstance = createCardInstance(card, 0)
 
   return (
@@ -201,65 +205,88 @@ function CardDetailPanel({ card, onImageClick }: CardDetailPanelProps) {
         config.borderColor
       )}
     >
-      {/* Header */}
-      <div className="flex items-start gap-4 mb-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-2xl">{ELEMENT_ICONS[card.element]}</span>
-            <h3 className="text-2xl font-bold text-slate-100 font-game">{card.nameTw}</h3>
-          </div>
-          <p className="text-slate-400">{card.name}</p>
+      {/* Header with Element Icon */}
+      <div className="flex items-start gap-4 mb-5">
+        <div className="flex-shrink-0 p-3 rounded-xl bg-slate-900/60 border border-slate-600/30">
+          <Icon className={cn('w-10 h-10', config.color)} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-2xl font-bold text-slate-100 font-game truncate">{card.nameTw}</h3>
+          <p className="text-slate-400 text-sm">{card.name}</p>
           <p className="text-xs text-slate-500 font-mono mt-1">{card.id}</p>
         </div>
       </div>
 
-      {/* Card Preview with Click to Enlarge */}
-      <div className="flex justify-center mb-4">
+      {/* Large Card Preview with Click to Enlarge */}
+      <div className="flex justify-center mb-5">
         <div
-          className="cursor-pointer transform transition-transform duration-300 hover:scale-105 relative group"
+          className="cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl relative group"
           onClick={onImageClick}
           data-testid="card-preview-clickable"
         >
-          <Card card={cardInstance} index={0} />
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
-            <div className="flex items-center gap-2 text-white text-sm bg-slate-900/80 px-3 py-1.5 rounded-full">
-              <Search className="w-4 h-4" />
-              <span>點擊放大</span>
+          {/* Larger card display using scale */}
+          <div className="transform scale-125 origin-center">
+            <Card card={cardInstance} index={0} />
+          </div>
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
+            <div className="flex items-center gap-2 text-white text-sm bg-slate-900/90 px-4 py-2 rounded-full border border-slate-600/50 shadow-lg">
+              <ZoomIn className="w-5 h-5" />
+              <span className="font-medium">點擊放大查看</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="bg-slate-900/50 p-3 rounded-xl text-center">
-          <div className="text-xs text-slate-500 mb-1">成本</div>
-          <div className="text-3xl font-bold text-amber-400">{card.cost}</div>
+      {/* Stats Grid - More Prominent */}
+      <div className="grid grid-cols-2 gap-4 mb-5">
+        <div className="bg-slate-900/60 p-4 rounded-xl text-center border border-amber-500/20">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <Gem className="w-5 h-5 text-amber-400" />
+            <span className="text-sm font-medium text-amber-300">成本</span>
+          </div>
+          <div className="text-4xl font-bold text-amber-400">{card.cost}</div>
         </div>
-        <div className="bg-slate-900/50 p-3 rounded-xl text-center">
-          <div className="text-xs text-slate-500 mb-1">分數</div>
-          <div className="text-3xl font-bold text-emerald-400">{card.baseScore}</div>
+        <div className="bg-slate-900/60 p-4 rounded-xl text-center border border-emerald-500/20">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <Star className="w-5 h-5 text-emerald-400" />
+            <span className="text-sm font-medium text-emerald-300">分數</span>
+          </div>
+          <div className="text-4xl font-bold text-emerald-400">{card.baseScore}</div>
+        </div>
+      </div>
+
+      {/* Element Badge */}
+      <div className="flex justify-center mb-5">
+        <div className={cn(
+          'flex items-center gap-3 px-5 py-2.5 rounded-full',
+          'bg-slate-900/60 border',
+          config.borderColor
+        )}>
+          <Icon className={cn('w-6 h-6', config.color)} />
+          <span className={cn('text-lg font-semibold', config.color)}>
+            {ELEMENT_NAMES_TW[card.element]}元素
+          </span>
         </div>
       </div>
 
       {/* Effect */}
       {card.effectDescriptionTw && (
-        <div className="bg-slate-900/50 p-4 rounded-xl mb-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="w-4 h-4 text-vale-400" />
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              效果
+        <div className="bg-slate-900/60 p-4 rounded-xl mb-4 border border-slate-600/30">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="w-5 h-5 text-vale-400" />
+            <span className="text-sm font-semibold text-slate-300 uppercase tracking-wider">
+              卡片效果
             </span>
           </div>
-          <p className="text-slate-200 leading-relaxed">{card.effectDescriptionTw}</p>
-          <p className="text-sm text-slate-500 mt-2">{card.effectDescription}</p>
+          <p className="text-slate-200 leading-relaxed text-base">{card.effectDescriptionTw}</p>
+          <p className="text-sm text-slate-500 mt-3 italic">{card.effectDescription}</p>
         </div>
       )}
 
       {/* Flavor Text */}
       {card.flavorTextTw && (
-        <div className="border-l-4 border-slate-600/50 pl-4">
-          <p className="text-sm italic text-slate-400">{card.flavorTextTw}</p>
+        <div className="border-l-4 border-slate-500/40 pl-4 py-2 bg-slate-900/30 rounded-r-lg">
+          <p className="text-sm italic text-slate-400 leading-relaxed">{card.flavorTextTw}</p>
         </div>
       )}
     </div>

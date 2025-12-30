@@ -1,14 +1,61 @@
 /**
  * Card Component with Image Display
  * Renders a game card with its image and stats
- * @version 2.1.0
+ * @version 2.2.0 - Enhanced cost label and element icons
  */
-console.log('[components/game/Card.tsx] v2.1.0 loaded')
+console.log('[components/game/Card.tsx] v2.2.0 loaded')
 
 import { useState, useCallback, memo } from 'react'
+import { Flame, Droplets, TreePine, Wind, Crown, Gem } from 'lucide-react'
 import { getCardImagePath } from '@/lib/card-images'
 import type { CardInstance } from '@/types/cards'
-import { Element, ELEMENT_ICONS } from '@/types/cards'
+import { Element } from '@/types/cards'
+
+// ============================================
+// ELEMENT ICON COMPONENTS
+// ============================================
+
+interface ElementIconProps {
+  element: Element
+  size?: 'sm' | 'md' | 'lg' | 'xl'
+  className?: string
+}
+
+const ELEMENT_ICON_COMPONENTS: Record<Element, React.ComponentType<{ className?: string }>> = {
+  [Element.FIRE]: Flame,
+  [Element.WATER]: Droplets,
+  [Element.EARTH]: TreePine,
+  [Element.WIND]: Wind,
+  [Element.DRAGON]: Crown,
+}
+
+const ELEMENT_ICON_COLORS: Record<Element, string> = {
+  [Element.FIRE]: 'text-red-400 drop-shadow-[0_0_6px_rgba(239,68,68,0.6)]',
+  [Element.WATER]: 'text-blue-400 drop-shadow-[0_0_6px_rgba(59,130,246,0.6)]',
+  [Element.EARTH]: 'text-green-400 drop-shadow-[0_0_6px_rgba(34,197,94,0.6)]',
+  [Element.WIND]: 'text-purple-400 drop-shadow-[0_0_6px_rgba(168,85,247,0.6)]',
+  [Element.DRAGON]: 'text-amber-400 drop-shadow-[0_0_6px_rgba(245,158,11,0.6)]',
+}
+
+const ELEMENT_ICON_SIZES: Record<string, string> = {
+  sm: 'w-4 h-4',
+  md: 'w-6 h-6',
+  lg: 'w-8 h-8',
+  xl: 'w-10 h-10',
+}
+
+function ElementIcon({ element, size = 'md', className = '' }: ElementIconProps) {
+  const IconComponent = ELEMENT_ICON_COMPONENTS[element]
+  const colorClass = ELEMENT_ICON_COLORS[element]
+  const sizeClass = ELEMENT_ICON_SIZES[size]
+
+  return (
+    <IconComponent
+      className={`${sizeClass} ${colorClass} ${className}`}
+      aria-label={element}
+    />
+  )
+}
 
 // ============================================
 // TYPES
@@ -197,7 +244,6 @@ export const Card = memo(function Card({
 
   const borderClass = getElementBorderClass(card.element)
   const bgClass = getElementBgClass(card.element)
-  const elementIcon = ELEMENT_ICONS[card.element]
 
   // Face down card
   if (isFaceDown) {
@@ -244,13 +290,16 @@ export const Card = memo(function Card({
         </div>
 
         {/* Overlay with stats */}
-        <div className="absolute inset-0 flex flex-col justify-between p-1 bg-gradient-to-t from-black/80 via-transparent to-black/40">
-          {/* Cost badge */}
+        <div className="absolute inset-0 flex flex-col justify-between p-1.5 bg-gradient-to-t from-black/80 via-transparent to-black/40">
+          {/* Cost badge with icon */}
           <div className="flex justify-between items-start">
-            <span className="bg-slate-900/80 text-white text-xs font-bold px-1 rounded">
-              {card.cost}
-            </span>
-            <span className="text-sm">{elementIcon}</span>
+            <div className="flex items-center gap-0.5 bg-slate-900/90 text-amber-400 text-xs font-bold px-1.5 py-0.5 rounded-md border border-amber-500/30">
+              <Gem className="w-3 h-3" />
+              <span>{card.cost}</span>
+            </div>
+            <div className="bg-slate-900/70 p-0.5 rounded-md">
+              <ElementIcon element={card.element} size="sm" />
+            </div>
           </div>
 
           {/* Score */}
@@ -292,10 +341,15 @@ export const Card = memo(function Card({
       <div className="absolute inset-0 flex flex-col justify-between p-2 bg-gradient-to-t from-black/90 via-black/20 to-black/60">
         {/* Header: Cost and Element */}
         <div className="flex justify-between items-start">
-          <span className="bg-slate-900/90 text-white text-xs font-bold px-1.5 py-0.5 rounded">
-            {card.cost}
-          </span>
-          <span className="text-base">{elementIcon}</span>
+          {/* Cost badge with clear label */}
+          <div className="flex items-center gap-1 bg-gradient-to-r from-slate-900/95 to-slate-800/90 text-amber-400 text-sm font-bold px-2 py-1 rounded-lg border border-amber-500/40 shadow-lg">
+            <Gem className="w-4 h-4 text-amber-300" />
+            <span>{card.cost}</span>
+          </div>
+          {/* Larger element icon with background */}
+          <div className="bg-slate-900/80 p-1.5 rounded-lg border border-slate-600/50 shadow-lg">
+            <ElementIcon element={card.element} size="lg" />
+          </div>
         </div>
 
         {/* Center: Score */}

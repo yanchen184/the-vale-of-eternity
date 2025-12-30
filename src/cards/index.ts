@@ -10,12 +10,14 @@ console.log('[cards/index.ts] v1.0.0 loaded')
 // ============================================
 
 export { HESTIA_CARD, HestiaEffect } from './F001-Hestia'
+export { IMP_CARD, ImpEarnStonesEffect, ImpRecoverEffect, ImpEffects } from './F002-Imp'
 
 // ============================================
 // CARD REGISTRY
 // ============================================
 
 import { HESTIA_CARD } from './F001-Hestia'
+import { IMP_CARD } from './F002-Imp'
 import type { CardTemplate } from '@/types/cards'
 
 /**
@@ -24,6 +26,7 @@ import type { CardTemplate } from '@/types/cards'
  */
 export const IMPLEMENTED_CARDS: readonly CardTemplate[] = [
   HESTIA_CARD,
+  IMP_CARD,
   // Add more cards here...
 ] as const
 

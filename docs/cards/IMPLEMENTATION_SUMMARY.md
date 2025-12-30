@@ -98,6 +98,74 @@ src/cards/F001-Hestia/
 
 ---
 
+#### F002 - Imp (小惡魔)
+
+**檔案結構**：
+```
+src/cards/F002-Imp/
+├── README.md                     ✅ 完整設計文件（SDD）
+├── Imp.card.ts                   ✅ 卡片定義
+├── Imp.effect.ts                 ✅ 效果實作（雙效果）
+├── Imp.test.ts                   ✅ 單元測試（34 個測試案例）
+├── Imp.integration.test.ts       ✅ 整合測試（29 個測試案例）
+└── index.ts                      ✅ 模組匯出
+```
+
+**實作內容**：
+
+1. **設計文件（README.md）**
+   - ✅ 基本資訊完整
+   - ✅ 雙效果設計詳細說明（EARN_STONES + RECOVER_CARD）
+   - ✅ 回收機制設計理念
+   - ✅ 平衡性分析（基礎價值 5，回收潛力最高 8+）
+   - ✅ 實作規格（多效果處理流程）
+   - ✅ 完整測試案例規劃
+   - ✅ UI/UX 需求定義
+
+2. **卡片定義（Imp.card.ts）**
+   ```typescript
+   - ID: F002
+   - Element: FIRE
+   - Cost: 1
+   - Base Score: 2
+   - Effect 1: EARN_STONES (3x ONE stones)
+   - Trigger 1: ON_TAME
+   - Effect 2: RECOVER_CARD
+   - Trigger 2: PERMANENT
+   ```
+
+3. **效果實作（Imp.effect.ts）**
+   - ✅ ImpEarnStonesEffect 類別（繼承 BaseEffect）
+   - ✅ ImpRecoverEffect 類別（繼承 BaseEffect）
+   - ✅ ImpEffects 組合類別（統一介面）
+   - ✅ 實作 canApply() 檢查邏輯
+   - ✅ 實作 apply() 效果邏輯
+   - ✅ 提供靜態工具方法
+   - ✅ 完整的錯誤處理
+   - ✅ 支援多效果卡片架構
+
+4. **單元測試（Imp.test.ts）**
+   - ✅ 卡片識別測試（3 個測試）
+   - ✅ 基本屬性測試（4 個測試）
+   - ✅ 雙效果配置測試（14 個測試）
+   - ✅ 風味文字測試（2 個測試）
+   - ✅ 結構驗證測試（3 個測試）
+   - ✅ 平衡性測試（4 個測試）
+   - ✅ 型別安全測試（4 個測試）
+   - **總計：34 個單元測試**
+
+5. **整合測試（Imp.integration.test.ts）**
+   - ✅ 效果實例化測試（6 個測試）
+   - ✅ EarnStones 效果測試（7 個測試）
+   - ✅ Recover 效果測試（7 個測試）
+   - ✅ 靜態工具方法測試（3 個測試）
+   - ✅ ImpEffects 組合類別測試（2 個測試）
+   - ✅ 完整回收循環模擬（1 個測試）
+   - ✅ 效果描述測試（4 個測試）
+   - **總計：29 個整合測試**
+
+---
+
 ### C. 效果系統架構 ✅
 
 #### 1. 基底效果類別
@@ -238,20 +306,19 @@ npm run test -- src/cards/[CardID]-[CardName]
 
 | 項目 | 數量 | 狀態 |
 |------|------|------|
-| **已實作卡片** | 1/75 | 🟢 F001 Hestia |
-| **設計文件** | 1 | ✅ 完整 |
-| **單元測試** | 38 | ✅ 通過 |
-| **整合測試** | 21 | ✅ 通過 |
-| **效果系統** | 1 | ✅ INCREASE_STONE_LIMIT |
+| **已實作卡片** | 2/75 | 🟢 F001 Hestia, F002 Imp |
+| **設計文件** | 2 | ✅ 完整 |
+| **單元測試** | 72 | ✅ 通過 (F001: 38, F002: 34) |
+| **整合測試** | 50 | ✅ 通過 (F001: 21, F002: 29) |
+| **效果系統** | 3 | ✅ INCREASE_STONE_LIMIT, EARN_STONES, RECOVER_CARD |
 
 ### 待實作卡片（按優先順序）
 
-#### 火家族 (FIRE) - 14 張待實作
-1. F002 - Imp
-2. F003 - Succubus
-3. F004 - Firefox
-4. F005 - Salamander
-5. ... (其餘 10 張)
+#### 火家族 (FIRE) - 13 張待實作
+1. F003 - Succubus (已分析，有平衡問題)
+2. F004 - Firefox
+3. F005 - Salamander (已分析，過強需平衡調整)
+4. ... (其餘 10 張)
 
 #### 水家族 (WATER) - 15 張
 #### 土家族 (EARTH) - 15 張

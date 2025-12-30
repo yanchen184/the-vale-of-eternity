@@ -196,8 +196,8 @@ function PlayerList({ players, currentPlayerId, currentTurnPlayerId, phase }: Pl
                 )}
               </div>
               <div className="flex items-center gap-3 text-xs text-slate-400">
-                <span>Hand: {player.hand.length}</span>
-                <span>Field: {player.field.length}</span>
+                <span>Hand: {player.hand?.length ?? 0}</span>
+                <span>Field: {player.field?.length ?? 0}</span>
                 <span>Stones: {totalStoneValue}</span>
               </div>
               {player.isReady && phase === 'WAITING' && (

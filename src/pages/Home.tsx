@@ -194,18 +194,18 @@ export function Home() {
       const game = await joinGame(roomCode.toUpperCase(), user.uid, tempName)
       if (!game) {
         toast.error('找不到房間')
+        setLoading(false)
         return
       }
 
       toast.success('成功加入房間！')
+      setShowJoinModal(false)
       navigate(`/lobby/${game.id}`)
     } catch (error) {
       const message = error instanceof Error ? error.message : '加入房間失敗'
       toast.error(message)
       console.error(error)
-    } finally {
       setLoading(false)
-      setShowJoinModal(false)
     }
   }
 
