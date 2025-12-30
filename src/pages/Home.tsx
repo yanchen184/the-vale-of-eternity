@@ -1,9 +1,9 @@
 /**
  * Home page component
  * Enhanced with fantasy/medieval visual design
- * @version 2.0.0
+ * @version 2.1.0 - 完整中文化
  */
-console.log('[pages/Home.tsx] v2.0.0 loaded')
+console.log('[pages/Home.tsx] v2.1.0 loaded')
 
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -149,7 +149,7 @@ export function Home() {
 
   const handleCreateGame = async () => {
     if (!tempName.trim()) {
-      toast.error('Please enter player name')
+      toast.error('請輸入玩家名稱')
       return
     }
 
@@ -164,10 +164,10 @@ export function Home() {
         useExpansion,
       })
 
-      toast.success(`Room created! Code: ${game.roomCode}`)
+      toast.success(`房間已創建！代碼：${game.roomCode}`)
       navigate(`/lobby/${game.id}`)
     } catch (error) {
-      toast.error('Failed to create room')
+      toast.error('創建房間失敗')
       console.error(error)
     } finally {
       setLoading(false)
@@ -177,11 +177,11 @@ export function Home() {
 
   const handleJoinGame = async () => {
     if (!tempName.trim()) {
-      toast.error('Please enter player name')
+      toast.error('請輸入玩家名稱')
       return
     }
     if (!roomCode.trim()) {
-      toast.error('Please enter room code')
+      toast.error('請輸入房間代碼')
       return
     }
 
@@ -193,14 +193,14 @@ export function Home() {
 
       const game = await joinGame(roomCode.toUpperCase(), user.uid, tempName)
       if (!game) {
-        toast.error('Room not found')
+        toast.error('找不到房間')
         return
       }
 
-      toast.success('Joined room successfully!')
+      toast.success('成功加入房間！')
       navigate(`/lobby/${game.id}`)
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to join room'
+      const message = error instanceof Error ? error.message : '加入房間失敗'
       toast.error(message)
       console.error(error)
     } finally {
@@ -250,7 +250,7 @@ export function Home() {
         </h1>
         <p className="text-xl md:text-2xl text-slate-400 font-game tracking-wider">
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-600">
-            Become the Master of Elements
+            成為元素的主宰
           </span>
         </p>
 
@@ -267,8 +267,8 @@ export function Home() {
           {/* Primary Action: Single Player Game */}
           <MenuButton
             icon={<Gamepad2 className="w-6 h-6 text-vale-400" />}
-            title="Single Player"
-            subtitle="Play with enhanced UI components"
+            title="單人遊戲"
+            subtitle="使用增強 UI 元件進行遊戲"
             onClick={() => navigate('/gameboard')}
             variant="primary"
             testId="gameboard-btn"
@@ -277,8 +277,8 @@ export function Home() {
           {/* Multiplayer Online Mode (New) */}
           <MenuButton
             icon={<Users className="w-6 h-6 text-purple-400" />}
-            title="Multiplayer Online"
-            subtitle="Play with 2-4 players online (New!)"
+            title="多人線上"
+            subtitle="2-4 人線上對戰（最新功能！）"
             onClick={() => navigate('/multiplayer')}
             variant="accent"
             testId="multiplayer-online-btn"
@@ -287,8 +287,8 @@ export function Home() {
           {/* Local Battle (Legacy) */}
           <MenuButton
             icon={<Monitor className="w-6 h-6 text-slate-400" />}
-            title="Local Battle (Classic)"
-            subtitle="Play locally on this device"
+            title="本地對戰（經典）"
+            subtitle="在此裝置上進行本地遊戲"
             onClick={() => navigate('/local')}
             variant="secondary"
             testId="local-game-btn"
@@ -297,15 +297,15 @@ export function Home() {
           {/* Divider */}
           <div className="flex items-center gap-4 py-2">
             <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
-            <span className="text-xs text-slate-600 uppercase tracking-wider">Multiplayer</span>
+            <span className="text-xs text-slate-600 uppercase tracking-wider">多人模式</span>
             <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
           </div>
 
           {/* Create Game */}
           <MenuButton
             icon={<Swords className="w-6 h-6 text-emerald-400" />}
-            title="Create Game"
-            subtitle="Host a new multiplayer room"
+            title="創建遊戲"
+            subtitle="建立新的多人房間"
             onClick={() => {
               setTempName(playerName)
               setShowCreateModal(true)
@@ -317,8 +317,8 @@ export function Home() {
           {/* Join Game */}
           <MenuButton
             icon={<Users className="w-6 h-6 text-blue-400" />}
-            title="Join Game"
-            subtitle="Enter a room code to join"
+            title="加入遊戲"
+            subtitle="輸入房間代碼以加入"
             onClick={() => {
               setTempName(playerName)
               setRoomCode('')
@@ -331,15 +331,15 @@ export function Home() {
           {/* Divider */}
           <div className="flex items-center gap-4 py-2">
             <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
-            <span className="text-xs text-slate-600 uppercase tracking-wider">Explore</span>
+            <span className="text-xs text-slate-600 uppercase tracking-wider">探索</span>
             <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
           </div>
 
           {/* Card Gallery */}
           <MenuButton
             icon={<Library className="w-6 h-6 text-amber-400" />}
-            title="Card Gallery"
-            subtitle="Browse all 70 unique cards"
+            title="卡片圖鑑"
+            subtitle="瀏覽全部 70 張獨特卡片"
             onClick={() => navigate('/cards')}
             variant="accent"
             testId="card-gallery-btn"
@@ -348,8 +348,8 @@ export function Home() {
           {/* Tutorial */}
           <MenuButton
             icon={<BookOpen className="w-6 h-6 text-purple-400" />}
-            title="Tutorial"
-            subtitle="Learn the game rules"
+            title="遊戲教學"
+            subtitle="學習遊戲規則"
             onClick={() => navigate('/tutorial')}
             variant="outline"
             testId="tutorial-btn"
@@ -361,7 +361,7 @@ export function Home() {
       <footer className="relative py-6 text-center">
         <div className="flex items-center justify-center gap-2 text-slate-600 text-sm">
           <Shield className="w-4 h-4" />
-          <span>Built with React + Firebase</span>
+          <span>使用 React + Firebase 構建</span>
         </div>
       </footer>
 
@@ -369,23 +369,23 @@ export function Home() {
       <Modal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        title="Create Game"
+        title="創建遊戲"
         size="md"
         footer={
           <>
             <Button variant="ghost" onClick={() => setShowCreateModal(false)}>
-              Cancel
+              取消
             </Button>
             <Button onClick={handleCreateGame} isLoading={isLoading}>
-              Create
+              創建
             </Button>
           </>
         }
       >
         <div className="space-y-5">
           <Input
-            label="Player Name"
-            placeholder="Enter your name"
+            label="玩家名稱"
+            placeholder="輸入你的名稱"
             value={tempName}
             onChange={(e) => setTempName(e.target.value)}
             maxLength={20}
@@ -394,7 +394,7 @@ export function Home() {
 
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-3">
-              Max Players
+              最多玩家數
             </label>
             <div className="flex gap-2">
               {([2, 3, 4] as const).map((num) => (
@@ -410,7 +410,7 @@ export function Home() {
                   )}
                   data-testid={`max-players-${num}`}
                 >
-                  {num} Players
+                  {num} 人
                 </button>
               ))}
             </div>
@@ -425,8 +425,8 @@ export function Home() {
               data-testid="use-expansion"
             />
             <div>
-              <span className="text-slate-200 font-medium">Use Expansion Pack</span>
-              <p className="text-sm text-slate-500">Adds 28 additional cards</p>
+              <span className="text-slate-200 font-medium">使用擴充包</span>
+              <p className="text-sm text-slate-500">新增 28 張額外卡片</p>
             </div>
           </label>
         </div>
@@ -436,31 +436,31 @@ export function Home() {
       <Modal
         isOpen={showJoinModal}
         onClose={() => setShowJoinModal(false)}
-        title="Join Game"
+        title="加入遊戲"
         size="md"
         footer={
           <>
             <Button variant="ghost" onClick={() => setShowJoinModal(false)}>
-              Cancel
+              取消
             </Button>
             <Button onClick={handleJoinGame} isLoading={isLoading}>
-              Join
+              加入
             </Button>
           </>
         }
       >
         <div className="space-y-5">
           <Input
-            label="Player Name"
-            placeholder="Enter your name"
+            label="玩家名稱"
+            placeholder="輸入你的名稱"
             value={tempName}
             onChange={(e) => setTempName(e.target.value)}
             maxLength={20}
             data-testid="player-name-input"
           />
           <Input
-            label="Room Code"
-            placeholder="Enter 6-digit code"
+            label="房間代碼"
+            placeholder="輸入 6 位數代碼"
             value={roomCode}
             onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
             maxLength={6}

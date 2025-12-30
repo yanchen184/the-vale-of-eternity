@@ -1,9 +1,9 @@
 /**
  * Card Gallery Page - Display all 70 cards
  * Redesigned with improved UX and image preview
- * @version 3.0.0 - Complete UI/UX overhaul
+ * @version 3.1.0 - 完整中文化
  */
-console.log('[pages/CardGallery.tsx] v3.0.0 loaded')
+console.log('[pages/CardGallery.tsx] v3.1.0 loaded')
 
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -224,7 +224,7 @@ function CardDetailPanel({ card, onImageClick }: CardDetailPanelProps) {
           <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
             <div className="flex items-center gap-2 text-white text-sm bg-slate-900/80 px-3 py-1.5 rounded-full">
               <Search className="w-4 h-4" />
-              <span>Click to Enlarge</span>
+              <span>點擊放大</span>
             </div>
           </div>
         </div>
@@ -233,11 +233,11 @@ function CardDetailPanel({ card, onImageClick }: CardDetailPanelProps) {
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-3 mb-4">
         <div className="bg-slate-900/50 p-3 rounded-xl text-center">
-          <div className="text-xs text-slate-500 mb-1">Cost</div>
+          <div className="text-xs text-slate-500 mb-1">成本</div>
           <div className="text-3xl font-bold text-amber-400">{card.cost}</div>
         </div>
         <div className="bg-slate-900/50 p-3 rounded-xl text-center">
-          <div className="text-xs text-slate-500 mb-1">Score</div>
+          <div className="text-xs text-slate-500 mb-1">分數</div>
           <div className="text-3xl font-bold text-emerald-400">{card.baseScore}</div>
         </div>
       </div>
@@ -248,7 +248,7 @@ function CardDetailPanel({ card, onImageClick }: CardDetailPanelProps) {
           <div className="flex items-center gap-2 mb-2">
             <Sparkles className="w-4 h-4 text-vale-400" />
             <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              Effect
+              效果
             </span>
           </div>
           <p className="text-slate-200 leading-relaxed">{card.effectDescriptionTw}</p>
@@ -335,19 +335,19 @@ export function CardGallery() {
                 leftIcon={<ArrowLeft className="h-4 w-4" />}
                 data-testid="back-btn"
               >
-                Back
+                返回
               </Button>
               <div className="hidden sm:block">
                 <h1 className="text-xl font-bold text-slate-100 font-game flex items-center gap-2">
                   <Shield className="w-5 h-5 text-vale-400" />
-                  Card Gallery
+                  卡片圖鑑
                 </h1>
                 <p className="text-xs text-slate-500">
-                  {validation.totalCards} cards |{' '}
+                  {validation.totalCards} 張卡片 |{' '}
                   {validation.isValid ? (
-                    <span className="text-emerald-400">Valid</span>
+                    <span className="text-emerald-400">有效</span>
                   ) : (
-                    <span className="text-red-400">Invalid</span>
+                    <span className="text-red-400">無效</span>
                   )}
                 </p>
               </div>
@@ -359,7 +359,7 @@ export function CardGallery() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                 <input
                   type="text"
-                  placeholder="Search cards..."
+                  placeholder="搜尋卡片..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className={cn(
@@ -434,7 +434,7 @@ export function CardGallery() {
             <span
               className={cn('font-medium', elementFilter === 'all' ? 'text-slate-100' : 'text-slate-400')}
             >
-              All
+              全部
             </span>
             <span
               className={cn(
@@ -459,7 +459,7 @@ export function CardGallery() {
         {/* Stats Overview (Collapsible on mobile) */}
         <details className="mb-6 group">
           <summary className="flex items-center gap-2 cursor-pointer text-slate-400 hover:text-slate-200 transition-colors">
-            <span className="text-sm font-medium">Card Distribution</span>
+            <span className="text-sm font-medium">卡片分布</span>
             <span className="text-xs group-open:rotate-90 transition-transform">&#9654;</span>
           </summary>
           <div className="mt-4">
@@ -474,7 +474,7 @@ export function CardGallery() {
             {filteredCards.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-slate-500">
                 <Search className="w-12 h-12 mb-4 opacity-50" />
-                <p>No cards found</p>
+                <p>找不到卡片</p>
                 {searchQuery && (
                   <Button
                     variant="ghost"
@@ -482,7 +482,7 @@ export function CardGallery() {
                     onClick={() => setSearchQuery('')}
                     className="mt-2"
                   >
-                    Clear search
+                    清除搜尋
                   </Button>
                 )}
               </div>
@@ -554,7 +554,7 @@ export function CardGallery() {
             ) : (
               <div className="sticky top-24 p-8 rounded-2xl bg-slate-800/30 border border-slate-700/50 text-center">
                 <div className="text-6xl mb-4 opacity-30">🃏</div>
-                <p className="text-slate-500">Select a card to view details</p>
+                <p className="text-slate-500">選擇卡片以查看詳情</p>
               </div>
             )}
           </div>
@@ -573,11 +573,11 @@ export function CardGallery() {
         >
           <div className="flex items-center justify-center gap-6 text-slate-300">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-slate-500">Cost:</span>
+              <span className="text-sm text-slate-500">成本：</span>
               <span className="text-xl font-bold text-amber-400">{selectedCard.cost}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-slate-500">Score:</span>
+              <span className="text-sm text-slate-500">分數：</span>
               <span className="text-xl font-bold text-emerald-400">{selectedCard.baseScore}</span>
             </div>
             <div className="flex items-center gap-2">
