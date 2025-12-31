@@ -173,6 +173,8 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
   useEffect(() => {
     if (!isResizing) return
 
+    const initialPosition = { ...position }
+
     const handleMouseMove = (e: MouseEvent) => {
       const deltaX = e.clientX - resizeStart.x
       const deltaY = e.clientY - resizeStart.y
@@ -180,7 +182,7 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
       // Right: expand width when dragging right
       const newWidth = Math.max(400, resizeStart.width + deltaX)
 
-      // Top: expand height when dragging up (negative deltaY)
+      // Top: expand height when dragging up (negative deltaY means dragging up)
       const newHeight = Math.max(280, resizeStart.height - deltaY)
 
       setSize({
@@ -188,18 +190,12 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
         height: newHeight,
       })
 
-      // Adjust position when resizing from top (move window up when expanding upward)
-      if (deltaY !== 0) {
-        setPosition(prev => ({
-          x: prev.x,
-          y: prev.y + deltaY,
-        }))
-        // Reset resizeStart.y to current position for smooth continuous dragging
-        setResizeStart(prev => ({
-          ...prev,
-          y: e.clientY,
-        }))
-      }
+      // Adjust position.y so the BOTTOM edge stays fixed while top expands upward
+      const heightChange = newHeight - resizeStart.height
+      setPosition({
+        x: initialPosition.x,
+        y: initialPosition.y - heightChange,
+      })
     }
 
     const handleMouseUp = () => {
@@ -213,7 +209,7 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [isResizing, resizeStart])
+  }, [isResizing, resizeStart, position])
 
   // Handle zoom with Ctrl+Wheel (like Chrome)
   useEffect(() => {
