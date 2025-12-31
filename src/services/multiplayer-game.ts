@@ -1,9 +1,9 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 3.12.1 - Tengu goes to deck top when clicking return (not on tame)
+ * @version 3.12.2 - Enhanced Tengu return logging + removed element stone effects
  */
-console.log('[services/multiplayer-game.ts] v3.12.1 loaded')
+console.log('[services/multiplayer-game.ts] v3.12.2 loaded')
 
 import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -1520,13 +1520,19 @@ export class MultiplayerGameService {
     // Get card template to check for PUT_ON_DECK_TOP effect
     const allCards = getAllBaseCards()
     const cardTemplate = allCards.find(c => c.id === card.cardId)
+
+    console.log(`[MultiplayerGame] 🔍 Returning field card ${cardInstanceId}`)
+    console.log(`[MultiplayerGame] 🔍 Card.cardId:`, card.cardId)
+    console.log(`[MultiplayerGame] 🔍 Card.name:`, card.name, card.nameTw)
+    console.log(`[MultiplayerGame] 🔍 Card template found:`, cardTemplate?.id, cardTemplate?.name, cardTemplate?.nameTw)
+    console.log(`[MultiplayerGame] 🔍 Card template effects:`, cardTemplate?.effects)
+
     const hasDeckTopEffect = cardTemplate?.effects?.some(
       e => e.type === EffectType.PUT_ON_DECK_TOP
     )
 
-    console.log(`[MultiplayerGame] Returning field card ${cardInstanceId} (${card.name})`)
-    console.log(`[MultiplayerGame] Card template:`, cardTemplate?.name, cardTemplate?.nameTw)
-    console.log(`[MultiplayerGame] Has PUT_ON_DECK_TOP effect:`, hasDeckTopEffect)
+    console.log(`[MultiplayerGame] 🔍 Has PUT_ON_DECK_TOP effect:`, hasDeckTopEffect)
+    console.log(`[MultiplayerGame] 🔍 EffectType.PUT_ON_DECK_TOP value:`, EffectType.PUT_ON_DECK_TOP)
 
     // Remove from field
     const updatedField = currentField.filter(id => id !== cardInstanceId)

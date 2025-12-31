@@ -430,7 +430,7 @@ export const PlayerHand = memo(function PlayerHand({
         className={cn(
           'relative overflow-hidden',
           'bg-gradient-to-b from-slate-800/40 to-slate-900/60',
-          'rounded-2xl border-2 border-slate-700/50 p-6',
+          'rounded-2xl border-2 border-slate-700/50 px-6 py-3',
           'shadow-inner shadow-slate-950/50',
           className
         )}
@@ -438,7 +438,7 @@ export const PlayerHand = memo(function PlayerHand({
       >
         <HandRunes />
         {/* Header removed to save space */}
-        <div className="flex items-center justify-center h-52 text-slate-500">
+        <div className="flex items-center justify-center h-32 text-slate-500">
           <div className="text-center">
             <div className="text-4xl mb-2 opacity-30">-</div>
             <span>No cards in hand</span>
@@ -454,37 +454,32 @@ export const PlayerHand = memo(function PlayerHand({
       className={cn(
         'relative overflow-hidden',
         'bg-gradient-to-b from-slate-800/40 to-slate-900/60',
-        'rounded-2xl border-2 border-purple-900/30 p-6',
+        'rounded-2xl border-2 border-purple-900/30 px-6 py-3',
         'shadow-xl shadow-purple-950/20',
         className
       )}
       data-testid="player-hand"
     >
       <HandRunes />
-      <HandLimitWarning currentCount={cards.length} maxCount={maxHandSize} />
+      {/* No hand limit - removed warning */}
 
-      {/* Header - Removed title to save space, keep card count */}
-      <div className="flex items-center justify-end mb-3 relative z-10">
+      {/* Header - Show card count only (no limit) */}
+      <div className="flex items-center justify-end mb-1 relative z-10">
         <div className="flex items-center gap-2">
           {hiddenCount > 0 && (
             <span className="text-xs text-amber-400 bg-amber-500/10 px-2 py-1 rounded-full border border-amber-500/20">
               +{hiddenCount} more
             </span>
           )}
-          <span className={cn(
-            'text-sm px-2 py-1 rounded-lg',
-            cards.length >= maxHandSize
-              ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-              : 'bg-slate-700/50 text-slate-400 border border-slate-600/30'
-          )}>
-            {cards.length} / {maxHandSize}
+          <span className="text-sm px-2 py-1 rounded-lg bg-slate-700/50 text-slate-400 border border-slate-600/30">
+            {cards.length} 張
           </span>
         </div>
       </div>
 
       {/* Cards Fan Layout */}
       <div
-        className="flex items-end justify-center min-h-[240px] py-6 px-12"
+        className="flex items-end justify-center min-h-[200px] py-2 px-12"
         data-testid="hand-cards-container"
       >
         {visibleCards.map((card, index) => (

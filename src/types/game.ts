@@ -1,9 +1,9 @@
 /**
  * Game core type definitions
  * Supports both multiplayer and single-player modes
- * @version 3.1.0 - Added manual mode support
+ * @version 3.2.0 - Fixed calculateStonePoolValue to only count coins (1,3,6)
  */
-console.log('[types/game.ts] v3.1.0 loaded')
+console.log('[types/game.ts] v3.2.0 loaded')
 
 import type { CardInstance, StoneType } from './cards'
 import type { Player } from './player'
@@ -370,14 +370,11 @@ export function createEmptyStonePool(): StonePool {
  * Calculate total stone value
  */
 export function calculateStonePoolValue(pool: StonePool): number {
+  // Only count actual coins (1, 3, 6), not element stones
   return (
     pool.ONE * 1 +
     pool.THREE * 3 +
-    pool.SIX * 6 +
-    pool.WATER * 1 +
-    pool.FIRE * 1 +
-    pool.EARTH * 1 +
-    pool.WIND * 1
+    pool.SIX * 6
   )
 }
 
