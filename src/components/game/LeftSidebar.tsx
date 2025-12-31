@@ -1,9 +1,9 @@
 /**
  * LeftSidebar Component
  * Left sidebar for multiplayer game - displays player list and my info
- * @version 1.0.0
+ * @version 1.1.0 - Added individual coin display (1, 3, 6)
  */
-console.log('[components/game/LeftSidebar.tsx] v1.0.0 loaded')
+console.log('[components/game/LeftSidebar.tsx] v1.1.0 loaded')
 
 import { memo, useMemo } from 'react'
 import { cn } from '@/lib/utils'
@@ -12,6 +12,7 @@ import { PlayerMarker } from './PlayerMarker'
 import { type PlayerColor, PLAYER_COLORS } from '@/types/player-color'
 import type { StonePool } from '@/types/game'
 import { calculateStonePoolValue } from '@/types/game'
+import { StoneType } from '@/types/cards'
 
 // ============================================
 // TYPES
@@ -99,7 +100,7 @@ const MyInfoCard = memo(function MyInfoCard({
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <div className="bg-slate-900/50 rounded-lg p-2 text-center">
             <div className="text-lg leading-none mb-1">手</div>
             <div className="text-xs text-slate-400">手牌</div>
@@ -114,12 +115,45 @@ const MyInfoCard = memo(function MyInfoCard({
               {player.fieldCount}
             </div>
           </div>
-          <div className="bg-slate-900/50 rounded-lg p-2 text-center">
-            <div className="text-lg leading-none mb-1">幣</div>
-            <div className="text-xs text-slate-400">錢幣</div>
-            <div className="text-lg font-bold text-cyan-400">
-              {totalStoneValue}
+        </div>
+
+        {/* Coins Breakdown */}
+        <div className="bg-slate-900/50 rounded-lg p-2">
+          <div className="text-xs text-slate-400 mb-2 text-center">錢幣</div>
+          <div className="flex items-center justify-around">
+            <div className="flex items-center gap-1">
+              <img
+                src="/the-vale-of-eternity/assets/stones/stone-1.png"
+                alt="1元"
+                className="w-5 h-5"
+              />
+              <span className="text-sm font-bold text-amber-400">
+                x{player.stones[StoneType.ONE] || 0}
+              </span>
             </div>
+            <div className="flex items-center gap-1">
+              <img
+                src="/the-vale-of-eternity/assets/stones/stone-3.png"
+                alt="3元"
+                className="w-5 h-5"
+              />
+              <span className="text-sm font-bold text-amber-400">
+                x{player.stones[StoneType.THREE] || 0}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <img
+                src="/the-vale-of-eternity/assets/stones/stone-6.png"
+                alt="6元"
+                className="w-5 h-5"
+              />
+              <span className="text-sm font-bold text-amber-400">
+                x{player.stones[StoneType.SIX] || 0}
+              </span>
+            </div>
+          </div>
+          <div className="text-center mt-2 text-xs text-cyan-400">
+            總計: {totalStoneValue}
           </div>
         </div>
 
@@ -195,14 +229,41 @@ const OtherPlayerCard = memo(function OtherPlayerCard({
           <span className="flex items-center gap-1">
             <span className="text-emerald-400">場</span> {player.fieldCount}
           </span>
-          <span className="flex items-center gap-1">
-            <span className="text-cyan-400">幣</span> {totalStoneValue}
-          </span>
           {player.score > 0 && (
             <span className="flex items-center gap-1 ml-auto text-amber-300">
               {player.score} 分
             </span>
           )}
+        </div>
+
+        {/* Coins Breakdown */}
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-slate-400">幣:</span>
+          <div className="flex items-center gap-1">
+            <img
+              src="/the-vale-of-eternity/assets/stones/stone-1.png"
+              alt="1"
+              className="w-3 h-3"
+            />
+            <span className="text-amber-400">{player.stones[StoneType.ONE] || 0}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <img
+              src="/the-vale-of-eternity/assets/stones/stone-3.png"
+              alt="3"
+              className="w-3 h-3"
+            />
+            <span className="text-amber-400">{player.stones[StoneType.THREE] || 0}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <img
+              src="/the-vale-of-eternity/assets/stones/stone-6.png"
+              alt="6"
+              className="w-3 h-3"
+            />
+            <span className="text-amber-400">{player.stones[StoneType.SIX] || 0}</span>
+          </div>
+          <span className="text-cyan-400 ml-auto">={totalStoneValue}</span>
         </div>
 
         {/* Status Badges */}

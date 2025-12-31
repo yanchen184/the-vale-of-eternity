@@ -128,18 +128,8 @@ const CoinDisplay = memo(function CoinDisplay({
         />
       </div>
 
-      {/* Count Badge - show infinity for bank */}
-      {isBank ? (
-        <div
-          className={cn(
-            'font-bold rounded-full',
-            size === 'md' ? 'text-lg px-2 py-0.5' : 'text-sm px-1.5 py-0.5',
-            'text-blue-400'
-          )}
-        >
-          ∞
-        </div>
-      ) : (
+      {/* Count Badge - don't show for bank */}
+      {!isBank && (
         <div
           className={cn(
             'font-bold rounded-full',
@@ -231,26 +221,18 @@ const BankSection = memo(function BankSection({
     <GlassCard variant="blue" glow="none" padding="sm">
       <div className="space-y-2">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <h4 className="text-sm font-bold text-blue-300 flex items-center gap-1.5">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <span>銀行</span>
-          </h4>
-          {/* Infinite symbol */}
-          <span className="text-xl font-bold text-blue-400">∞</span>
-        </div>
-
-        {/* Subtitle */}
-        <p className="text-[10px] text-slate-500 text-center">
-          無限供應
-        </p>
+        {/* Header */}
+        <h4 className="text-sm font-bold text-blue-300 flex items-center gap-1.5 mb-2">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <span>銀行</span>
+        </h4>
 
         {/* Coin Grid - Bank coins are always available */}
         <div className="grid grid-cols-3 gap-1">
@@ -305,7 +287,7 @@ const DeckInfoSection = memo(function DeckInfoSection({
 }: DeckInfoSectionProps) {
   return (
     <div className="space-y-2">
-      {/* Top Row: Deck and Market Discard */}
+      {/* Deck and Discard Pile */}
       <div className="grid grid-cols-2 gap-2">
         {/* Deck */}
         <GlassCard variant="default" padding="sm" className="text-center">
@@ -317,44 +299,25 @@ const DeckInfoSection = memo(function DeckInfoSection({
           </div>
         </GlassCard>
 
-        {/* Market Discard Pile */}
+        {/* Discard Pile (combined) */}
         <GlassCard
           variant="default"
           padding="sm"
           className="text-center cursor-pointer hover:bg-white/10 transition-colors"
-          onClick={onMarketDiscardClick}
+          onClick={onDiscardClick}
           hoverable
         >
           <div className="space-y-1">
-            <div className="w-10 h-14 mx-auto bg-gradient-to-br from-purple-700 to-purple-800 rounded border-2 border-purple-600 flex items-center justify-center shadow-lg relative">
-              <span className="text-purple-200 text-lg font-bold">{marketDiscardCount}</span>
-              {marketDiscardCount > 0 && (
+            <div className="w-10 h-14 mx-auto bg-gradient-to-br from-slate-700 to-slate-800 rounded border-2 border-slate-600 flex items-center justify-center shadow-lg relative">
+              <span className="text-slate-300 text-lg font-bold">{discardCount + marketDiscardCount}</span>
+              {(discardCount + marketDiscardCount) > 0 && (
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-400 rounded-full animate-pulse" />
               )}
             </div>
-            <div className="text-[10px] text-slate-400">市場棄牌</div>
+            <div className="text-[10px] text-slate-400">棄牌堆</div>
           </div>
         </GlassCard>
       </div>
-
-      {/* Bottom Row: Player Discard */}
-      <GlassCard
-        variant="default"
-        padding="sm"
-        className="text-center cursor-pointer hover:bg-white/10 transition-colors"
-        onClick={onDiscardClick}
-        hoverable
-      >
-        <div className="space-y-1">
-          <div className="w-10 h-14 mx-auto bg-gradient-to-br from-slate-700 to-slate-800 rounded border-2 border-slate-600 flex items-center justify-center shadow-lg relative">
-            <span className="text-slate-300 text-lg font-bold">{discardCount}</span>
-            {discardCount > 0 && (
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse" />
-            )}
-          </div>
-          <div className="text-[10px] text-slate-400">我的棄牌</div>
-        </div>
-      </GlassCard>
     </div>
   )
 })
