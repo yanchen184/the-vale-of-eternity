@@ -984,8 +984,6 @@ export function MultiplayerGame() {
             bankCoins={gameRoom.bankCoins || createEmptyStonePool()}
             playerCoins={currentPlayer?.stones || createEmptyStonePool()}
             playerName={currentPlayer?.name ?? ''}
-            discardCount={0}
-            marketDiscardCount={0}
             isYourTurn={isYourTurn}
             phase={gameRoom.status}
             onTakeCoin={handleTakeCoinFromBank}
