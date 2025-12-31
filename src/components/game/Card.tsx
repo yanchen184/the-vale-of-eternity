@@ -1,9 +1,9 @@
 /**
  * Card Component with Image Display
  * Renders a game card with its image and stats
- * @version 2.15.0 - Adjusted to 80% size (22.4rem × 33.6rem)
+ * @version 2.16.0 - Added discard button for hand cards
  */
-console.log('[components/game/Card.tsx] v2.15.0 loaded')
+console.log('[components/game/Card.tsx] v2.16.0 loaded')
 
 import { useState, useCallback, memo } from 'react'
 import { Flame, Droplets, TreePine, Wind, Crown, Gem } from 'lucide-react'
@@ -83,6 +83,8 @@ export interface CardProps {
   onTame?: () => void
   /** Callback when Sell button is clicked */
   onSell?: () => void
+  /** Callback when Discard button is clicked */
+  onDiscard?: () => void
   /** Callback when card is clicked */
   onClick?: () => void
   /** Whether the card can be tamed */
@@ -141,6 +143,7 @@ interface CardActionsProps {
   onTake?: () => void
   onTame?: () => void
   onSell?: () => void
+  onDiscard?: () => void
   canTame: boolean
   cardElement: Element  // Card's element for calculating sell coins
 }
@@ -149,6 +152,7 @@ const CardActions = memo(function CardActions({
   onTake,
   onTame,
   onSell,
+  onDiscard,
   canTame,
   cardElement,
 }: CardActionsProps) {
@@ -209,6 +213,19 @@ const CardActions = memo(function CardActions({
           </div>
         </button>
       )}
+      {onDiscard && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onDiscard()
+          }}
+          className="flex-1 text-xs bg-red-600 hover:bg-red-500 text-white py-1 px-2 rounded transition-colors"
+          type="button"
+          title="棄置此卡片"
+        >
+          棄置
+        </button>
+      )}
     </div>
   )
 })
@@ -253,6 +270,7 @@ export const Card = memo(function Card({
   onTake,
   onTame,
   onSell,
+  onDiscard,
   onClick,
   canTame = false,
   selectedByColor,
@@ -422,11 +440,12 @@ export const Card = memo(function Card({
       )}
 
       {/* Action buttons */}
-      {showActions && (onTake || onTame || onSell) && (
+      {showActions && (onTake || onTame || onSell || onDiscard) && (
         <CardActions
           onTake={onTake}
           onTame={onTame}
           onSell={onSell}
+          onDiscard={onDiscard}
           canTame={canTame}
           cardElement={card.element}
         />

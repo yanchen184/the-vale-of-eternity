@@ -1522,6 +1522,78 @@ export class MultiplayerGameService {
   }
 
   /**
+   * Discard a hand card (can be done anytime during your turn, including Resolution phase)
+   * Removes card from hand and adds to discard pile
+   */
+  async discardHandCard(
+    gameId: string,
+    playerId: string,
+    cardInstanceId: string
+  ): Promise<void> {
+    const gameRef = ref(database, `games/${gameId}`)
+    const snapshot = await get(gameRef)
+
+    if (!snapshot.exists()) {
+      throw new Error('Game not found')
+    }
+
+    const game: GameRoom = snapshot.val()
+
+    if (game.status !== 'ACTION' && game.status !== 'RESOLUTION') {
+      throw new Error('Can only discard cards during Action or Resolution phase')
+    }
+
+    const currentPlayerIndex = game.currentPlayerIndex
+    const expectedPlayerId = game.playerIds[currentPlayerIndex]
+
+    if (playerId !== expectedPlayerId) {
+      throw new Error('Not your turn')
+    }
+
+    // Get player state
+    const playerSnapshot = await get(ref(database, `games/${gameId}/players/${playerId}`))
+    if (!playerSnapshot.exists()) {
+      throw new Error('Player not found')
+    }
+
+    const player: PlayerState = playerSnapshot.val()
+
+    // Check if card is in player's hand
+    const currentHand = Array.isArray(player.hand) ? player.hand : []
+    if (!currentHand.includes(cardInstanceId)) {
+      throw new Error('Card not in hand')
+    }
+
+    // Get card data
+    const cardSnapshot = await get(ref(database, `games/${gameId}/cards/${cardInstanceId}`))
+    if (!cardSnapshot.exists()) {
+      throw new Error('Card not found')
+    }
+
+    const card: CardInstanceData = cardSnapshot.val()
+
+    // Remove from hand
+    const updatedHand = currentHand.filter(id => id !== cardInstanceId)
+
+    await update(ref(database, `games/${gameId}/players/${playerId}`), {
+      hand: updatedHand,
+    })
+
+    await update(ref(database, `games/${gameId}/cards/${cardInstanceId}`), {
+      location: CardLocation.DISCARD,
+    })
+
+    // Add to game discard pile
+    const currentDiscardIds = Array.isArray(game.discardIds) ? game.discardIds : []
+    await update(ref(database, `games/${gameId}`), {
+      discardIds: [...currentDiscardIds, cardInstanceId],
+      updatedAt: Date.now(),
+    })
+
+    console.log(`[MultiplayerGame] Player ${playerId} discarded ${cardInstanceId} (${card.name}) from hand`)
+  }
+
+  /**
    * Pass turn (Action Phase)
    */
   async passTurn(gameId: string, playerId: string): Promise<void> {
@@ -1579,8 +1651,8 @@ export class MultiplayerGameService {
           // Initialize hunting phase with rotated starting player
           game.huntingPhase = {
             currentPlayerIndex: startingPlayerIndex,
-            currentRound: 1,
-            maxRounds: 2,
+            round: 1,
+            selections: {},
             confirmedSelections: {},
           }
 
@@ -1664,8 +1736,8 @@ export class MultiplayerGameService {
         // Initialize hunting phase with rotated starting player
         game.huntingPhase = {
           currentPlayerIndex: startingPlayerIndex,
-          currentRound: 1,
-          maxRounds: 2,
+          round: 1,
+          selections: {},
           confirmedSelections: {},
         }
 

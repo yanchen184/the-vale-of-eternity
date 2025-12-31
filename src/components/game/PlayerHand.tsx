@@ -1,9 +1,9 @@
 /**
  * PlayerHand Component
  * Displays player's hand cards with enhanced fan layout, animations, and drag-drop support
- * @version 2.2.0 - Added round-based sell restriction (only current round cards can be sold)
+ * @version 2.3.0 - Added discard hand card functionality
  */
-console.log('[components/game/PlayerHand.tsx] v2.2.0 loaded')
+console.log('[components/game/PlayerHand.tsx] v2.3.0 loaded')
 
 import { useState, useCallback, useMemo, memo, useRef, useEffect } from 'react'
 import gsap from 'gsap'
@@ -33,6 +33,8 @@ export interface PlayerHandProps {
   onCardPlay?: (cardId: string) => void
   /** Callback when card is sold */
   onCardSell?: (cardId: string) => void
+  /** Callback when card is discarded */
+  onCardDiscard?: (cardId: string) => void
   /** Callback when card is dragged to field */
   onDragToField?: (cardId: string) => void
   /** Check if a card can be tamed */
@@ -190,6 +192,7 @@ interface HandCardItemProps {
   onSelect: () => void
   onTame?: () => void
   onSell?: () => void
+  onDiscard?: () => void
   onHover: () => void
   onHoverEnd: () => void
   onDragStart: (e: React.DragEvent) => void
@@ -210,6 +213,7 @@ const HandCardItem = memo(function HandCardItem({
   onSelect,
   onTame,
   onSell,
+  onDiscard,
   onHover,
   onHoverEnd,
   onDragStart,
@@ -310,6 +314,7 @@ const HandCardItem = memo(function HandCardItem({
         showActions={showActions && isHovered}
         onTame={onTame}
         onSell={canSell ? onSell : undefined}
+        onDiscard={onDiscard}
         onClick={onSelect}
         canTame={canTame}
         className={cn(
@@ -342,6 +347,7 @@ export const PlayerHand = memo(function PlayerHand({
   onCardSelect,
   onCardPlay,
   onCardSell,
+  onCardDiscard,
   onDragToField: _onDragToField,
   canTameCard,
   currentRound,
@@ -361,15 +367,7 @@ export const PlayerHand = memo(function PlayerHand({
     // If card doesn't have acquiredInRound (old cards), allow selling (backward compatibility)
     if (acquiredInRound === undefined) return true
     // Only allow selling if card was acquired in current round
-    const canSell = acquiredInRound === currentRound
-    console.log('[PlayerHand] canSellCard check:', {
-      cardName: card.name,
-      cardId: card.instanceId,
-      acquiredInRound,
-      currentRound,
-      canSell
-    })
-    return canSell
+    return acquiredInRound === currentRound
   }, [currentRound])
 
   // Limit visible cards
@@ -391,6 +389,10 @@ export const PlayerHand = memo(function PlayerHand({
   const handleCardSell = useCallback((cardId: string) => {
     onCardSell?.(cardId)
   }, [onCardSell])
+
+  const handleCardDiscard = useCallback((cardId: string) => {
+    onCardDiscard?.(cardId)
+  }, [onCardDiscard])
 
   const handleDragStart = useCallback((e: React.DragEvent, cardId: string) => {
     setDraggedCardId(cardId)
@@ -511,6 +513,7 @@ export const PlayerHand = memo(function PlayerHand({
             onSelect={() => handleCardSelect(card.instanceId)}
             onTame={() => handleCardTame(card.instanceId)}
             onSell={() => handleCardSell(card.instanceId)}
+            onDiscard={() => handleCardDiscard(card.instanceId)}
             onHover={() => handleHover(index)}
             onHoverEnd={handleHoverEnd}
             onDragStart={(e) => handleDragStart(e, card.instanceId)}

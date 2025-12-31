@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 5.6.0 - Added round-based sell restriction (only current round cards can be sold)
+ * @version 5.7.0 - Added hand card discard functionality for ACTION and RESOLUTION phases
  */
-console.log('[pages/MultiplayerGame.tsx] v5.6.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v5.7.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -277,6 +277,7 @@ interface ActionPhaseUIProps {
   isYourTurn: boolean
   onCardPlay: (cardId: string) => void
   onCardSell: (cardId: string) => void
+  onHandCardDiscard: (cardId: string) => void
   onCardReturn: (playerId: string, cardId: string) => void
   onCardDiscard: (playerId: string, cardId: string) => void
   onScoreAdjust: (playerId: string, score: number) => void
@@ -295,6 +296,7 @@ function ActionPhaseUI({
   isYourTurn,
   onCardPlay,
   onCardSell,
+  onHandCardDiscard,
   onCardReturn,
   onCardDiscard,
   onScoreAdjust,
@@ -326,10 +328,11 @@ function ActionPhaseUI({
           <PlayerHand
             cards={handCards}
             maxHandSize={10}
-            showActions={isYourTurn && !resolutionMode}
+            showActions={isYourTurn}
             enableDrag={isYourTurn && !resolutionMode}
             onCardPlay={onCardPlay}
             onCardSell={onCardSell}
+            onCardDiscard={onHandCardDiscard}
             canTameCard={canTameCard}
             currentRound={currentRound}
             className="rounded-xl border border-purple-900/30"
@@ -753,6 +756,19 @@ export function MultiplayerGame() {
     [gameId, playerId]
   )
 
+  const handleDiscardCard = useCallback(
+    async (cardInstanceId: string) => {
+      if (!gameId || !playerId) return
+
+      try {
+        await multiplayerGameService.discardHandCard(gameId, playerId, cardInstanceId)
+      } catch (err: any) {
+        setError(err.message || 'Failed to discard card')
+      }
+    },
+    [gameId, playerId]
+  )
+
   const handleReturnCard = useCallback(
     async (_playerId: string, cardInstanceId: string) => {
       if (!gameId || !playerId) return
@@ -1011,6 +1027,7 @@ export function MultiplayerGame() {
                 isYourTurn={isYourTurn}
                 onCardPlay={handleTameCard}
                 onCardSell={handleSellCard}
+                onHandCardDiscard={handleDiscardCard}
                 onCardReturn={handleReturnCard}
                 onCardDiscard={handleDiscardFieldCard}
                 onScoreAdjust={handleScoreAdjust}
@@ -1030,6 +1047,7 @@ export function MultiplayerGame() {
                 isYourTurn={isYourTurn}
                 onCardPlay={handleTameCard}
                 onCardSell={handleSellCard}
+                onHandCardDiscard={handleDiscardCard}
                 onCardReturn={handleReturnCard}
                 onCardDiscard={handleDiscardFieldCard}
                 onScoreAdjust={handleScoreAdjust}
