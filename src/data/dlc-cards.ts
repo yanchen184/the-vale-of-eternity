@@ -354,6 +354,8 @@ export const ANUBIS: CardTemplate = {
       descriptionTw: '馴服時：從棄牌堆回收1張卡到手牌。',
     },
   ],
+  flavorText: 'Guide of the dead.',
+  flavorTextTw: '亡者的引導者，喚回失落的靈魂。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Anubis.jpg',
 }
 
@@ -372,6 +374,8 @@ export const DUDURI: CardTemplate = {
       descriptionTw: '計分時：如果你剛好有3張豆豆里卡，獲得5分。',
     },
   ],
+  flavorText: 'Strength in numbers.',
+  flavorTextTw: '團結的小精靈，三人行必有成果。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Duduri.jpg',
 }
 
@@ -391,6 +395,8 @@ export const MANDRAKE: CardTemplate = {
       descriptionTw: '馴服時：獲得1顆地石。計分時算作2張地卡。',
     },
   ],
+  flavorText: 'Roots run deep.',
+  flavorTextTw: '深根植物的呼喚，蘊含雙倍大地之力。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Mandrake.jpg',
 }
 
@@ -410,6 +416,8 @@ export const TOTEM_POLE: CardTemplate = {
       descriptionTw: '馴服時：你的場上每有1張地卡，獲得1分。',
     },
   ],
+  flavorText: 'Monument of ancestral spirits.',
+  flavorTextTw: '祖靈的紀念碑，匯聚所有大地的祝福。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Totempole.jpg',
 }
 
@@ -429,6 +437,8 @@ export const WENDIGO: CardTemplate = {
       descriptionTw: '馴服時：獲得2顆地石。',
     },
   ],
+  flavorText: 'Insatiable hunger.',
+  flavorTextTw: '永不滿足的飢餓怪物，掠奪豐盛的大地資源。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Wendigo.jpg',
 }
 
@@ -447,6 +457,8 @@ export const DUDURI_KING: CardTemplate = {
       descriptionTw: '計分時：如果你有至少1張其他豆豆里卡，獲得10分。',
     },
   ],
+  flavorText: 'Ruler of the tiny folk.',
+  flavorTextTw: '小精靈一族的君王，與子民共創輝煌。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Duduriking.jpg',
 }
 
@@ -471,6 +483,8 @@ export const ANZU: CardTemplate = {
       descriptionTw: '馴服時：獲得1顆風石。計分時算作2張風卡。',
     },
   ],
+  flavorText: 'Divine storm bird.',
+  flavorTextTw: '神聖的風暴之鳥，雙倍疾風的力量。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Anzu.jpg',
 }
 
@@ -489,6 +503,8 @@ export const NURIKABE: CardTemplate = {
       descriptionTw: '永久：對手無法棄掉你手牌中的卡。',
     },
   ],
+  flavorText: 'Invisible wall of wind.',
+  flavorTextTw: '無形的風之壁障，守護手中的祕密。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Nurikabe.jpg',
 }
 
@@ -508,6 +524,8 @@ export const RUKH: CardTemplate = {
       descriptionTw: '馴服時：抽2張卡。',
     },
   ],
+  flavorText: 'Legendary bird of vast skies.',
+  flavorTextTw: '傳說中的巨鳥，帶來更多的可能性。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Rukh.jpg',
 }
 
@@ -527,6 +545,8 @@ export const BANSHEE: CardTemplate = {
       descriptionTw: '馴服時：所有對手從手牌棄掉2張卡。',
     },
   ],
+  flavorText: 'Wailing harbinger of doom.',
+  flavorTextTw: '哀號的死亡預兆，淒厲的叫聲奪取敵人的希望。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Banshee.jpg',
 }
 
@@ -535,28 +555,31 @@ export const BANSHEE: CardTemplate = {
 // ============================================
 
 export const HORUS: CardTemplate = {
-  id: 'DLC_Wi005',
+  id: 'DLC_D001',
   name: 'Horus',
   nameTw: '荷魯斯',
-  element: Element.WIND,
-  cost: 7,
-  baseScore: 7,
+  element: Element.DRAGON,
+  cost: 6,
+  baseScore: 6,
   effects: [
     {
       type: EffectType.COPY_INSTANT_EFFECT,
       trigger: EffectTrigger.ON_TAME,
-      description: 'When tamed: Summon a card for free and earn (cost written on the card).',
-      descriptionTw: '馴服時：免費召喚1張卡片並獲得（該卡上的費用）分。',
+      description:
+        'When tamed: Copy instant effect of 1 card in any area. Dragon swap: Exchange with sheltered card.',
+      descriptionTw: '馴服時：複製任一場上1張卡的立即效果。龍交換：與庇護區卡片交換。',
     },
   ],
+  flavorText: 'Sky lord who sees all.',
+  flavorTextTw: '洞察一切的天空之主，複製強者的力量。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Horus.jpg',
 }
 
 export const LOKI: CardTemplate = {
-  id: 'DLC_Wi006',
+  id: 'DLC_D002',
   name: 'Loki',
   nameTw: '洛基',
-  element: Element.WIND,
+  element: Element.DRAGON,
   cost: 7,
   baseScore: 7,
   effects: [
@@ -564,10 +587,12 @@ export const LOKI: CardTemplate = {
       type: EffectType.MULTI_CHOICE,
       trigger: EffectTrigger.PERMANENT,
       description:
-        'You can treat this card as if it were of any family during your turn. Earn (1) for each card with (permanent).',
-      descriptionTw: '你可以將此卡視為任何家族。每張永久符號卡獲得(1)分。',
+        'Permanent: Can count as any family during your turn. Earn 1pt per card with permanent symbol.',
+      descriptionTw: '永久：在你的回合可以算作任何家族。每張永久符號卡獲得1分。',
     },
   ],
+  flavorText: 'Trickster of infinite forms.',
+  flavorTextTw: '千變萬化的詭計之神，永恆力量的收集者。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Loki.jpg',
 }
 
@@ -593,6 +618,8 @@ export const ROCKSCALE: CardTemplate = {
       descriptionTw: '馴服時：獲得各1顆元素石（火、水、地、風）。龍交換：與庇護區卡片交換。',
     },
   ],
+  flavorText: 'Ancient dragon of all elements.',
+  flavorTextTw: '掌握四大元素的遠古巨龍，平衡萬物之力。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Rockscale.jpg',
 }
 
@@ -612,6 +639,8 @@ export const WHISPER: CardTemplate = {
       descriptionTw: '馴服時：啟動你場上所有卡的永久效果。龍交換：與庇護區卡片交換。',
     },
   ],
+  flavorText: 'Voice of eternal power.',
+  flavorTextTw: '永恆力量的低語，喚醒沉睡的無盡潛能。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Whisper.jpg',
 }
 
@@ -630,6 +659,7 @@ export const DLC_CARDS_BY_ID: Record<string, CardTemplate> = {
   [FIREBLAST.id]: FIREBLAST,
   [HEPHAESTUS.id]: HEPHAESTUS,
   [BELPHEGOR.id]: BELPHEGOR,
+  [PYRO.id]: PYRO,
 
   // Water
   [AKHLUT.id]: AKHLUT,
@@ -638,6 +668,7 @@ export const DLC_CARDS_BY_ID: Record<string, CardTemplate> = {
   [SIREN.id]: SIREN,
   [KRAKEN.id]: KRAKEN,
   [TAWERET.id]: TAWERET,
+  [DEEPDIVE.id]: DEEPDIVE,
 
   // Earth
   [ANUBIS.id]: ANUBIS,
@@ -652,12 +683,10 @@ export const DLC_CARDS_BY_ID: Record<string, CardTemplate> = {
   [NURIKABE.id]: NURIKABE,
   [RUKH.id]: RUKH,
   [BANSHEE.id]: BANSHEE,
-  [HORUS.id]: HORUS,
-  [LOKI.id]: LOKI,
 
   // Dragon
-  [PYRO.id]: PYRO,
-  [DEEPDIVE.id]: DEEPDIVE,
+  [HORUS.id]: HORUS,
+  [LOKI.id]: LOKI,
   [ROCKSCALE.id]: ROCKSCALE,
   [WHISPER.id]: WHISPER,
 }
@@ -677,6 +706,7 @@ export const DLC_FIRE_CARDS: CardTemplate[] = [
   FIREBLAST,
   HEPHAESTUS,
   BELPHEGOR,
+  PYRO,
 ]
 export const DLC_WATER_CARDS: CardTemplate[] = [
   AKHLUT,
@@ -685,6 +715,7 @@ export const DLC_WATER_CARDS: CardTemplate[] = [
   SIREN,
   KRAKEN,
   TAWERET,
+  DEEPDIVE,
 ]
 export const DLC_EARTH_CARDS: CardTemplate[] = [
   ANUBIS,
@@ -694,8 +725,8 @@ export const DLC_EARTH_CARDS: CardTemplate[] = [
   WENDIGO,
   DUDURI_KING,
 ]
-export const DLC_WIND_CARDS: CardTemplate[] = [ANZU, NURIKABE, RUKH, BANSHEE, HORUS, LOKI]
-export const DLC_DRAGON_CARDS: CardTemplate[] = [PYRO, DEEPDIVE, ROCKSCALE, WHISPER]
+export const DLC_WIND_CARDS: CardTemplate[] = [ANZU, NURIKABE, RUKH, BANSHEE]
+export const DLC_DRAGON_CARDS: CardTemplate[] = [HORUS, LOKI, ROCKSCALE, WHISPER]
 
 export default {
   DLC_CARDS_BY_ID,

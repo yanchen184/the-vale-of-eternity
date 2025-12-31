@@ -1,9 +1,9 @@
 /**
  * Multiplayer Lobby Page for The Vale of Eternity
  * Allows creating/joining game rooms
- * @version 4.0.0 - Added Artifacts Expansion mode selection
+ * @version 4.1.0 - Default to Expansion mode (includes DLC cards)
  */
-console.log('[pages/MultiplayerLobby.tsx] v4.0.0 loaded')
+console.log('[pages/MultiplayerLobby.tsx] v4.1.0 loaded')
 
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -17,7 +17,7 @@ export const MultiplayerLobby: React.FC = () => {
   const [playerName, setPlayerName] = useState('')
   const [roomCode, setRoomCode] = useState('')
   const [maxPlayers, setMaxPlayers] = useState<2 | 3 | 4>(2)
-  const [isExpansionMode, setIsExpansionMode] = useState(false)
+  const [isExpansionMode, setIsExpansionMode] = useState(true) // Default to expansion mode (includes DLC)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showJoinModal, setShowJoinModal] = useState(false)
   const [isLoading, setIsLoading] = useState(false)

@@ -1,15 +1,17 @@
 /**
  * CompactArtifactSelector Component
  * Compact version of artifact selector for inline display with card selection
- * @version 1.0.0
+ * @version 1.1.0 - Fixed useState import and removed internal confirm button
  */
-console.log('[components/game/CompactArtifactSelector.tsx] v1.0.0 loaded')
+console.log('[components/game/CompactArtifactSelector.tsx] v1.1.0 loaded')
 
 import { memo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { Artifact, ArtifactType } from '@/types/artifacts'
 import { ARTIFACTS_BY_ID } from '@/data/artifacts'
+import { PlayerMarker } from './PlayerMarker'
+import type { PlayerColor } from '@/types/player-color'
 
 // ============================================
 // TYPES
@@ -20,6 +22,8 @@ export interface CompactArtifactSelectorProps {
   availableArtifacts: string[]
   /** Artifacts already used by this player in previous rounds */
   usedArtifacts: string[]
+  /** Map of artifact selections: artifactId -> { color, playerName, isConfirmed } */
+  artifactSelections?: Map<string, { color: PlayerColor; playerName: string; isConfirmed: boolean }>
   /** Current round number */
   round: number
   /** Player name for display */
@@ -75,7 +79,7 @@ const ArtifactTypeBadge = memo(function ArtifactTypeBadge({ type }: ArtifactType
 })
 
 // ============================================
-// COMPACT ARTIFACT CARD
+// COMPACT ARTIFACT CARD (Card-like with hover tooltip)
 // ============================================
 
 interface CompactArtifactCardProps {
@@ -84,6 +88,12 @@ interface CompactArtifactCardProps {
   isSelected: boolean
   onSelect: () => void
   disabled: boolean
+  /** Player color for selection marker */
+  selectedByColor?: PlayerColor | null
+  /** Player name for marker tooltip */
+  selectedByName?: string
+  /** Whether the selection is confirmed (locked) */
+  isConfirmed?: boolean
 }
 
 const CompactArtifactCard = memo(function CompactArtifactCard({
@@ -92,89 +102,124 @@ const CompactArtifactCard = memo(function CompactArtifactCard({
   isSelected,
   onSelect,
   disabled,
+  selectedByColor,
+  selectedByName,
+  isConfirmed = false,
 }: CompactArtifactCardProps) {
   const [isHovered, setIsHovered] = useState(false)
   const canSelect = !isUsed && !disabled && artifact.implemented
 
   return (
-    <button
-      type="button"
-      onClick={canSelect ? onSelect : undefined}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      disabled={!canSelect}
-      className={cn(
-        'relative w-full transition-all duration-200',
-        canSelect && 'cursor-pointer hover:scale-102',
-        !canSelect && 'opacity-40 cursor-not-allowed grayscale'
-      )}
-    >
-      <GlassCard
-        variant={isSelected ? 'gold' : 'default'}
-        glow={isSelected ? 'gold' : isHovered && canSelect ? 'blue' : 'none'}
-        padding="sm"
+    <div className="relative group">
+      {/* Artifact Card (like game cards) */}
+      <button
+        type="button"
+        onClick={canSelect ? onSelect : undefined}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        disabled={!canSelect}
         className={cn(
-          'h-full',
-          isSelected && 'ring-2 ring-amber-500 shadow-lg shadow-amber-500/50'
+          'relative w-64 h-80 rounded-lg overflow-hidden transition-all duration-200',
+          'border-2',
+          canSelect && 'cursor-pointer hover:scale-105 hover:z-10',
+          !canSelect && 'opacity-40 cursor-not-allowed grayscale',
+          isSelected
+            ? 'border-amber-500 ring-2 ring-amber-500 shadow-lg shadow-amber-500/50'
+            : 'border-purple-500/50 hover:border-purple-400'
         )}
       >
-        <div className="flex items-center gap-2 p-2">
-          {/* Artifact Image */}
-          <div className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-gradient-to-br from-purple-900 to-pink-900 border border-purple-500/30">
-            <img
-              src={artifact.image}
-              alt={artifact.nameTw}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                // Fallback to emoji if image fails to load
-                const target = e.target as HTMLImageElement
-                target.style.display = 'none'
-                const parent = target.parentElement
-                if (parent) {
-                  parent.innerHTML = `<div class="w-full h-full flex items-center justify-center text-2xl">${
-                    artifact.type === ArtifactType.INSTANT ? '⚡' : artifact.type === ArtifactType.ACTION ? '✕' : '∞'
-                  }</div>`
-                }
-              }}
-            />
-          </div>
+        {/* Artifact Image */}
+        <div className="w-full h-full bg-gradient-to-br from-purple-900 to-pink-900">
+          <img
+            src={artifact.image}
+            alt={artifact.nameTw}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement
+              target.style.display = 'none'
+              const parent = target.parentElement
+              if (parent) {
+                parent.innerHTML = `<div class="w-full h-full flex items-center justify-center text-5xl">${
+                  artifact.type === ArtifactType.INSTANT ? '⚡' : artifact.type === ArtifactType.ACTION ? '✕' : '∞'
+                }</div>`
+              }
+            }}
+          />
+        </div>
 
-          {/* Artifact Info */}
-          <div className="flex-1 min-w-0 text-left">
-            <div className="flex items-center gap-2 mb-1">
-              <h4 className="text-sm font-bold text-amber-300 truncate">{artifact.nameTw}</h4>
-              <ArtifactTypeBadge type={artifact.type} />
-            </div>
-            <p className="text-xs text-slate-300 line-clamp-2">{artifact.descriptionTw}</p>
-          </div>
+        {/* Type Badge (top-right corner) */}
+        <div className="absolute top-1 right-1">
+          <ArtifactTypeBadge type={artifact.type} />
+        </div>
 
-          {/* Status Indicators */}
-          {isUsed && (
-            <div className="absolute top-1 right-1 bg-red-600 text-white px-2 py-0.5 rounded text-xs font-bold">
+        {/* Status Overlays */}
+        {isUsed && (
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+            <div className="bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold">
               已使用
             </div>
-          )}
-          {!artifact.implemented && (
-            <div className="absolute top-1 right-1 bg-orange-600 text-white px-2 py-0.5 rounded text-xs font-bold">
-              未實作
+          </div>
+        )}
+        {!artifact.implemented && (
+          <div className="absolute bottom-1 left-1 bg-orange-600 text-white px-2 py-0.5 rounded text-xs font-bold">
+            未實作
+          </div>
+        )}
+
+        {/* Selection Indicator */}
+        {isSelected && (
+          <div className="absolute top-1 left-1">
+            <div className="w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center shadow-lg">
+              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fillRule="evenodd"
+                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                  clipRule="evenodd"
+                />
+              </svg>
             </div>
-          )}
-          {isSelected && (
-            <div className="absolute top-1 left-1">
-              <div className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center shadow-lg">
-                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fillRule="evenodd"
-                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
-            </div>
-          )}
+          </div>
+        )}
+
+        {/* Artifact Name (bottom overlay) */}
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-2">
+          <p className="text-xs font-bold text-amber-300 text-center truncate">
+            {artifact.nameTw}
+          </p>
         </div>
-      </GlassCard>
-    </button>
+      </button>
+
+      {/* Player Selection Marker - shown when artifact is selected */}
+      {selectedByColor && (
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10"
+          data-testid={`artifact-marker-${artifact.id}`}
+        >
+          <PlayerMarker
+            color={selectedByColor}
+            size="lg"
+            showGlow={!isConfirmed}
+            playerName={selectedByName}
+            isConfirmed={isConfirmed}
+          />
+        </div>
+      )}
+
+      {/* Hover Tooltip */}
+      {isHovered && canSelect && (
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-50 w-64 pointer-events-none">
+          <GlassCard variant="default" glow="blue" padding="sm">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-bold text-amber-300">{artifact.nameTw}</h4>
+                <ArtifactTypeBadge type={artifact.type} />
+              </div>
+              <p className="text-xs text-slate-300">{artifact.descriptionTw}</p>
+            </div>
+          </GlassCard>
+        </div>
+      )}
+    </div>
   )
 })
 
@@ -185,14 +230,13 @@ const CompactArtifactCard = memo(function CompactArtifactCard({
 export const CompactArtifactSelector = memo(function CompactArtifactSelector({
   availableArtifacts,
   usedArtifacts,
+  artifactSelections,
   round,
   playerName,
   onSelectArtifact,
   isActive,
   className,
 }: CompactArtifactSelectorProps) {
-  const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(null)
-
   // Get artifact objects
   const artifacts = availableArtifacts
     .map((id) => ARTIFACTS_BY_ID[id])
@@ -200,12 +244,8 @@ export const CompactArtifactSelector = memo(function CompactArtifactSelector({
 
   const handleSelectArtifact = (artifactId: string) => {
     if (!isActive) return
-    setSelectedArtifactId(artifactId)
-  }
-
-  const handleConfirm = () => {
-    if (!selectedArtifactId || !isActive) return
-    onSelectArtifact(selectedArtifactId)
+    // Directly call onSelectArtifact - no need for local state
+    onSelectArtifact(artifactId)
   }
 
   return (
@@ -218,34 +258,19 @@ export const CompactArtifactSelector = memo(function CompactArtifactSelector({
               選擇神器
             </h3>
             <p className="text-xs text-slate-400">
-              {playerName} - 第 {round} 回合
+              {playerName} - 第 {round} 回合 (點擊神器選擇，使用右側「確認選擇」按鈕)
             </p>
           </div>
-          {selectedArtifactId && isActive && (
-            <button
-              type="button"
-              onClick={handleConfirm}
-              className={cn(
-                'px-4 py-2 rounded-lg font-bold text-sm',
-                'bg-gradient-to-r from-purple-600 to-pink-600',
-                'hover:from-purple-500 hover:to-pink-500',
-                'active:from-purple-700 active:to-pink-700',
-                'text-white shadow-lg shadow-purple-900/50',
-                'transition-all duration-200',
-                'hover:scale-105 active:scale-95'
-              )}
-            >
-              確認選擇
-            </button>
-          )}
         </div>
       </div>
 
-      {/* Compact Artifact List */}
-      <div className="flex flex-col gap-2 max-h-96 overflow-y-auto custom-scrollbar pr-2">
+      {/* Artifact Cards - Horizontal Row */}
+      <div className="flex flex-row gap-4 overflow-x-auto custom-scrollbar pb-2">
         {artifacts.map((artifact) => {
           const isUsed = usedArtifacts.includes(artifact.id)
-          const isSelected = selectedArtifactId === artifact.id
+          const selectionInfo = artifactSelections?.get(artifact.id)
+          // Card is selected if someone has chosen it (from artifactSelections)
+          const isSelected = !!selectionInfo
 
           return (
             <CompactArtifactCard
@@ -255,6 +280,9 @@ export const CompactArtifactSelector = memo(function CompactArtifactSelector({
               isSelected={isSelected}
               onSelect={() => handleSelectArtifact(artifact.id)}
               disabled={!isActive}
+              selectedByColor={selectionInfo?.color}
+              selectedByName={selectionInfo?.playerName}
+              isConfirmed={selectionInfo?.isConfirmed}
             />
           )
         })}

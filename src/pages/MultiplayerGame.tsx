@@ -1,13 +1,14 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 5.11.0 - Integrated CompactArtifactSelector at bottom of card selection UI (Expansion Mode)
+ * @version 5.12.0 - Added card scale controls (75%-150%) for monster area and sanctuary modals
  */
-console.log('[pages/MultiplayerGame.tsx] v5.11.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v5.12.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import { ref, onValue, off } from 'firebase/database'
+import { Maximize2, Minimize2 } from 'lucide-react'
 import { database } from '@/lib/firebase'
 import {
   multiplayerGameService,
@@ -73,6 +74,7 @@ interface HuntingPhaseProps {
   isExpansionMode?: boolean
   availableArtifacts?: string[]
   usedArtifacts?: string[]
+  artifactSelectionMap?: Map<string, { color: PlayerColor; playerName: string; isConfirmed: boolean }>
   onSelectArtifact?: (artifactId: string) => void
   playerName?: string
 }
@@ -211,6 +213,7 @@ function HuntingPhaseUI({
   isExpansionMode,
   availableArtifacts,
   usedArtifacts,
+  artifactSelectionMap,
   onSelectArtifact,
   playerName,
 }: HuntingPhaseProps) {
@@ -284,6 +287,7 @@ function HuntingPhaseUI({
           <CompactArtifactSelector
             availableArtifacts={availableArtifacts}
             usedArtifacts={usedArtifacts || []}
+            artifactSelections={artifactSelectionMap}
             round={currentRound || 1}
             playerName={playerName || '玩家'}
             onSelectArtifact={onSelectArtifact}
@@ -429,7 +433,9 @@ export function MultiplayerGame() {
   const [showMarketDiscardModal, setShowMarketDiscardModal] = useState(false)
   const [showScoreModal, setShowScoreModal] = useState(false)
   const [showAllFieldsModal, setShowAllFieldsModal] = useState(false)
+  const [showSanctuaryModal, setShowSanctuaryModal] = useState(false)
   const [scores, setScores] = useState<{ playerId: string; name: string; score: number }[]>([])
+  const [cardScale, setCardScale] = useState(100) // Card size: 75%, 100%, 125%, 150%
 
   // Extract state from location or redirect
   const playerId = state?.playerId
@@ -639,6 +645,27 @@ export function MultiplayerGame() {
     return map
   }, [cards, players])
 
+  // Artifact Selection Map (similar to cardSelectionMap)
+  const artifactSelectionMap = useMemo(() => {
+    const map = new Map<string, { color: PlayerColor; playerName: string; isConfirmed: boolean }>()
+
+    if (!gameRoom?.artifactSelectionPhase?.selections) return map
+
+    // artifactSelectionPhase.selections: { [playerId: string]: artifactId }
+    Object.entries(gameRoom.artifactSelectionPhase.selections).forEach(([selectingPlayerId, artifactId]) => {
+      const selectingPlayer = players.find((p) => p.playerId === selectingPlayerId)
+      if (selectingPlayer && artifactId) {
+        map.set(artifactId, {
+          color: selectingPlayer.color || 'green',
+          playerName: selectingPlayer.name,
+          isConfirmed: gameRoom.artifactSelectionPhase?.isComplete ?? false,
+        })
+      }
+    })
+
+    return map
+  }, [gameRoom?.artifactSelectionPhase, players])
+
   const mySelectedCardId = useMemo(() => {
     if (!cards || typeof cards !== 'object' || !playerId) return null
 
@@ -696,11 +723,16 @@ export function MultiplayerGame() {
         .map(convertToCardInstance)
         .filter((c): c is CardInstance => c !== null)
 
+      const sanctuaryCardInstances = (player.sanctuary || [])
+        .map(convertToCardInstance)
+        .filter((c): c is CardInstance => c !== null)
+
       return {
         playerId: player.playerId,
         name: player.name,
         color: player.color || 'green',
         fieldCards: fieldCardInstances,
+        sanctuaryCards: sanctuaryCardInstances,
         isCurrentTurn: player.playerId === currentTurnPlayerId,
         hasPassed: player.hasPassed ?? false,
       }
@@ -1053,8 +1085,32 @@ export function MultiplayerGame() {
             onLeave={handleLeaveGame}
             onViewScore={() => setShowScoreModal(true)}
             onViewAllFields={() => setShowAllFieldsModal(true)}
+            onViewSanctuary={() => setShowSanctuaryModal(true)}
             onPassTurn={handlePassTurn}
             showPassTurn={gameRoom.status === 'ACTION'}
+            cardScaleControls={
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-700/50 border border-slate-600/50">
+                <button
+                  onClick={() => setCardScale(Math.max(75, cardScale - 25))}
+                  className="p-1 rounded hover:bg-slate-600/50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  disabled={cardScale <= 75}
+                  title="縮小"
+                >
+                  <Minimize2 className="w-3.5 h-3.5 text-slate-300" />
+                </button>
+                <span className="text-xs font-medium text-slate-300 min-w-[2.5rem] text-center">
+                  {cardScale}%
+                </span>
+                <button
+                  onClick={() => setCardScale(Math.min(150, cardScale + 25))}
+                  className="p-1 rounded hover:bg-slate-600/50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  disabled={cardScale >= 150}
+                  title="放大"
+                >
+                  <Maximize2 className="w-3.5 h-3.5 text-slate-300" />
+                </button>
+              </div>
+            }
           />
         }
         leftSidebar={
@@ -1108,6 +1164,7 @@ export function MultiplayerGame() {
                 isExpansionMode={gameRoom.isExpansionMode}
                 availableArtifacts={gameRoom.availableArtifacts}
                 usedArtifacts={usedArtifacts}
+                artifactSelectionMap={artifactSelectionMap}
                 onSelectArtifact={handleArtifactSelect}
                 playerName={currentPlayer?.name ?? playerName ?? 'Unknown'}
               />
@@ -1201,11 +1258,83 @@ export function MultiplayerGame() {
         title="所有玩家的怪獸區"
       >
         <div className="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
-          <PlayersFieldArea
-            players={playersFieldData}
-            currentPlayerId={playerId ?? ''}
-            currentRound={gameRoom.currentRound}
-          />
+          <div style={{ transform: `scale(${cardScale / 100})`, transformOrigin: 'top center' }}>
+            <PlayersFieldArea
+              players={playersFieldData}
+              currentPlayerId={playerId ?? ''}
+              currentRound={gameRoom.currentRound}
+            />
+          </div>
+        </div>
+      </Modal>
+
+      {/* Sanctuary Modal */}
+      <Modal
+        isOpen={showSanctuaryModal}
+        onClose={() => setShowSanctuaryModal(false)}
+        size="wide"
+        title="所有玩家的庇護區"
+      >
+        <div className="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+          <div className="space-y-4" style={{ transform: `scale(${cardScale / 100})`, transformOrigin: 'top center' }}>
+            {players.map(player => {
+              const sanctuaryCards = (player.sanctuary || [])
+                .map(cardId => cards[cardId])
+                .filter((card): card is CardInstance => card !== undefined)
+
+              return (
+                <div
+                  key={player.playerId}
+                  className="bg-slate-800/40 rounded-xl border-2 border-slate-700/30 p-4"
+                >
+                  {/* Player Header */}
+                  <div className="flex items-center gap-3 mb-3">
+                    <PlayerMarker
+                      color={player.color}
+                      size="sm"
+                      showGlow={false}
+                      playerName={player.name}
+                    />
+                    <span className="text-sm font-semibold text-slate-300">
+                      {player.name}
+                      {player.playerId === playerId && ' (你)'}
+                    </span>
+                    <span className="text-xs text-slate-500">
+                      ({sanctuaryCards.length} 張)
+                    </span>
+                  </div>
+
+                  {/* Sanctuary Cards - Staggered Stack Display */}
+                  {sanctuaryCards.length === 0 ? (
+                    <div className="flex items-center justify-center h-24 text-slate-600 text-sm">
+                      <span>庇護區為空</span>
+                    </div>
+                  ) : (
+                    <div className="relative" style={{ minHeight: '180px' }}>
+                      {sanctuaryCards.map((card, index) => (
+                        <div
+                          key={card.instanceId}
+                          className="absolute transition-all duration-200 hover:z-10 hover:scale-105"
+                          style={{
+                            left: `${index * 20}px`,
+                            top: `${index * 8}px`,
+                            zIndex: index,
+                          }}
+                        >
+                          <Card
+                            card={card}
+                            index={index}
+                            compact={true}
+                            className="shadow-lg"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </div>
       </Modal>
 

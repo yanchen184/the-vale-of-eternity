@@ -21,6 +21,7 @@ export interface PlayerFieldData {
   name: string
   color: PlayerColor
   fieldCards: CardInstance[]
+  sanctuaryCards?: CardInstance[]  // Cards in sanctuary (expansion mode)
   isCurrentTurn: boolean
   hasPassed: boolean
 }
@@ -131,78 +132,115 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
         </span>
       </div>
 
-      {/* Cards Container - Wraps after 5 cards */}
-      {player.fieldCards.length === 0 ? (
-        <div className="flex items-center justify-center h-24 text-slate-600 text-sm">
-          <span>尚無場上卡片</span>
-        </div>
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          {player.fieldCards.map((card, index) => (
-            <div
-              key={card.instanceId}
-              className="relative group transform transition-transform duration-200 hover:scale-105 hover:z-10"
-            >
-              <Card
-                card={card}
-                index={index}
-                compact={true}
-                currentRound={currentRound}
-                onClick={() => handleCardClick(card.instanceId)}
-                className={cn(
-                  'shadow-md',
-                  player.isCurrentTurn && 'ring-1 ring-vale-500/30'
-                )}
-              />
+      {/* Main Content: Field Cards + Sanctuary */}
+      <div className="flex gap-4">
+        {/* Field Cards Container - Wraps after 5 cards */}
+        <div className="flex-1">
+          {player.fieldCards.length === 0 ? (
+            <div className="flex items-center justify-center h-24 text-slate-600 text-sm">
+              <span>尚無場上卡片</span>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {player.fieldCards.map((card, index) => (
+                <div
+                  key={card.instanceId}
+                  className="relative group transform transition-transform duration-200 hover:scale-105 hover:z-10"
+                >
+                  <Card
+                    card={card}
+                    index={index}
+                    compact={true}
+                    currentRound={currentRound}
+                    onClick={() => handleCardClick(card.instanceId)}
+                    className={cn(
+                      'shadow-md',
+                      player.isCurrentTurn && 'ring-1 ring-vale-500/30'
+                    )}
+                  />
 
-              {/* Action buttons - only show for current player's own cards */}
-              {isCurrentPlayer && (
-                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
-                  {/* Return to Hand button - show during player's own turn */}
-                  {player.isCurrentTurn && !player.hasPassed && onCardReturn && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleCardReturn(card.instanceId)
-                      }}
-                      className={cn(
-                        'px-2 py-1 text-xs rounded-md',
-                        'bg-blue-600 hover:bg-blue-500 text-white',
-                        'shadow-lg border border-blue-400/50',
-                        'whitespace-nowrap'
+                  {/* Action buttons - only show for current player's own cards */}
+                  {isCurrentPlayer && (
+                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
+                      {/* Return to Hand button - show during player's own turn */}
+                      {player.isCurrentTurn && !player.hasPassed && onCardReturn && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleCardReturn(card.instanceId)
+                          }}
+                          className={cn(
+                            'px-2 py-1 text-xs rounded-md',
+                            'bg-blue-600 hover:bg-blue-500 text-white',
+                            'shadow-lg border border-blue-400/50',
+                            'whitespace-nowrap'
+                          )}
+                          type="button"
+                          title="回到手牌"
+                        >
+                          回手
+                        </button>
                       )}
-                      type="button"
-                      title="回到手牌"
-                    >
-                      回手
-                    </button>
-                  )}
 
-                  {/* Discard button - always show */}
-                  {onCardDiscard && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleCardDiscard(card.instanceId)
-                      }}
-                      className={cn(
-                        'px-2 py-1 text-xs rounded-md',
-                        'bg-red-600 hover:bg-red-500 text-white',
-                        'shadow-lg border border-red-400/50',
-                        'whitespace-nowrap'
+                      {/* Discard button - always show */}
+                      {onCardDiscard && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleCardDiscard(card.instanceId)
+                          }}
+                          className={cn(
+                            'px-2 py-1 text-xs rounded-md',
+                            'bg-red-600 hover:bg-red-500 text-white',
+                            'shadow-lg border border-red-400/50',
+                            'whitespace-nowrap'
+                          )}
+                          type="button"
+                          title="棄置到棄牌堆"
+                        >
+                          棄置
+                        </button>
                       )}
-                      type="button"
-                      title="棄置到棄牌堆"
-                    >
-                      棄置
-                    </button>
+                    </div>
                   )}
                 </div>
-              )}
+              ))}
             </div>
-          ))}
+          )}
         </div>
-      )}
+
+        {/* Sanctuary - Stacked Cards on Right Side */}
+        {player.sanctuaryCards && player.sanctuaryCards.length > 0 && (
+          <div className="flex-shrink-0 border-l-2 border-amber-500/30 pl-4">
+            <div className="text-xs text-amber-400 mb-2 flex items-center gap-2">
+              <span className="font-semibold">庇護區</span>
+              <span className="bg-amber-500/20 px-2 py-0.5 rounded-full">
+                {player.sanctuaryCards.length}
+              </span>
+            </div>
+            <div className="relative" style={{ width: '120px', minHeight: '160px' }}>
+              {player.sanctuaryCards.map((card, index) => (
+                <div
+                  key={card.instanceId}
+                  className="absolute transition-all duration-200 hover:z-10 hover:scale-105"
+                  style={{
+                    left: `${index * 15}px`,
+                    top: `${index * 6}px`,
+                    zIndex: index,
+                  }}
+                >
+                  <Card
+                    card={card}
+                    index={index}
+                    compact={true}
+                    className="shadow-lg"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Decorative corner based on player color */}
       <div

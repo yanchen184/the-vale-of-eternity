@@ -1,9 +1,9 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 4.2.0 - Fixed artifact selection order (sequential, not Snake Draft)
+ * @version 4.3.0 - Added zone bonus system (field limit = round + zoneBonus)
  */
-console.log('[services/multiplayer-game.ts] v4.2.0 loaded')
+console.log('[services/multiplayer-game.ts] v4.3.0 loaded')
 
 import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -76,12 +76,14 @@ export interface PlayerState {
   color: PlayerColor  // Player marker color (green, red, purple, black)
   hand: string[]  // card instance IDs
   field: string[]  // card instance IDs
+  sanctuary: string[]  // card instance IDs in sanctuary (expansion mode)
   stones: StonePool
   score: number
   isReady: boolean
   hasPassed: boolean
   isConnected: boolean
   isFlipped: boolean  // Whether player has flipped their card for +60/-60
+  zoneBonus: 0 | 1 | 2  // Zone indicator: 0/+1/+2 (extra field slots this round)
 }
 
 export interface HuntingState {
@@ -315,12 +317,14 @@ export class MultiplayerGameService {
       color: getColorByIndex(0), // First player gets green
       hand: [],
       field: [],
+      sanctuary: [],
       stones: { ONE: 0, THREE: 0, SIX: 0, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 },
       score: 1, // First player starts with 1 point
       isReady: false,
       hasPassed: false,
       isConnected: true,
       isFlipped: false,
+      zoneBonus: 0, // Start with +0 zone bonus
     }
 
     // Generate available artifacts if expansion mode
@@ -411,12 +415,14 @@ export class MultiplayerGameService {
       color: getColorByIndex(playerIndex), // Assign color based on player index
       hand: [],
       field: [],
+      sanctuary: [],
       stones: { ONE: 0, THREE: 0, SIX: 0, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 },
       score: playerIndex + 1, // Players start with score equal to their position (1, 2, 3, 4)
       isReady: false,
       hasPassed: false,
       isConnected: true,
       isFlipped: false,
+      zoneBonus: 0, // Start with +0 zone bonus
     }
 
     await update(ref(database, `games/${gameId}`), {
@@ -481,6 +487,7 @@ export class MultiplayerGameService {
       await update(ref(database, `games/${gameId}/players/${playerId}`), {
         hand: [],
         field: [],
+        sanctuary: [],
       })
     }
 

@@ -2,9 +2,9 @@
  * GameLayout Component
  * Symmetric layout container for multiplayer game
  * Fixed height, no scroll, left-right balanced design
- * @version 1.3.0 - Added "View All Fields" button in GameHeader
+ * @version 1.4.0 - Added cardScaleControls support to GameHeader
  */
-console.log('[components/game/GameLayout.tsx] v1.3.0 loaded')
+console.log('[components/game/GameLayout.tsx] v1.4.0 loaded')
 
 import { memo, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
@@ -146,10 +146,14 @@ export interface GameHeaderProps {
   onViewScore?: () => void
   /** View all fields callback */
   onViewAllFields?: () => void
+  /** View sanctuary callback (expansion mode) */
+  onViewSanctuary?: () => void
   /** Pass turn callback */
   onPassTurn?: () => void
   /** Whether to show pass button */
   showPassTurn?: boolean
+  /** Optional card scale controls (React node) */
+  cardScaleControls?: React.ReactNode
 }
 
 const PHASE_LABELS: Record<GameHeaderProps['phase'], string> = {
@@ -177,8 +181,10 @@ export const GameHeader = memo(function GameHeader({
   onLeave,
   onViewScore,
   onViewAllFields,
+  onViewSanctuary,
   onPassTurn,
   showPassTurn = false,
+  cardScaleControls,
 }: GameHeaderProps) {
   return (
     <div
@@ -244,6 +250,9 @@ export const GameHeader = memo(function GameHeader({
 
       {/* Right: Action Buttons */}
       <div className="flex items-center gap-2">
+        {/* Card Scale Controls */}
+        {cardScaleControls}
+
         {/* View Score Button */}
         {phase !== 'WAITING' && onViewScore && (
           <button
@@ -263,6 +272,17 @@ export const GameHeader = memo(function GameHeader({
             data-testid="view-all-fields-btn"
           >
             查看怪獸區
+          </button>
+        )}
+
+        {/* View Sanctuary Button (Expansion Mode) */}
+        {phase !== 'WAITING' && onViewSanctuary && (
+          <button
+            onClick={onViewSanctuary}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-600/80 hover:bg-amber-500/80 text-amber-100 transition-colors"
+            data-testid="view-sanctuary-btn"
+          >
+            查看庇護區
           </button>
         )}
 
