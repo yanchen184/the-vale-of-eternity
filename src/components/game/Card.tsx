@@ -281,6 +281,7 @@ export const Card = memo(function Card({
   selectedByName,
   isConfirmed = false,
   isNewMarker = false,
+  currentRound,
   className = '',
 }: CardProps) {
   const [imageError, setImageError] = useState(false)

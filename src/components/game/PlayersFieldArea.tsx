@@ -30,6 +30,8 @@ export interface PlayersFieldAreaProps {
   players: PlayerFieldData[]
   /** Current player's ID (self) */
   currentPlayerId: string
+  /** Current round number (for showing "new this round" badge) */
+  currentRound?: number
   /** Callback when a card is clicked (optional) */
   onCardClick?: (playerId: string, cardId: string) => void
   /** Callback when a card is returned to hand (optional) */
@@ -48,6 +50,7 @@ interface PlayerFieldSectionProps {
   player: PlayerFieldData
   isCurrentPlayer: boolean
   position: 'top' | 'bottom' | 'left' | 'right' | 'grid'
+  currentRound?: number
   onCardClick?: (cardId: string) => void
   onCardReturn?: (cardId: string) => void
   onCardDiscard?: (cardId: string) => void
@@ -57,6 +60,7 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
   player,
   isCurrentPlayer,
   position,
+  currentRound,
   onCardClick,
   onCardReturn,
   onCardDiscard,
@@ -143,6 +147,7 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
                 card={card}
                 index={index}
                 compact={true}
+                currentRound={currentRound}
                 onClick={() => handleCardClick(card.instanceId)}
                 className={cn(
                   'shadow-md',
@@ -219,6 +224,7 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
 export const PlayersFieldArea = memo(function PlayersFieldArea({
   players,
   currentPlayerId,
+  currentRound,
   onCardClick,
   onCardReturn,
   onCardDiscard,
@@ -266,6 +272,7 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
             player={player}
             isCurrentPlayer={player.playerId === currentPlayerId}
             position="grid"
+            currentRound={currentRound}
             onCardClick={(cardId) => handlePlayerCardClick(player.playerId, cardId)}
             onCardReturn={(cardId) => handlePlayerCardReturn(player.playerId, cardId)}
             onCardDiscard={(cardId) => handlePlayerCardDiscard(player.playerId, cardId)}

@@ -62,6 +62,7 @@ interface HuntingPhaseProps {
   isYourTurn: boolean
   currentPlayerName: string
   currentPlayerId: string
+  currentRound?: number
   onToggleCard: (cardId: string) => void
   onConfirmSelection: () => void
   cardSelectionMap: Map<string, { color: PlayerColor; playerName: string; isConfirmed: boolean }>
@@ -194,6 +195,7 @@ function HuntingPhaseUI({
   isYourTurn,
   currentPlayerName,
   currentPlayerId: _currentPlayerId,
+  currentRound,
   onToggleCard,
   onConfirmSelection,
   cardSelectionMap,
@@ -242,6 +244,7 @@ function HuntingPhaseUI({
                   card={card}
                   index={index}
                   compact={false}
+                  currentRound={currentRound}
                   onClick={() => canClick && onToggleCard(card.instanceId)}
                   selectedByColor={selectionInfo?.color}
                   selectedByName={selectionInfo?.playerName}
@@ -319,6 +322,7 @@ function ActionPhaseUI({
           <PlayersFieldArea
             players={[selfPlayer]}
             currentPlayerId={currentPlayerId}
+            currentRound={currentRound}
             onCardReturn={onCardReturn}
             onCardDiscard={onCardDiscard}
           />
@@ -331,6 +335,7 @@ function ActionPhaseUI({
           <PlayersFieldArea
             players={otherPlayers}
             currentPlayerId={currentPlayerId}
+            currentRound={currentRound}
             onCardReturn={onCardReturn}
             onCardDiscard={onCardDiscard}
           />
@@ -995,6 +1000,7 @@ export function MultiplayerGame() {
                 isYourTurn={isYourTurn}
                 currentPlayerName={currentTurnPlayer?.name ?? 'Unknown'}
                 currentPlayerId={playerId ?? ''}
+                currentRound={gameRoom.currentRound}
                 onToggleCard={handleToggleCardSelection}
                 onConfirmSelection={handleConfirmCardSelection}
                 cardSelectionMap={cardSelectionMap}
@@ -1138,7 +1144,7 @@ export function MultiplayerGame() {
                     >
                       {/* Card scaled down */}
                       <div className="transform scale-[0.4] origin-top-left">
-                        <Card card={card} index={index} compact={false} />
+                        <Card card={card} index={index} compact={false} currentRound={gameRoom?.currentRound} />
                       </div>
                       {/* Take button - always available */}
                       <button
