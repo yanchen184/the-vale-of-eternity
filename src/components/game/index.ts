@@ -1,9 +1,9 @@
 /**
  * Game components exports
  * Core UI components for The Vale of Eternity game
- * @version 4.1.0 - Added ScoreBar component for bottom score display
+ * @version 4.2.0 - Added DraggableHandWindow for floating hand display
  */
-console.log('[components/game/index.ts] v4.1.0 loaded')
+console.log('[components/game/index.ts] v4.2.0 loaded')
 
 // Card components
 export { Card, CardBack } from './Card'
@@ -79,3 +79,7 @@ export type { GameLayoutProps, GameHeaderProps } from './GameLayout'
 // Score Bar component (v4.1.0)
 export { ScoreBar } from './ScoreBar'
 export type { ScoreBarProps, ScoreBarPlayerData } from './ScoreBar'
+
+// Draggable Hand Window component (v4.2.0)
+export { DraggableHandWindow } from './DraggableHandWindow'
+export type { DraggableHandWindowProps } from './DraggableHandWindow'

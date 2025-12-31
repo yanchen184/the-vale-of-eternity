@@ -27,6 +27,7 @@ import {
   RightSidebar,
   ScoreBar,
 } from '@/components/game'
+import { DraggableHandWindow } from '@/components/game/DraggableHandWindow'
 import type { PlayerScoreInfo, PlayerFieldData, PlayerSidebarData, ScoreBarPlayerData } from '@/components/game'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
@@ -323,21 +324,7 @@ function ActionPhaseUI({
           />
         )}
 
-        {/* Player Hand Section */}
-        <div>
-          <PlayerHand
-            cards={handCards}
-            maxHandSize={10}
-            showActions={isYourTurn}
-            enableDrag={isYourTurn && !resolutionMode}
-            onCardPlay={onCardPlay}
-            onCardSell={resolutionMode ? undefined : onCardSell}
-            onCardDiscard={onHandCardDiscard}
-            canTameCard={canTameCard}
-            currentRound={currentRound}
-            className="rounded-xl border border-purple-900/30"
-          />
-        </div>
+        {/* Player Hand - Now in floating window */}
 
         {/* Other Players' Field Area */}
         {otherPlayers.length > 0 && (
@@ -1230,6 +1217,20 @@ export function MultiplayerGame() {
           </Button>
         </div>
       </Modal>
+
+      {/* Draggable Hand Window - Floating */}
+      <DraggableHandWindow
+        cards={handCards}
+        onCardClick={(card) => {
+          // Handle card selection if needed
+          console.log('Hand card clicked:', card)
+        }}
+        onTameCard={handleTameCard}
+        onSellCard={handleSellCard}
+        onDiscardCard={handleDiscardCard}
+        showCardActions={isYourTurn}
+        canTame={true}
+      />
     </>
   )
 }
