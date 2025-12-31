@@ -1,9 +1,9 @@
 /**
  * DraggableHandWindow Component
  * Floating, draggable, resizable window for displaying player's hand
- * @version 1.3.0 - Added zoom functionality with Ctrl+Wheel
+ * @version 1.3.1 - Adjusted default zoom to match field card size
  */
-console.log('[components/game/DraggableHandWindow.tsx] v1.3.0 loaded')
+console.log('[components/game/DraggableHandWindow.tsx] v1.3.1 loaded')
 
 import { memo, useState, useRef, useCallback, useEffect } from 'react'
 import { Minimize2, Maximize2, GripHorizontal, Maximize } from 'lucide-react'
@@ -70,7 +70,7 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
   const [isResizing, setIsResizing] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 })
-  const [zoom, setZoom] = useState(1.4) // Zoom level: 0.5 to 2.5, default 1.4 for larger cards
+  const [zoom, setZoom] = useState(0.7) // Zoom level: 0.5 to 2.5, default 0.7 to match field card size
 
   // Refs
   const windowRef = useRef<HTMLDivElement>(null)
