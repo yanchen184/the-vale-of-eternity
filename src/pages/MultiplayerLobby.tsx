@@ -1,9 +1,9 @@
 /**
  * Multiplayer Lobby Page for The Vale of Eternity
  * Allows creating/joining game rooms
- * @version 4.1.0 - Default to Expansion mode (includes DLC cards)
+ * @version 4.2.0 - Updated game rules with zone bonus system and detailed mechanics
  */
-console.log('[pages/MultiplayerLobby.tsx] v4.1.0 loaded')
+console.log('[pages/MultiplayerLobby.tsx] v4.2.0 loaded')
 
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -134,13 +134,83 @@ export const MultiplayerLobby: React.FC = () => {
         {/* Game Info */}
         <div className="mt-8 bg-white/5 backdrop-blur-sm rounded-xl p-6">
           <h3 className="text-xl font-semibold text-white mb-4">遊戲規則</h3>
-          <ul className="space-y-2 text-purple-200">
-            <li>• 支援 2-4 人線上對戰</li>
-            <li>• Hunting Phase：Snake Draft 選卡（6 張市場）</li>
-            <li>• Action Phase：馴服生物、販賣卡片或 Pass</li>
-            <li>• 石頭經濟系統：7 種石頭（1️⃣ 3️⃣ 6️⃣ 💧 🔥 🌳 🌸）</li>
-            <li>• 全部玩家 Pass 後進入計分</li>
-          </ul>
+          <div className="space-y-4 text-purple-200">
+            {/* Basic Info */}
+            <div>
+              <h4 className="text-lg font-semibold text-purple-300 mb-2">🎮 基本資訊</h4>
+              <ul className="space-y-1.5 ml-4">
+                <li>• 支援 2-4 人線上對戰</li>
+                <li>• 回合制卡牌對戰，每回合包含選牌和行動兩個階段</li>
+                <li>• 遊戲由房主決定何時結束並計分</li>
+              </ul>
+            </div>
+
+            {/* Hunting Phase */}
+            <div>
+              <h4 className="text-lg font-semibold text-amber-300 mb-2">🎯 選牌階段 (Hunting Phase)</h4>
+              <ul className="space-y-1.5 ml-4">
+                <li>• Snake Draft 蛇形選牌：6 張市場卡輪流挑選</li>
+                <li>• 第一輪：正序選牌（玩家 1→2→3→4）</li>
+                <li>• 第二輪：逆序選牌（玩家 4→3→2→1）</li>
+                <li>• 最後一位玩家兩輪都選 2 張（其他玩家各選 1 張）</li>
+              </ul>
+            </div>
+
+            {/* Action Phase */}
+            <div>
+              <h4 className="text-lg font-semibold text-emerald-300 mb-2">⚔️ 行動階段 (Action Phase)</h4>
+              <ul className="space-y-1.5 ml-4">
+                <li>• <span className="text-cyan-300 font-semibold">馴服生物</span>：從手牌打出怪獸到場上（消耗石頭）</li>
+                <li>• <span className="text-amber-300 font-semibold">販賣卡片</span>：賣掉手牌換取石頭（依元素不同獲得不同石頭）</li>
+                <li>• <span className="text-slate-300 font-semibold">Pass</span>：跳過行動，等待其他玩家</li>
+                <li>• <span className="text-purple-300 font-semibold">區域指示物</span>：在自己回合可切換 +0/+1/+2（增加場地上限）</li>
+              </ul>
+            </div>
+
+            {/* Field Limit */}
+            <div>
+              <h4 className="text-lg font-semibold text-cyan-300 mb-2">🏟️ 場地上限機制</h4>
+              <ul className="space-y-1.5 ml-4">
+                <li>• 場上最多怪獸數 = <span className="text-amber-300 font-bold">當前回合數</span> + <span className="text-cyan-300 font-bold">區域加成</span></li>
+                <li>• 例如：回合 2 + 區域 +1 = 最多可有 3 隻怪獸</li>
+                <li>• 區域指示物可在行動階段切換（0→1→2→0 循環）</li>
+              </ul>
+            </div>
+
+            {/* Economy */}
+            <div>
+              <h4 className="text-lg font-semibold text-yellow-300 mb-2">💰 石頭經濟系統</h4>
+              <ul className="space-y-1.5 ml-4">
+                <li>• <span className="text-amber-300 font-semibold">通用石頭</span>：1️⃣ 1分、3️⃣ 3分、6️⃣ 6分（用來支付費用）</li>
+                <li>• <span className="text-cyan-300 font-semibold">元素石頭</span>：💧 水、🔥 火、🌳 土、🌸 風（計分時每個 1 分）</li>
+                <li>• <span className="text-rose-300 font-semibold">賣牌獲得石頭</span>：
+                  <ul className="mt-1 ml-4 space-y-0.5 text-sm">
+                    <li>- 🔥 火元素 → 3 個 1️⃣ (3分)</li>
+                    <li>- 💧 水元素 → 1 個 3️⃣ (3分)</li>
+                    <li>- 🐉 龍元素 → 1 個 6️⃣ (6分)</li>
+                    <li>- 🌸 風元素 → 1 個 3️⃣ + 1 個 1️⃣ (4分)</li>
+                    <li>- 🌳 土元素 → 4 個 1️⃣ (4分)</li>
+                  </ul>
+                </li>
+              </ul>
+            </div>
+
+            {/* Scoring */}
+            <div>
+              <h4 className="text-lg font-semibold text-rose-300 mb-2">🏆 計分與結算</h4>
+              <ul className="space-y-1.5 ml-4">
+                <li>• <span className="text-amber-300 font-semibold">結算時機</span>：全部玩家 Pass 後進入 RESOLUTION 階段，房主決定是否結束遊戲</li>
+                <li>• <span className="text-cyan-300 font-semibold">計分項目</span>：
+                  <ul className="mt-1 ml-4 space-y-0.5 text-sm">
+                    <li>① 場上怪獸的基礎分數</li>
+                    <li>② 怪獸的 ON_SCORE 效果加成</li>
+                    <li>③ 持有的石頭分數（元素石頭各 1 分，通用石頭按面值）</li>
+                  </ul>
+                </li>
+                <li>• <span className="text-purple-300 font-semibold">勝利條件</span>：遊戲結束時，總分最高的玩家獲勝</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
 

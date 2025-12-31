@@ -1,9 +1,9 @@
 /**
  * RightSidebar Component
  * Right sidebar for multiplayer game - displays bank coins and player coins
- * @version 1.5.0 - Removed discard pile (moved to left sidebar)
+ * @version 1.6.0 - Add Seven-League Boots confirm button support
  */
-console.log('[components/game/RightSidebar.tsx] v1.5.0 loaded')
+console.log('[components/game/RightSidebar.tsx] v1.6.0 loaded')
 
 import { memo } from 'react'
 import { cn } from '@/lib/utils'
@@ -37,6 +37,11 @@ export interface RightSidebarProps {
   onEndTurn?: () => void
   /** Additional CSS classes */
   className?: string
+  // Seven-League Boots props (v1.6.0)
+  /** Whether the player is in Seven-League Boots selection mode */
+  isInSevenLeagueBootsSelection?: boolean
+  /** Whether a card has been selected for shelter */
+  hasSelectedShelterCard?: boolean
 }
 
 // ============================================
@@ -326,15 +331,40 @@ export const RightSidebar = memo(function RightSidebar({
   onConfirmSelection,
   onEndTurn,
   className,
+  // Seven-League Boots props (v1.6.0)
+  isInSevenLeagueBootsSelection,
+  hasSelectedShelterCard,
 }: RightSidebarProps) {
   void _playerName // Reserved for future use
   void _bankCoins // Bank is infinite, no need to track
 
   // Show confirm selection button only during HUNTING phase and player's turn
-  const showConfirmSelection = isYourTurn && phase === 'HUNTING' && onConfirmSelection
+  // Also show during Seven-League Boots selection when player is active
+  const showConfirmSelection = (isYourTurn && phase === 'HUNTING' && onConfirmSelection) ||
+    (isInSevenLeagueBootsSelection && onConfirmSelection)
 
   // Show end turn button during ACTION or RESOLUTION phase and player's turn
   const showEndTurn = isYourTurn && (phase === 'ACTION' || phase === 'RESOLUTION') && onEndTurn
+
+  // Determine button text and style for Seven-League Boots mode
+  const getConfirmButtonConfig = () => {
+    if (isInSevenLeagueBootsSelection) {
+      return {
+        text: '確認庇護',
+        disabled: !hasSelectedShelterCard,
+        colorClass: hasSelectedShelterCard
+          ? 'from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 active:from-purple-700 active:to-purple-800 border-purple-400/50 shadow-purple-900/50'
+          : 'from-slate-600 to-slate-700 border-slate-400/50 shadow-slate-900/50 cursor-not-allowed opacity-50',
+      }
+    }
+    return {
+      text: '確認選擇',
+      disabled: false,
+      colorClass: 'from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 active:from-emerald-700 active:to-emerald-800 border-emerald-400/50 shadow-emerald-900/50',
+    }
+  }
+
+  const confirmButtonConfig = getConfirmButtonConfig()
   return (
     <aside
       className={cn(
@@ -379,26 +409,27 @@ export const RightSidebar = memo(function RightSidebar({
           onTakeCoin={onTakeCoin}
         />
 
-        {/* Confirm Selection Button - Only show during HUNTING phase */}
+        {/* Confirm Selection Button - Show during HUNTING phase or Seven-League Boots selection */}
         {showConfirmSelection && (
           <button
             type="button"
-            onClick={onConfirmSelection}
+            onClick={confirmButtonConfig.disabled ? undefined : onConfirmSelection}
+            disabled={confirmButtonConfig.disabled}
             className={cn(
               'w-full aspect-square',
-              'bg-gradient-to-br from-emerald-600 to-emerald-700',
-              'hover:from-emerald-500 hover:to-emerald-600',
-              'active:from-emerald-700 active:to-emerald-800',
+              'bg-gradient-to-br',
+              confirmButtonConfig.colorClass,
               'text-white font-bold text-2xl',
-              'rounded-xl border-2 border-emerald-400/50',
-              'shadow-lg shadow-emerald-900/50',
+              'rounded-xl border-2',
+              'shadow-lg',
               'transition-all duration-200',
               'flex items-center justify-center',
-              'hover:scale-105 active:scale-95',
-              'animate-pulse'
+              !confirmButtonConfig.disabled && 'hover:scale-105 active:scale-95',
+              !confirmButtonConfig.disabled && 'animate-pulse'
             )}
+            data-testid={isInSevenLeagueBootsSelection ? 'confirm-shelter-btn' : 'confirm-selection-btn'}
           >
-            確認選擇
+            {confirmButtonConfig.text}
           </button>
         )}
 

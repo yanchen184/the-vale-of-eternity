@@ -1,9 +1,9 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 4.4.0 - Implemented zone bonus toggle and field limit validation
+ * @version 4.6.0 - Implement Seven-League Boots artifact effect
  */
-console.log('[services/multiplayer-game.ts] v4.4.0 loaded')
+console.log('[services/multiplayer-game.ts] v4.6.0 loaded')
 
 import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -115,6 +115,19 @@ export interface ArtifactSelectionPhase {
   /** Artifact selections for this round: playerId -> artifactId */
   selections: {
     [playerId: string]: string
+  }
+  /** Confirmations for artifact selections */
+  confirmations?: {
+    [playerId: string]: boolean
+  }
+  /** Seven-League Boots special state */
+  sevenLeagueBoots?: {
+    /** Player ID who selected Seven-League Boots */
+    activePlayerId: string
+    /** Additional card flipped from deck */
+    extraCardId: string
+    /** Whether player has selected a card to shelter */
+    selectedCardId?: string
   }
 }
 
@@ -2491,7 +2504,7 @@ export class MultiplayerGameService {
     gameId: string,
     playerId: string,
     artifactId: string,
-    round: number
+    _round: number // Unused but kept for API compatibility
   ): Promise<void> {
     const gameRef = ref(database, `games/${gameId}`)
     const snapshot = await get(gameRef)
@@ -2524,9 +2537,12 @@ export class MultiplayerGameService {
       throw new Error('Not your turn to select artifact')
     }
 
-    // Check if player has already selected an artifact this round
-    if (game.artifactSelectionPhase.selections?.[playerId]) {
-      throw new Error('You have already selected an artifact this round')
+    // Check if player has already confirmed their artifact selection
+    // (玩家在確認前可以換神器，確認後就不能換了)
+    const currentSelection = game.artifactSelectionPhase.selections?.[playerId]
+    const isConfirmed = game.artifactSelectionPhase.confirmations?.[playerId] === true
+    if (currentSelection && isConfirmed) {
+      throw new Error('You have already confirmed your artifact selection')
     }
 
     // Validate artifact is available for this game
@@ -2542,24 +2558,111 @@ export class MultiplayerGameService {
       throw new Error('You have already used this artifact in a previous round')
     }
 
-    // Record the selection to permanent storage
-    const updatedArtifactSelections = game.artifactSelections || {}
-    if (!updatedArtifactSelections[playerId]) {
-      updatedArtifactSelections[playerId] = {}
-    }
-    updatedArtifactSelections[playerId][round] = artifactId
-
-    // Update artifact selection phase state
+    // Just update the selection without confirming
+    // (玩家可以選擇後再確認，確認前可以換)
     const updatedPhaseSelections = {
       ...(game.artifactSelectionPhase.selections || {}),
       [playerId]: artifactId,
     }
 
-    // Calculate next player index (simple sequential order, starting from startingPlayerIndex)
-    const playerCount = game.playerIds.length
-    const startingPlayerIndex = game.artifactSelectionPhase.startingPlayerIndex
+    await update(gameRef, {
+      'artifactSelectionPhase/selections': updatedPhaseSelections,
+      updatedAt: Date.now(),
+    })
 
-    // Get the selection order (same as hunting phase starting order)
+    console.log(
+      `[MultiplayerGame] Player ${playerId} selected artifact ${artifactId} (not confirmed yet)`
+    )
+  }
+
+  /**
+   * Confirm artifact selection and move to next player
+   * Special handling for Seven-League Boots: flip extra card and wait for shelter selection
+   */
+  async confirmArtifactSelection(gameId: string, playerId: string, round: number): Promise<void> {
+    const gameRef = ref(database, `games/${gameId}`)
+    const snapshot = await get(gameRef)
+
+    if (!snapshot.exists()) {
+      throw new Error('Game not found')
+    }
+
+    const game: GameRoom = snapshot.val()
+
+    // Validate it's the player's turn
+    const currentPlayerIndex = game.artifactSelectionPhase!.currentPlayerIndex
+    const expectedPlayerId = game.playerIds[currentPlayerIndex]
+    if (playerId !== expectedPlayerId) {
+      throw new Error('Not your turn to confirm artifact selection')
+    }
+
+    // Check if player has selected an artifact
+    const selectedArtifact = game.artifactSelectionPhase!.selections?.[playerId]
+    if (!selectedArtifact) {
+      throw new Error('No artifact selected')
+    }
+
+    // Record the selection to permanent storage
+    const updatedArtifactSelections = game.artifactSelections || {}
+    if (!updatedArtifactSelections[playerId]) {
+      updatedArtifactSelections[playerId] = {}
+    }
+    updatedArtifactSelections[playerId][round] = selectedArtifact
+
+    // Mark as confirmed
+    const updatedConfirmations = {
+      ...(game.artifactSelectionPhase!.confirmations || {}),
+      [playerId]: true,
+    }
+
+    // ============================================
+    // SEVEN-LEAGUE BOOTS SPECIAL HANDLING
+    // ============================================
+    if (selectedArtifact === 'seven_league_boots') {
+      // Check if deck has cards to flip
+      if (!game.deckIds || game.deckIds.length === 0) {
+        console.log(
+          `[MultiplayerGame] Seven-League Boots: Deck is empty, skipping extra card flip`
+        )
+        // Proceed as normal if deck is empty
+      } else {
+        // Flip 1 additional card from deck to market
+        const extraCardId = game.deckIds[0]
+        const remainingDeck = game.deckIds.slice(1)
+
+        // Add the extra card to market
+        const updatedMarketIds = [...(game.marketIds || []), extraCardId]
+
+        // Update the card's location to MARKET
+        await update(ref(database, `games/${gameId}/cards/${extraCardId}`), {
+          location: CardLocation.MARKET,
+        })
+
+        // Set Seven-League Boots state - player must now select a card to shelter
+        await update(gameRef, {
+          artifactSelections: updatedArtifactSelections,
+          'artifactSelectionPhase/confirmations': updatedConfirmations,
+          'artifactSelectionPhase/sevenLeagueBoots': {
+            activePlayerId: playerId,
+            extraCardId: extraCardId,
+          },
+          deckIds: remainingDeck,
+          marketIds: updatedMarketIds,
+          updatedAt: Date.now(),
+        })
+
+        console.log(
+          `[MultiplayerGame] Seven-League Boots activated by ${playerId}: flipped card ${extraCardId} to market. Waiting for shelter selection.`
+        )
+        return // Don't proceed to next player yet - wait for shelter selection
+      }
+    }
+
+    // Normal flow: Calculate next player index
+    const playerCount = game.playerIds.length
+    const startingPlayerIndex = game.artifactSelectionPhase!.startingPlayerIndex
+
+    // Get the selection order
     const selectionOrder: number[] = []
     for (let i = 0; i < playerCount; i++) {
       selectionOrder.push((startingPlayerIndex + i) % playerCount)
@@ -2569,16 +2672,16 @@ export class MultiplayerGameService {
     const isLastPlayer = currentPositionInOrder === selectionOrder.length - 1
 
     if (isLastPlayer) {
-      // All players have selected - artifact selection complete
+      // All players have confirmed - artifact selection complete
       await update(gameRef, {
         artifactSelections: updatedArtifactSelections,
         'artifactSelectionPhase/isComplete': true,
-        'artifactSelectionPhase/selections': updatedPhaseSelections,
+        'artifactSelectionPhase/confirmations': updatedConfirmations,
         updatedAt: Date.now(),
       })
 
       console.log(
-        `[MultiplayerGame] All players selected artifacts for round ${round}, proceeding to card selection`
+        `[MultiplayerGame] All players confirmed artifacts for round ${round}, proceeding to card selection`
       )
     } else {
       // Move to next player in selection order
@@ -2587,12 +2690,162 @@ export class MultiplayerGameService {
       await update(gameRef, {
         artifactSelections: updatedArtifactSelections,
         'artifactSelectionPhase/currentPlayerIndex': nextPlayerIndex,
-        'artifactSelectionPhase/selections': updatedPhaseSelections,
+        'artifactSelectionPhase/confirmations': updatedConfirmations,
         updatedAt: Date.now(),
       })
 
       console.log(
-        `[MultiplayerGame] Player ${playerId} (index ${currentPlayerIndex}) selected artifact ${artifactId}, next player index: ${nextPlayerIndex}`
+        `[MultiplayerGame] Player ${playerId} confirmed artifact ${selectedArtifact}, next player index: ${nextPlayerIndex}`
+      )
+    }
+  }
+
+  /**
+   * Select a card to shelter during Seven-League Boots effect
+   * @param gameId - Game room ID
+   * @param playerId - Player who activated Seven-League Boots
+   * @param cardId - Card instance ID from market to shelter
+   */
+  async selectSevenLeagueBootsCard(
+    gameId: string,
+    playerId: string,
+    cardId: string
+  ): Promise<void> {
+    const gameRef = ref(database, `games/${gameId}`)
+    const snapshot = await get(gameRef)
+
+    if (!snapshot.exists()) {
+      throw new Error('Game not found')
+    }
+
+    const game: GameRoom = snapshot.val()
+
+    // Validate Seven-League Boots state is active
+    if (!game.artifactSelectionPhase?.sevenLeagueBoots) {
+      throw new Error('Seven-League Boots effect is not active')
+    }
+
+    // Validate it's the correct player
+    if (game.artifactSelectionPhase.sevenLeagueBoots.activePlayerId !== playerId) {
+      throw new Error('You are not the player who activated Seven-League Boots')
+    }
+
+    // Validate card is in market
+    if (!game.marketIds?.includes(cardId)) {
+      throw new Error('Selected card is not in the market')
+    }
+
+    // Update the selected card ID (player can change selection before confirming)
+    await update(gameRef, {
+      'artifactSelectionPhase/sevenLeagueBoots/selectedCardId': cardId,
+      updatedAt: Date.now(),
+    })
+
+    console.log(
+      `[MultiplayerGame] Seven-League Boots: Player ${playerId} selected card ${cardId} for sheltering`
+    )
+  }
+
+  /**
+   * Confirm Seven-League Boots shelter selection and move to next player
+   * @param gameId - Game room ID
+   * @param playerId - Player who activated Seven-League Boots
+   */
+  async confirmSevenLeagueBootsSelection(gameId: string, playerId: string): Promise<void> {
+    const gameRef = ref(database, `games/${gameId}`)
+    const snapshot = await get(gameRef)
+
+    if (!snapshot.exists()) {
+      throw new Error('Game not found')
+    }
+
+    const game: GameRoom = snapshot.val()
+
+    // Validate Seven-League Boots state is active
+    if (!game.artifactSelectionPhase?.sevenLeagueBoots) {
+      throw new Error('Seven-League Boots effect is not active')
+    }
+
+    const sevenLeagueBootsState = game.artifactSelectionPhase.sevenLeagueBoots
+
+    // Validate it's the correct player
+    if (sevenLeagueBootsState.activePlayerId !== playerId) {
+      throw new Error('You are not the player who activated Seven-League Boots')
+    }
+
+    // Validate a card has been selected
+    if (!sevenLeagueBootsState.selectedCardId) {
+      throw new Error('No card selected for sheltering')
+    }
+
+    const selectedCardId = sevenLeagueBootsState.selectedCardId
+
+    // Validate card is still in market
+    if (!game.marketIds?.includes(selectedCardId)) {
+      throw new Error('Selected card is no longer in the market')
+    }
+
+    // Get player state
+    const playerSnapshot = await get(ref(database, `games/${gameId}/players/${playerId}`))
+    if (!playerSnapshot.exists()) {
+      throw new Error('Player not found')
+    }
+    const player: PlayerState = playerSnapshot.val()
+
+    // Move card from market to player's sanctuary
+    const updatedMarketIds = game.marketIds.filter((id) => id !== selectedCardId)
+    const updatedSanctuary = [...(player.sanctuary || []), selectedCardId]
+
+    // Update card location and ownership
+    await update(ref(database, `games/${gameId}/cards/${selectedCardId}`), {
+      location: CardLocation.SANCTUARY,
+      ownerId: playerId,
+    })
+
+    // Update player's sanctuary
+    await update(ref(database, `games/${gameId}/players/${playerId}`), {
+      sanctuary: updatedSanctuary,
+    })
+
+    // Calculate next player (same logic as normal artifact confirmation)
+    const currentPlayerIndex = game.artifactSelectionPhase!.currentPlayerIndex
+    const playerCount = game.playerIds.length
+    const startingPlayerIndex = game.artifactSelectionPhase!.startingPlayerIndex
+
+    // Get the selection order
+    const selectionOrder: number[] = []
+    for (let i = 0; i < playerCount; i++) {
+      selectionOrder.push((startingPlayerIndex + i) % playerCount)
+    }
+
+    const currentPositionInOrder = selectionOrder.indexOf(currentPlayerIndex)
+    const isLastPlayer = currentPositionInOrder === selectionOrder.length - 1
+
+    if (isLastPlayer) {
+      // All players have confirmed - artifact selection complete
+      await update(gameRef, {
+        marketIds: updatedMarketIds,
+        'artifactSelectionPhase/isComplete': true,
+        'artifactSelectionPhase/sevenLeagueBoots': null, // Clear Seven-League Boots state
+        updatedAt: Date.now(),
+      })
+
+      console.log(
+        `[MultiplayerGame] Seven-League Boots completed by ${playerId}: sheltered card ${selectedCardId}. All players done, proceeding to card selection.`
+      )
+    } else {
+      // Move to next player in selection order
+      const nextPlayerIndex = selectionOrder[currentPositionInOrder + 1]
+
+      await update(gameRef, {
+        marketIds: updatedMarketIds,
+        'artifactSelectionPhase/currentPlayerIndex': nextPlayerIndex,
+        'artifactSelectionPhase/sevenLeagueBoots': null, // Clear Seven-League Boots state
+        updatedAt: Date.now(),
+      })
+
+      console.log(
+        `[MultiplayerGame] Seven-League Boots completed by ${playerId}: sheltered card ${selectedCardId}. Next player index: ${nextPlayerIndex}`
       )
     }
   }
@@ -2634,6 +2887,122 @@ export class MultiplayerGameService {
   async updateGameRoom(gameId: string, updates: Partial<GameRoom>): Promise<void> {
     const gameRef = ref(database, `games/${gameId}`)
     await update(gameRef, updates)
+  }
+
+  /**
+   * Move a card from player's hand to sanctuary (expansion mode)
+   * Only allowed during the player's own turn
+   * @param gameId - Game room ID
+   * @param playerId - Player ID
+   * @param cardInstanceId - Card instance ID to move
+   */
+  async moveCardToSanctuary(
+    gameId: string,
+    playerId: string,
+    cardInstanceId: string
+  ): Promise<void> {
+    const gameRef = ref(database, `games/${gameId}`)
+    const snapshot = await get(gameRef)
+
+    if (!snapshot.exists()) {
+      throw new Error('Game not found')
+    }
+
+    const game: GameRoom = snapshot.val()
+
+    // Validate it's the player's turn
+    const currentPlayerIndex = game.currentPlayerIndex
+    const currentPlayerId = game.playerIds[currentPlayerIndex]
+    if (currentPlayerId !== playerId) {
+      throw new Error('Not your turn - cannot move cards to sanctuary')
+    }
+
+    // Get player state from Firebase
+    const playerSnapshot = await get(ref(database, `games/${gameId}/players/${playerId}`))
+    if (!playerSnapshot.exists()) {
+      throw new Error('Player state not found')
+    }
+    const playerState: PlayerState = playerSnapshot.val()
+
+    // Validate card is in hand
+    if (!playerState.hand.includes(cardInstanceId)) {
+      throw new Error('Card not found in hand')
+    }
+
+    // Move card from hand to sanctuary
+    const updatedHand = playerState.hand.filter((id: string) => id !== cardInstanceId)
+    const updatedSanctuary = [...(playerState.sanctuary || []), cardInstanceId]
+
+    await update(ref(database, `games/${gameId}/players/${playerId}`), {
+      hand: updatedHand,
+      sanctuary: updatedSanctuary,
+    })
+
+    await update(gameRef, {
+      updatedAt: Date.now(),
+    })
+
+    console.log(
+      `[MultiplayerGame] Player ${playerId} moved card ${cardInstanceId} from hand to sanctuary`
+    )
+  }
+
+  /**
+   * Move a card from sanctuary back to player's hand (expansion mode)
+   * Only allowed during the player's own turn
+   * @param gameId - Game room ID
+   * @param playerId - Player ID
+   * @param cardInstanceId - Card instance ID to move
+   */
+  async moveCardFromSanctuary(
+    gameId: string,
+    playerId: string,
+    cardInstanceId: string
+  ): Promise<void> {
+    const gameRef = ref(database, `games/${gameId}`)
+    const snapshot = await get(gameRef)
+
+    if (!snapshot.exists()) {
+      throw new Error('Game not found')
+    }
+
+    const game: GameRoom = snapshot.val()
+
+    // Validate it's the player's turn
+    const currentPlayerIndex = game.currentPlayerIndex
+    const currentPlayerId = game.playerIds[currentPlayerIndex]
+    if (currentPlayerId !== playerId) {
+      throw new Error('Not your turn - cannot move cards from sanctuary')
+    }
+
+    // Get player state from Firebase
+    const playerSnapshot = await get(ref(database, `games/${gameId}/players/${playerId}`))
+    if (!playerSnapshot.exists()) {
+      throw new Error('Player state not found')
+    }
+    const playerState: PlayerState = playerSnapshot.val()
+
+    // Validate card is in sanctuary
+    if (!playerState.sanctuary || !playerState.sanctuary.includes(cardInstanceId)) {
+      throw new Error('Card not found in sanctuary')
+    }
+
+    // Move card from sanctuary to hand
+    const updatedSanctuary = playerState.sanctuary.filter((id: string) => id !== cardInstanceId)
+    const updatedHand = [...playerState.hand, cardInstanceId]
+
+    await update(ref(database, `games/${gameId}/players/${playerId}`), {
+      hand: updatedHand,
+      sanctuary: updatedSanctuary,
+    })
+
+    await update(gameRef, {
+      updatedAt: Date.now(),
+    })
+
+    console.log(
+      `[MultiplayerGame] Player ${playerId} moved card ${cardInstanceId} from sanctuary to hand`
+    )
   }
 }
 

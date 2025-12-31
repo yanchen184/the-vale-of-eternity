@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 5.15.0 - Set default card scale to 70% for better visibility
+ * @version 5.23.0 - Add Seven-League Boots UI integration
  */
-console.log('[pages/MultiplayerGame.tsx] v5.15.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v5.23.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -28,7 +28,8 @@ import {
   ScoreBar,
 } from '@/components/game'
 import { DraggableHandWindow } from '@/components/game/DraggableHandWindow'
-import { ArtifactSelector } from '@/components/game/ArtifactSelector'
+// ArtifactSelector imported but not used - kept for potential future use
+// import { ArtifactSelector } from '@/components/game/ArtifactSelector'
 import { CompactArtifactSelector } from '@/components/game/CompactArtifactSelector'
 import type { PlayerScoreInfo, PlayerFieldData, PlayerSidebarData, ScoreBarPlayerData } from '@/components/game'
 import { Button } from '@/components/ui/Button'
@@ -59,6 +60,13 @@ interface WaitingRoomProps {
   onLeave: () => void
 }
 
+/** Seven-League Boots state from Firebase */
+interface SevenLeagueBootsState {
+  activePlayerId: string
+  extraCardId: string
+  selectedCardId?: string
+}
+
 interface HuntingPhaseProps {
   marketCards: CardInstance[]
   isYourTurn: boolean
@@ -77,6 +85,13 @@ interface HuntingPhaseProps {
   artifactSelectionMap?: Map<string, { color: PlayerColor; playerName: string; isConfirmed: boolean }>
   onSelectArtifact?: (artifactId: string) => void
   playerName?: string
+  isYourArtifactTurn?: boolean
+  isArtifactSelectionActive?: boolean  // v5.20.0
+  // Seven-League Boots props (v5.21.0)
+  sevenLeagueBootsState?: SevenLeagueBootsState | null
+  isInSevenLeagueBootsSelection?: boolean
+  onSelectSevenLeagueBootsCard?: (cardId: string) => void
+  onConfirmSevenLeagueBootsSelection?: () => void
 }
 
 // ============================================
@@ -216,32 +231,129 @@ function HuntingPhaseUI({
   artifactSelectionMap,
   onSelectArtifact,
   playerName,
+  isYourArtifactTurn,
+  isArtifactSelectionActive,
+  // Seven-League Boots props (v5.22.0)
+  sevenLeagueBootsState,
+  isInSevenLeagueBootsSelection,
+  onSelectSevenLeagueBootsCard,
+  onConfirmSevenLeagueBootsSelection: _onConfirmSevenLeagueBootsSelection,
 }: HuntingPhaseProps) {
   void _currentPlayerId
   void _onConfirmSelection // Reserved for future use
+  void _onConfirmSevenLeagueBootsSelection // Confirm button is in RightSidebar
+
+  // Determine which phase to show
+  const showSevenLeagueBootsSelection = !!sevenLeagueBootsState
+  const showArtifactSelection = isExpansionMode && isArtifactSelectionActive && !showSevenLeagueBootsSelection
+
+  // Get header info based on current state
+  const getHeaderInfo = () => {
+    if (showSevenLeagueBootsSelection) {
+      return {
+        title: '七里靴效果',
+        description: isInSevenLeagueBootsSelection
+          ? sevenLeagueBootsState?.selectedCardId
+            ? '已選擇卡片，點擊「確認庇護」將卡片加入庇護區'
+            : '選擇一張卡片加入庇護區'
+          : `等待 ${currentPlayerName} 選擇庇護卡片...`,
+        headerColor: 'text-purple-400',
+      }
+    }
+    if (showArtifactSelection) {
+      return {
+        title: '神器選擇階段',
+        description: isYourArtifactTurn
+          ? '選擇一個神器，然後點擊「確認選擇」'
+          : `等待 ${currentPlayerName} 選擇神器...`,
+        headerColor: 'text-blue-400',
+      }
+    }
+    return {
+      title: '選卡階段',
+      description: isYourTurn
+        ? hasSelectedCard
+          ? '點擊「確認選擇」鎖定卡片，或點擊卡片取消/切換選擇'
+          : '點擊一張卡片進行選擇'
+        : `等待 ${currentPlayerName} 選擇卡片...`,
+      headerColor: 'text-blue-400',
+    }
+  }
+
+  const headerInfo = getHeaderInfo()
 
   return (
     <div className="flex-1 flex flex-col p-4 overflow-hidden" data-testid="hunting-phase">
       {/* Header */}
       <div className="text-center mb-4 flex-shrink-0">
-        <h2 className="text-xl font-bold text-blue-400 mb-1">選卡階段</h2>
+        <h2 className={cn('text-xl font-bold mb-1', headerInfo.headerColor)}>
+          {headerInfo.title}
+        </h2>
         <p className="text-sm text-slate-400">
-          {isYourTurn
-            ? hasSelectedCard
-              ? '點擊「確認選擇」鎖定卡片，或點擊卡片取消/切換選擇'
-              : '點擊一張卡片進行選擇'
-            : `等待 ${currentPlayerName} 選擇卡片...`}
+          {headerInfo.description}
         </p>
       </div>
 
-      {/* Card Grid - Scrollable */}
+      {/* Seven-League Boots Instruction Banner (v5.22.0) */}
+      {showSevenLeagueBootsSelection && (
+        <div className="mb-4 p-3 bg-purple-900/30 border border-purple-500/50 rounded-lg flex-shrink-0">
+          <p className="text-sm text-purple-300 text-center">
+            {isInSevenLeagueBootsSelection
+              ? '點擊市場上的一張卡片，將其加入你的庇護區（不需支付費用）'
+              : '等待其他玩家完成七里靴選擇...'}
+          </p>
+        </div>
+      )}
+
+      {/* Card Grid - Always show market cards */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 justify-items-center pb-4">
           {marketCards.map((card, index) => {
             const selectionInfo = cardSelectionMap.get(card.instanceId)
             const isConfirmed = selectionInfo?.isConfirmed ?? false
             const isMySelection = mySelectedCardId === card.instanceId
-            const canClick = isYourTurn && !isConfirmed
+
+            // Seven-League Boots selection mode
+            if (showSevenLeagueBootsSelection) {
+              const isSelectedForShelter = sevenLeagueBootsState?.selectedCardId === card.instanceId
+              const canClickForShelter = isInSevenLeagueBootsSelection
+
+              return (
+                <div
+                  key={card.instanceId}
+                  className={cn(
+                    'transition-all relative',
+                    canClickForShelter
+                      ? 'hover:scale-105 cursor-pointer'
+                      : 'opacity-60 cursor-not-allowed'
+                  )}
+                  data-testid={`seven-league-boots-card-${index}`}
+                >
+                  <Card
+                    card={card}
+                    index={index}
+                    compact={false}
+                    currentRound={currentRound}
+                    onClick={() => canClickForShelter && onSelectSevenLeagueBootsCard?.(card.instanceId)}
+                    isSelected={isSelectedForShelter}
+                    className={cn(
+                      isSelectedForShelter && 'ring-4 ring-purple-400 ring-opacity-75 shadow-purple-500/50',
+                      canClickForShelter && !isSelectedForShelter && 'hover:border-purple-400 hover:shadow-purple-500/50'
+                    )}
+                  />
+                  {/* Selected for shelter indicator */}
+                  {isSelectedForShelter && (
+                    <div className="absolute -top-2 -right-2 bg-purple-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg z-10">
+                      庇護
+                    </div>
+                  )}
+                </div>
+              )
+            }
+
+            // Normal card selection mode
+            // Disable card selection during artifact selection phase
+            const canClick = isYourTurn && !isConfirmed && !showArtifactSelection
 
             return (
               <div
@@ -277,24 +389,24 @@ function HuntingPhaseUI({
                 )}
               </div>
             )
-          })}
-        </div>
-      </div>
+            })}
+          </div>
 
-      {/* Artifact Selection at Bottom (Expansion Mode Only) */}
-      {isExpansionMode && availableArtifacts && onSelectArtifact && (
-        <div className="flex-shrink-0 mt-4 border-t border-purple-500/30 pt-4">
-          <CompactArtifactSelector
-            availableArtifacts={availableArtifacts}
-            usedArtifacts={usedArtifacts || []}
-            artifactSelections={artifactSelectionMap}
-            round={currentRound || 1}
-            playerName={playerName || '玩家'}
-            onSelectArtifact={onSelectArtifact}
-            isActive={true}
-          />
-        </div>
-      )}
+        {/* Artifact Selection at Bottom - Show only during artifact selection phase */}
+        {showArtifactSelection && availableArtifacts && onSelectArtifact && (
+          <div className="flex-shrink-0 mt-4 border-t border-purple-500/30 pt-4">
+            <CompactArtifactSelector
+              availableArtifacts={availableArtifacts}
+              usedArtifacts={usedArtifacts || []}
+              artifactSelections={artifactSelectionMap}
+              round={currentRound || 1}
+              playerName={playerName || '玩家'}
+              onSelectArtifact={onSelectArtifact}
+              isActive={isYourArtifactTurn ?? false}
+            />
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -799,16 +911,6 @@ export function MultiplayerGame() {
     [gameId, playerId]
   )
 
-  const handleConfirmCardSelection = useCallback(async () => {
-    if (!gameId || !playerId) return
-
-    try {
-      await multiplayerGameService.confirmCardSelection(gameId, playerId)
-    } catch (err: any) {
-      setError(err.message || 'Failed to confirm selection')
-    }
-  }, [gameId, playerId])
-
   const handleTameCard = useCallback(
     async (cardInstanceId: string) => {
       if (!gameId || !playerId) return
@@ -895,6 +997,34 @@ export function MultiplayerGame() {
         await multiplayerGameService.discardFieldCard(gameId, playerId, cardInstanceId)
       } catch (err: any) {
         setError(err.message || 'Failed to discard field card')
+      }
+    },
+    [gameId, playerId]
+  )
+
+  // Handle moving card from hand to sanctuary (expansion mode)
+  const handleMoveToSanctuary = useCallback(
+    async (cardInstanceId: string) => {
+      if (!gameId || !playerId) return
+
+      try {
+        await multiplayerGameService.moveCardToSanctuary(gameId, playerId, cardInstanceId)
+      } catch (err: any) {
+        setError(err.message || 'Failed to move card to sanctuary')
+      }
+    },
+    [gameId, playerId]
+  )
+
+  // Handle moving card from sanctuary back to hand (expansion mode)
+  const handleMoveFromSanctuary = useCallback(
+    async (cardInstanceId: string) => {
+      if (!gameId || !playerId) return
+
+      try {
+        await multiplayerGameService.moveCardFromSanctuary(gameId, playerId, cardInstanceId)
+      } catch (err: any) {
+        setError(err.message || 'Failed to move card from sanctuary')
       }
     },
     [gameId, playerId]
@@ -1036,6 +1166,31 @@ export function MultiplayerGame() {
     [gameId, playerId, gameRoom]
   )
 
+  // Seven-League Boots handlers (v5.22.0)
+  const handleSelectSevenLeagueBootsCard = useCallback(
+    async (cardId: string) => {
+      if (!gameId || !playerId) return
+      try {
+        await multiplayerGameService.selectSevenLeagueBootsCard(gameId, playerId, cardId)
+      } catch (err: any) {
+        setError(err.message || 'Failed to select card for Seven-League Boots')
+      }
+    },
+    [gameId, playerId]
+  )
+
+  const handleConfirmSevenLeagueBootsSelection = useCallback(
+    async () => {
+      if (!gameId || !playerId) return
+      try {
+        await multiplayerGameService.confirmSevenLeagueBootsSelection(gameId, playerId)
+      } catch (err: any) {
+        setError(err.message || 'Failed to confirm Seven-League Boots selection')
+      }
+    },
+    [gameId, playerId]
+  )
+
   // Calculate used artifacts for current player (previous rounds only)
   const usedArtifacts = useMemo(() => {
     if (!gameRoom?.artifactSelections || !playerId) return []
@@ -1066,11 +1221,43 @@ export function MultiplayerGame() {
     return gameRoom.playerIds[playerIndex] ?? ''
   }, [isArtifactSelectionActive, gameRoom?.artifactSelectionPhase, gameRoom?.playerIds])
 
-  const artifactSelectorPlayer = useMemo(() => {
+  // Kept for future use (e.g., displaying artifact selector name)
+  const _artifactSelectorPlayer = useMemo(() => {
     return players.find((p) => p.playerId === artifactSelectorPlayerId)
   }, [players, artifactSelectorPlayerId])
+  void _artifactSelectorPlayer // Suppress unused variable warning
 
   const isYourArtifactTurn = playerId === artifactSelectorPlayerId
+
+  // Seven-League Boots state (v5.22.0)
+  const sevenLeagueBootsState = useMemo(() => {
+    return gameRoom?.artifactSelectionPhase?.sevenLeagueBoots ?? null
+  }, [gameRoom?.artifactSelectionPhase?.sevenLeagueBoots])
+
+  const isInSevenLeagueBootsSelection = useMemo(() => {
+    return sevenLeagueBootsState?.activePlayerId === playerId
+  }, [sevenLeagueBootsState, playerId])
+
+  // Confirm card or artifact or Seven-League Boots selection
+  const handleConfirmCardSelection = useCallback(async () => {
+    if (!gameId || !playerId) return
+
+    try {
+      // If in Seven-League Boots selection phase, confirm shelter selection
+      if (sevenLeagueBootsState && isInSevenLeagueBootsSelection) {
+        await multiplayerGameService.confirmSevenLeagueBootsSelection(gameId, playerId)
+      }
+      // If in artifact selection phase, confirm artifact selection instead
+      else if (isArtifactSelectionActive && isYourArtifactTurn) {
+        await multiplayerGameService.confirmArtifactSelection(gameId, playerId, gameRoom!.currentRound)
+      } else {
+        // Normal card selection confirmation
+        await multiplayerGameService.confirmCardSelection(gameId, playerId)
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to confirm selection')
+    }
+  }, [gameId, playerId, sevenLeagueBootsState, isInSevenLeagueBootsSelection, isArtifactSelectionActive, isYourArtifactTurn, gameRoom])
 
   // Clear error after timeout
   useEffect(() => {
@@ -1128,6 +1315,8 @@ export function MultiplayerGame() {
   // These handlers are kept for future card effect implementations
   void handleReturnFieldCardToHand
   void handleReturnCardFromDiscard
+  void handleMoveToSanctuary
+  void handleMoveFromSanctuary
 
   // Main Game UI with Symmetric Layout
   return (
@@ -1198,6 +1387,8 @@ export function MultiplayerGame() {
             onReturnCoin={handleReturnCoinToBank}
             onConfirmSelection={handleConfirmCardSelection}
             onEndTurn={handlePassTurn}
+            isInSevenLeagueBootsSelection={isInSevenLeagueBootsSelection}
+            hasSelectedShelterCard={!!sevenLeagueBootsState?.selectedCardId}
           />
         }
         scoreBar={
@@ -1218,6 +1409,7 @@ export function MultiplayerGame() {
               }}
             >
             {/* Hunting Phase - Card Selection with Artifact Selection at Bottom (v5.11.0) */}
+            {/* Seven-League Boots integration added in v5.22.0 */}
             {gameRoom.status === 'HUNTING' && (
               <HuntingPhaseUI
                 marketCards={marketCards}
@@ -1236,6 +1428,12 @@ export function MultiplayerGame() {
                 artifactSelectionMap={artifactSelectionMap}
                 onSelectArtifact={handleArtifactSelect}
                 playerName={currentPlayer?.name ?? playerName ?? 'Unknown'}
+                isYourArtifactTurn={isYourArtifactTurn}
+                isArtifactSelectionActive={isArtifactSelectionActive}
+                sevenLeagueBootsState={sevenLeagueBootsState}
+                isInSevenLeagueBootsSelection={isInSevenLeagueBootsSelection}
+                onSelectSevenLeagueBootsCard={handleSelectSevenLeagueBootsCard}
+                onConfirmSevenLeagueBootsSelection={handleConfirmSevenLeagueBootsSelection}
               />
             )}
 
@@ -1558,6 +1756,9 @@ export function MultiplayerGame() {
         }}
         onDiscardCard={(cardId) => {
           handleDiscardCard(cardId)
+        }}
+        onMoveToSanctuary={(cardId) => {
+          handleMoveToSanctuary(cardId)
         }}
         showCardActions={isYourTurn}
         canTameCard={(_cardId) => {

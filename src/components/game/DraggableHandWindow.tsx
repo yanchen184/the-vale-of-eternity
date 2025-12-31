@@ -26,6 +26,8 @@ export interface DraggableHandWindowProps {
   onSellCard?: (cardId: string) => void
   /** Callback when a card is discarded */
   onDiscardCard?: (cardId: string) => void
+  /** Callback when a card is moved to sanctuary (expansion mode) */
+  onMoveToSanctuary?: (cardId: string) => void
   /** Selected card instance ID (for highlighting) */
   selectedCardId?: string | null
   /** Whether to show action buttons on cards */
@@ -46,6 +48,7 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
   onTameCard,
   onSellCard,
   onDiscardCard,
+  onMoveToSanctuary,
   selectedCardId,
   showCardActions,
   canTameCard,
@@ -385,6 +388,7 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
             onCardPlay={onTameCard}
             onCardSell={onSellCard}
             onCardDiscard={onDiscardCard}
+            onMoveToSanctuary={onMoveToSanctuary}
             selectedCardId={selectedCardId}
             showActions={showCardActions}
             canTameCard={canTameCard}

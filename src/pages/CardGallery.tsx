@@ -21,7 +21,6 @@ import {
   Wind,
   Crown,
   Gem,
-  Star,
   ZoomIn,
   Zap,
   XCircle,

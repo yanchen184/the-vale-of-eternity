@@ -83,12 +83,12 @@ export const SEVEN_LEAGUE_BOOTS: Artifact = {
     'Instant: During hunting phase, flip 1 additional card from the deck and shelter 1 card from the display.',
   descriptionTw: '立即：在狩獵階段，從牌庫多翻開1張卡，並將展示區的1張卡庇護。',
   image: '/the-vale-of-eternity/assets/artifacts/3 Player Artifacts/Snipaste_2025-12-31_18-40-06.png',
-  implemented: false, // User requested to skip this one
+  implemented: true,
   effectDetails: {
     affectsCardSelection: true,
     affectsSheltering: true,
     implementationNotes:
-      'USER REQUESTED TO SKIP - Most complex artifact. Affects hunting phase display logic.',
+      'After selecting this artifact, flips 1 extra card from deck to market. Player must then select any card from market to shelter before proceeding.',
   },
 }
 

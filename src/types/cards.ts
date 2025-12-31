@@ -137,6 +137,7 @@ export enum CardLocation {
   HAND = 'HAND',
   FIELD = 'FIELD',
   DISCARD = 'DISCARD',
+  SANCTUARY = 'SANCTUARY',
 }
 
 // ============================================

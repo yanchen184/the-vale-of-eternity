@@ -1,9 +1,9 @@
 /**
  * CompactArtifactSelector Component
  * Compact version of artifact selector for inline display with card selection
- * @version 1.4.0 - Fixed click events blocked by PlayerMarker overlay
+ * @version 1.5.0 - Removed grayscale effect from disabled cards
  */
-console.log('[components/game/CompactArtifactSelector.tsx] v1.4.0 loaded')
+console.log('[components/game/CompactArtifactSelector.tsx] v1.5.0 loaded')
 
 import { memo, useState } from 'react'
 import { cn } from '@/lib/utils'
@@ -123,7 +123,7 @@ const CompactArtifactCard = memo(function CompactArtifactCard({
       {/* Artifact Card (like game cards) */}
       <button
         type="button"
-        onClick={(e) => {
+        onClick={() => {
           console.log('[CompactArtifactCard] Button clicked:', {
             artifactId: artifact.id,
             canSelect,
@@ -140,7 +140,7 @@ const CompactArtifactCard = memo(function CompactArtifactCard({
           'relative w-64 h-80 rounded-lg overflow-hidden transition-all duration-200',
           'border-2',
           canSelect && 'cursor-pointer hover:scale-105 hover:z-10',
-          !canSelect && 'opacity-40 cursor-not-allowed grayscale',
+          !canSelect && 'opacity-40 cursor-not-allowed',
           isSelected
             ? 'border-amber-500 ring-2 ring-amber-500 shadow-lg shadow-amber-500/50'
             : 'border-purple-500/50 hover:border-purple-400'

@@ -37,6 +37,8 @@ export interface PlayerHandProps {
   onCardDiscard?: (cardId: string) => void
   /** Callback when card is dragged to field */
   onDragToField?: (cardId: string) => void
+  /** Callback when card is moved to sanctuary (expansion mode) */
+  onMoveToSanctuary?: (cardId: string) => void
   /** Check if a card can be tamed */
   canTameCard?: (cardId: string) => boolean
   /** Current round number (for sell restriction) */
@@ -195,6 +197,7 @@ interface HandCardItemProps {
   onTame?: () => void
   onSell?: () => void
   onDiscard?: () => void
+  onMoveToSanctuary?: () => void
   onHover: () => void
   onHoverEnd: () => void
   onDragStart: (e: React.DragEvent) => void
@@ -216,6 +219,7 @@ const HandCardItem = memo(function HandCardItem({
   onTame,
   onSell,
   onDiscard,
+  onMoveToSanctuary,
   onHover,
   onHoverEnd,
   onDragStart,
@@ -317,6 +321,7 @@ const HandCardItem = memo(function HandCardItem({
         onTame={onTame}
         onSell={canSell ? onSell : undefined}
         onDiscard={onDiscard}
+        onMoveToSanctuary={onMoveToSanctuary}
         onClick={onSelect}
         canTame={canTame}
         className={cn(
@@ -344,6 +349,7 @@ export const PlayerHand = memo(function PlayerHand({
   onCardSell,
   onCardDiscard,
   onDragToField: _onDragToField,
+  onMoveToSanctuary,
   canTameCard,
   currentRound,
   className,
@@ -388,6 +394,10 @@ export const PlayerHand = memo(function PlayerHand({
   const handleCardDiscard = useCallback((cardId: string) => {
     onCardDiscard?.(cardId)
   }, [onCardDiscard])
+
+  const handleMoveToSanctuary = useCallback((cardId: string) => {
+    onMoveToSanctuary?.(cardId)
+  }, [onMoveToSanctuary])
 
   const handleDragStart = useCallback((e: React.DragEvent, cardId: string) => {
     setDraggedCardId(cardId)
@@ -494,6 +504,7 @@ export const PlayerHand = memo(function PlayerHand({
             onTame={() => handleCardTame(card.instanceId)}
             onSell={() => handleCardSell(card.instanceId)}
             onDiscard={() => handleCardDiscard(card.instanceId)}
+            onMoveToSanctuary={onMoveToSanctuary ? () => handleMoveToSanctuary(card.instanceId) : undefined}
             onHover={() => handleHover(index)}
             onHoverEnd={handleHoverEnd}
             onDragStart={(e) => handleDragStart(e, card.instanceId)}

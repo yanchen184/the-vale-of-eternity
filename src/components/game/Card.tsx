@@ -87,6 +87,8 @@ export interface CardProps {
   onSell?: () => void
   /** Callback when Discard button is clicked */
   onDiscard?: () => void
+  /** Callback when Move to Sanctuary button is clicked (expansion mode) */
+  onMoveToSanctuary?: () => void
   /** Callback when card is clicked */
   onClick?: () => void
   /** Whether the card can be tamed */
@@ -148,6 +150,7 @@ interface CardActionsProps {
   onTame?: () => void
   onSell?: () => void
   onDiscard?: () => void
+  onMoveToSanctuary?: () => void
   canTame: boolean
   cardElement: Element  // Card's element for calculating sell coins
 }
@@ -157,6 +160,7 @@ const CardActions = memo(function CardActions({
   onTame,
   onSell,
   onDiscard,
+  onMoveToSanctuary,
   canTame,
   cardElement,
 }: CardActionsProps) {
@@ -230,6 +234,19 @@ const CardActions = memo(function CardActions({
           棄置
         </button>
       )}
+      {onMoveToSanctuary && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onMoveToSanctuary()
+          }}
+          className="flex-1 text-xs bg-amber-700 hover:bg-amber-600 text-amber-100 py-1 px-2 rounded transition-colors"
+          type="button"
+          title="移至庇護區（擴充模式）"
+        >
+          庇護
+        </button>
+      )}
     </div>
   )
 })
@@ -275,6 +292,7 @@ export const Card = memo(function Card({
   onTame,
   onSell,
   onDiscard,
+  onMoveToSanctuary,
   onClick,
   canTame = false,
   selectedByColor,
@@ -456,12 +474,13 @@ export const Card = memo(function Card({
       )}
 
       {/* Action buttons */}
-      {showActions && (onTake || onTame || onSell || onDiscard) && (
+      {showActions && (onTake || onTame || onSell || onDiscard || onMoveToSanctuary) && (
         <CardActions
           onTake={onTake}
           onTame={onTame}
           onSell={onSell}
           onDiscard={onDiscard}
+          onMoveToSanctuary={onMoveToSanctuary}
           canTame={canTame}
           cardElement={card.element}
         />
