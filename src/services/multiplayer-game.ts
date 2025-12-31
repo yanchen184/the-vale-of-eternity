@@ -155,6 +155,9 @@ export interface GameRoom {
   currentPlayerIndex: number
   passedPlayerIds: string[]
 
+  // UI state synchronization
+  showScoreModal?: boolean  // Synchronized modal state controlled by current turn player
+
   createdAt: number
   updatedAt: number
   startedAt: number | null

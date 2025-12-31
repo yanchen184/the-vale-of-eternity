@@ -425,6 +425,8 @@ export const LeftSidebar = memo(function LeftSidebar({
   marketDiscardCount = 0,
   latestDiscardedCard,
   onDiscardClick,
+  onToggleZoneBonus,
+  currentRound = 1,
   className,
 }: LeftSidebarProps) {
   // Separate my player from others
@@ -480,6 +482,9 @@ export const LeftSidebar = memo(function LeftSidebar({
             deckCount={deckCount}
             onDrawCard={onDrawCard}
             canDrawCard={canDrawCard}
+            onToggleZoneBonus={onToggleZoneBonus}
+            currentRound={currentRound}
+            phase={phase}
           />
         )}
 

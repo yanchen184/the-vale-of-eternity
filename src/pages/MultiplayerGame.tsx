@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 5.13.0 - Enhanced card scale controls (50%-150%, 10% step) applied to main game area
+ * @version 5.14.0 - Fixed card scale center alignment to prevent bottom content clipping
  */
-console.log('[pages/MultiplayerGame.tsx] v5.13.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v5.14.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -520,6 +520,14 @@ export function MultiplayerGame() {
     }
   }, [gameId, playerId, navigate, showGameOverModal])
 
+  // Sync showScoreModal from Firebase (controlled by current turn player)
+  useEffect(() => {
+    if (!gameRoom) return
+
+    // Update local state to match Firebase state
+    setShowScoreModal(gameRoom.showScoreModal ?? false)
+  }, [gameRoom?.showScoreModal])
+
   // Handle game end
   const handleGameEnd = useCallback(async () => {
     if (!gameId) return
@@ -757,6 +765,25 @@ export function MultiplayerGame() {
   const confirmLeaveGame = useCallback(() => {
     navigate('/multiplayer')
   }, [navigate])
+
+  // Handle Score Modal (synchronized for current turn player)
+  const handleToggleScoreModal = useCallback(async (show: boolean) => {
+    if (!gameId || !playerId) return
+
+    // If it's your turn, sync to Firebase so everyone sees it
+    if (isYourTurn) {
+      try {
+        await multiplayerGameService.updateGameRoom(gameId, {
+          showScoreModal: show
+        })
+      } catch (err: any) {
+        console.error('Failed to sync score modal state:', err)
+      }
+    } else {
+      // If not your turn, just update local state (shouldn't normally happen)
+      setShowScoreModal(show)
+    }
+  }, [gameId, playerId, isYourTurn])
 
   const handleToggleCardSelection = useCallback(
     async (cardInstanceId: string) => {
@@ -1165,15 +1192,15 @@ export function MultiplayerGame() {
           />
         }
         mainContent={
-          <div
-            className="w-full h-full overflow-auto custom-scrollbar"
-            style={{
-              transform: `scale(${cardScale / 100})`,
-              transformOrigin: 'top center',
-              minWidth: `${100 / (cardScale / 100)}%`,
-              minHeight: `${100 / (cardScale / 100)}%`,
-            }}
-          >
+          <div className="w-full h-full overflow-auto custom-scrollbar flex items-center justify-center">
+            <div
+              style={{
+                transform: `scale(${cardScale / 100})`,
+                transformOrigin: 'center center',
+                width: `${100 / (cardScale / 100)}%`,
+                height: `${100 / (cardScale / 100)}%`,
+              }}
+            >
             {/* Hunting Phase - Card Selection with Artifact Selection at Bottom (v5.11.0) */}
             {gameRoom.status === 'HUNTING' && (
               <HuntingPhaseUI
@@ -1244,6 +1271,7 @@ export function MultiplayerGame() {
                 }}
               />
             )}
+            </div>
           </div>
         }
       />
