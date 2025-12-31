@@ -1,9 +1,9 @@
 /**
  * Home page component
  * Enhanced with fantasy/medieval visual design
- * @version 2.1.0 - 完整中文化
+ * @version 2.2.0 - Disabled single player and local modes
  */
-console.log('[pages/Home.tsx] v2.1.0 loaded')
+console.log('[pages/Home.tsx] v2.2.0 loaded')
 
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -36,6 +36,7 @@ interface MenuButtonProps {
   onClick: () => void
   variant?: 'primary' | 'secondary' | 'accent' | 'outline'
   testId?: string
+  disabled?: boolean
 }
 
 function MenuButton({
@@ -45,6 +46,7 @@ function MenuButton({
   onClick,
   variant = 'secondary',
   testId,
+  disabled = false,
 }: MenuButtonProps) {
   const variantStyles = {
     primary: cn(
@@ -75,13 +77,15 @@ function MenuButton({
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       className={cn(
         'relative w-full p-4 rounded-xl',
         'border-2 transition-all duration-300',
         'flex items-center gap-4',
         'group overflow-hidden',
         'focus:outline-none focus:ring-2 focus:ring-vale-400 focus:ring-offset-2 focus:ring-offset-slate-900',
-        variantStyles[variant]
+        variantStyles[variant],
+        disabled && 'opacity-50 cursor-not-allowed grayscale'
       )}
       data-testid={testId}
     >
@@ -264,14 +268,15 @@ export function Home() {
       {/* Main content */}
       <main className="relative flex-1 flex flex-col items-center justify-center gap-4 p-4 pb-8">
         <div className="w-full max-w-lg space-y-3">
-          {/* Primary Action: Single Player Game */}
+          {/* Primary Action: Single Player Game (Disabled) */}
           <MenuButton
             icon={<Gamepad2 className="w-6 h-6 text-vale-400" />}
             title="單人遊戲"
-            subtitle="使用增強 UI 元件進行遊戲"
-            onClick={() => navigate('/gameboard')}
+            subtitle="開發中，敬請期待"
+            onClick={() => {}}
             variant="primary"
             testId="gameboard-btn"
+            disabled={true}
           />
 
           {/* Multiplayer Online Mode (New) */}
@@ -284,14 +289,15 @@ export function Home() {
             testId="multiplayer-online-btn"
           />
 
-          {/* Local Battle (Legacy) */}
+          {/* Local Battle (Legacy) - Disabled */}
           <MenuButton
             icon={<Monitor className="w-6 h-6 text-slate-400" />}
             title="本地對戰（經典）"
-            subtitle="在此裝置上進行本地遊戲"
-            onClick={() => navigate('/local')}
+            subtitle="開發中，敬請期待"
+            onClick={() => {}}
             variant="secondary"
             testId="local-game-btn"
+            disabled={true}
           />
 
           {/* Divider */}

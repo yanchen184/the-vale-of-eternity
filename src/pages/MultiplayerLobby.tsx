@@ -1,9 +1,9 @@
 /**
  * Multiplayer Lobby Page for The Vale of Eternity
  * Allows creating/joining game rooms
- * @version 3.1.0
+ * @version 4.0.0 - Added Artifacts Expansion mode selection
  */
-console.log('[pages/MultiplayerLobby.tsx] v3.1.0 loaded')
+console.log('[pages/MultiplayerLobby.tsx] v4.0.0 loaded')
 
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -17,6 +17,7 @@ export const MultiplayerLobby: React.FC = () => {
   const [playerName, setPlayerName] = useState('')
   const [roomCode, setRoomCode] = useState('')
   const [maxPlayers, setMaxPlayers] = useState<2 | 3 | 4>(2)
+  const [isExpansionMode, setIsExpansionMode] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showJoinModal, setShowJoinModal] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -38,7 +39,8 @@ export const MultiplayerLobby: React.FC = () => {
       const { gameId, roomCode: newRoomCode } = await multiplayerGameService.createRoom(
         playerId,
         playerName,
-        maxPlayers
+        maxPlayers,
+        isExpansionMode
       )
 
       console.log(`[MultiplayerLobby] Room created: ${newRoomCode}`)
@@ -180,6 +182,39 @@ export const MultiplayerLobby: React.FC = () => {
                 </button>
               ))}
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">遊戲模式</label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setIsExpansionMode(false)}
+                disabled={isLoading}
+                className={`flex-1 py-3 rounded-lg font-semibold transition-colors ${
+                  !isExpansionMode
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                基礎版
+              </button>
+              <button
+                onClick={() => setIsExpansionMode(true)}
+                disabled={isLoading}
+                className={`flex-1 py-3 rounded-lg font-semibold transition-colors ${
+                  isExpansionMode
+                    ? 'bg-amber-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                擴充版 🏺
+              </button>
+            </div>
+            {isExpansionMode && (
+              <p className="mt-2 text-xs text-amber-700 bg-amber-50 p-2 rounded">
+                ✨ 擴充版包含：28張DLC卡片 + 11個神器（每回合選擇）
+              </p>
+            )}
           </div>
 
           {error && <div className="text-sm text-red-600 bg-red-50 p-3 rounded">{error}</div>}

@@ -1,9 +1,9 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 3.13.0 - Tengu PUT_ON_DECK_TOP works with returnCardToHand
+ * @version 4.1.0 - Integrated artifact selection into HUNTING phase
  */
-console.log('[services/multiplayer-game.ts] v3.13.0 loaded')
+console.log('[services/multiplayer-game.ts] v4.1.0 loaded')
 
 import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -99,6 +99,23 @@ export interface HuntingState {
   isComplete: boolean
 }
 
+/**
+ * Artifact Selection Phase State
+ * Tracks artifact selection during HUNTING phase (before card selection)
+ */
+export interface ArtifactSelectionPhase {
+  /** Whether artifact selection is complete for this round */
+  isComplete: boolean
+  /** Current player index for artifact selection */
+  currentPlayerIndex: number
+  /** Starting player index (same as hunting phase) */
+  startingPlayerIndex: number
+  /** Artifact selections for this round: playerId -> artifactId */
+  selections: {
+    [playerId: string]: string
+  }
+}
+
 export type GamePhase = 'WAITING' | 'HUNTING' | 'ACTION' | 'RESOLUTION' | 'ENDED'
 
 export interface GameRoom {
@@ -109,6 +126,19 @@ export interface GameRoom {
   currentRound: number
   maxPlayers: 2 | 3 | 4
   playerIds: string[]  // player IDs in turn order
+
+  // Expansion mode (v4.0.0)
+  isExpansionMode: boolean  // Whether this game uses Artifacts expansion
+  availableArtifacts?: string[]  // Artifact IDs available for this game (based on player count)
+  artifactSelections?: {
+    [playerId: string]: {
+      [round: number]: string  // round -> artifactId
+    }
+  }
+
+  // Artifact Selection Phase (v4.1.0)
+  // Active during HUNTING phase before card selection in expansion mode
+  artifactSelectionPhase?: ArtifactSelectionPhase | null
 
   // Hunting phase
   huntingPhase: HuntingState | null
@@ -267,11 +297,13 @@ export function getPlayerSelectionLimit(
 export class MultiplayerGameService {
   /**
    * Create a new game room
+   * @param isExpansionMode Whether to use Artifacts expansion (DLC cards + Artifacts)
    */
   async createRoom(
     hostId: string,
     hostName: string,
-    maxPlayers: 2 | 3 | 4
+    maxPlayers: 2 | 3 | 4,
+    isExpansionMode: boolean = false
   ): Promise<{ gameId: string; roomCode: string }> {
     const roomCode = generateRoomCode()
     const gameId = `game_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
@@ -291,6 +323,14 @@ export class MultiplayerGameService {
       isFlipped: false,
     }
 
+    // Generate available artifacts if expansion mode
+    let availableArtifacts: string[] | undefined
+    if (isExpansionMode) {
+      // Import artifacts data
+      const { getAvailableArtifacts } = await import('@/data/artifacts')
+      availableArtifacts = getAvailableArtifacts(maxPlayers)
+    }
+
     const gameRoom: GameRoom = {
       gameId,
       roomCode,
@@ -299,6 +339,9 @@ export class MultiplayerGameService {
       currentRound: 0,
       maxPlayers,
       playerIds: [hostId],
+      isExpansionMode,
+      availableArtifacts,
+      artifactSelections: isExpansionMode ? {} : undefined,
       huntingPhase: null,
       deckIds: [],
       marketIds: [],
@@ -451,17 +494,30 @@ export class MultiplayerGameService {
       isComplete: false,
     }
 
+    // Initialize artifact selection phase if expansion mode
+    let artifactSelectionPhase: ArtifactSelectionPhase | null = null
+    if (game.isExpansionMode) {
+      artifactSelectionPhase = {
+        isComplete: false,
+        currentPlayerIndex: 0,
+        startingPlayerIndex: 0,
+        selections: {},
+      }
+      console.log(`[MultiplayerGame] Expansion mode enabled - initializing artifact selection phase`)
+    }
+
     await update(ref(database, `games/${gameId}`), {
       status: 'HUNTING',
       currentRound: 1,
       deckIds: remainingDeck.map(c => c.instanceId),
       marketIds: marketCards.map(c => c.instanceId),
       huntingPhase,
+      artifactSelectionPhase,
       startedAt: Date.now(),
       updatedAt: Date.now(),
     })
 
-    console.log(`[MultiplayerGame] Game ${gameId} started with ${game.playerIds.length} players`)
+    console.log(`[MultiplayerGame] Game ${gameId} started with ${game.playerIds.length} players${game.isExpansionMode ? ' (Expansion Mode)' : ''}`)
   }
 
   /**
@@ -1911,7 +1967,19 @@ export class MultiplayerGameService {
             isComplete: false,
           }
 
-          console.log(`[MultiplayerGame] All players finished resolution, starting round ${game.currentRound} with player ${startingPlayerIndex}`)
+          // Initialize artifact selection phase if expansion mode
+          if (game.isExpansionMode) {
+            game.artifactSelectionPhase = {
+              isComplete: false,
+              currentPlayerIndex: startingPlayerIndex,
+              startingPlayerIndex: startingPlayerIndex,
+              selections: {},
+            }
+          } else {
+            game.artifactSelectionPhase = null
+          }
+
+          console.log(`[MultiplayerGame] All players finished resolution, starting round ${game.currentRound} with player ${startingPlayerIndex}${game.isExpansionMode ? ' (artifact selection required)' : ''}`)
         }
       } else {
         // Move to next player
@@ -1998,8 +2066,20 @@ export class MultiplayerGameService {
           isComplete: false,
         }
 
+        // Initialize artifact selection phase if expansion mode
+        if (game.isExpansionMode) {
+          game.artifactSelectionPhase = {
+            isComplete: false,
+            currentPlayerIndex: startingPlayerIndex,
+            startingPlayerIndex: startingPlayerIndex,
+            selections: {},
+          }
+        } else {
+          game.artifactSelectionPhase = null
+        }
+
         console.log(
-          `[MultiplayerGame] All players finished resolution, starting round ${game.currentRound} with HUNTING phase (starting player: ${startingPlayerIndex}), dealt ${newMarketCards.length} cards to market`
+          `[MultiplayerGame] All players finished resolution, starting round ${game.currentRound} with HUNTING phase (starting player: ${startingPlayerIndex}), dealt ${newMarketCards.length} cards to market${game.isExpansionMode ? ' (artifact selection required)' : ''}`
         )
       } else {
         // Move to next player for resolution
@@ -2326,6 +2406,140 @@ export class MultiplayerGameService {
 
     const allColors: PlayerColor[] = ['green', 'red', 'purple', 'black']
     return allColors.filter((c) => !takenColors.includes(c))
+  }
+
+  /**
+   * Select an artifact during the artifact selection phase (Expansion Mode)
+   * Called at the start of each HUNTING phase before card selection
+   * @param gameId - Game room ID
+   * @param playerId - Player making the selection
+   * @param artifactId - Artifact to select
+   * @param round - Current game round
+   */
+  async selectArtifact(
+    gameId: string,
+    playerId: string,
+    artifactId: string,
+    round: number
+  ): Promise<void> {
+    const gameRef = ref(database, `games/${gameId}`)
+    const snapshot = await get(gameRef)
+
+    if (!snapshot.exists()) {
+      throw new Error('Game not found')
+    }
+
+    const game: GameRoom = snapshot.val()
+
+    // Validate expansion mode
+    if (!game.isExpansionMode) {
+      throw new Error('Artifact selection is only available in expansion mode')
+    }
+
+    // Validate game status
+    if (game.status !== 'HUNTING') {
+      throw new Error('Artifact selection can only be done during HUNTING phase')
+    }
+
+    // Validate artifact selection phase exists and is active
+    if (!game.artifactSelectionPhase || game.artifactSelectionPhase.isComplete) {
+      throw new Error('Artifact selection phase is not active')
+    }
+
+    // Validate it's the player's turn
+    const currentPlayerIndex = game.artifactSelectionPhase.currentPlayerIndex
+    const expectedPlayerId = game.playerIds[currentPlayerIndex]
+    if (playerId !== expectedPlayerId) {
+      throw new Error('Not your turn to select artifact')
+    }
+
+    // Validate artifact is available for this game
+    if (!game.availableArtifacts?.includes(artifactId)) {
+      throw new Error('Selected artifact is not available in this game')
+    }
+
+    // Check if player has already used this artifact in a previous round
+    const playerPreviousSelections = game.artifactSelections?.[playerId] || {}
+    const usedArtifacts = Object.values(playerPreviousSelections)
+    if (usedArtifacts.includes(artifactId)) {
+      throw new Error('You have already used this artifact in a previous round')
+    }
+
+    // Record the selection
+    const updatedArtifactSelections = game.artifactSelections || {}
+    if (!updatedArtifactSelections[playerId]) {
+      updatedArtifactSelections[playerId] = {}
+    }
+    updatedArtifactSelections[playerId][round] = artifactId
+
+    // Update artifact selection phase state
+    const updatedPhaseSelections = {
+      ...game.artifactSelectionPhase.selections,
+      [playerId]: artifactId,
+    }
+
+    // Calculate next player index
+    const playerCount = game.playerIds.length
+    const nextPlayerIndex = (currentPlayerIndex + 1) % playerCount
+
+    // Check if all players have selected (selections length = player count)
+    const selectionsCount = Object.keys(updatedPhaseSelections).length
+    const allPlayersSelected = selectionsCount >= playerCount
+
+    if (allPlayersSelected) {
+      // Artifact selection complete - clear the phase and allow card selection
+      await update(gameRef, {
+        artifactSelections: updatedArtifactSelections,
+        'artifactSelectionPhase/isComplete': true,
+        'artifactSelectionPhase/selections': updatedPhaseSelections,
+        updatedAt: Date.now(),
+      })
+
+      console.log(
+        `[MultiplayerGame] All players selected artifacts for round ${round}, proceeding to card selection`
+      )
+    } else {
+      // Move to next player
+      await update(gameRef, {
+        artifactSelections: updatedArtifactSelections,
+        'artifactSelectionPhase/currentPlayerIndex': nextPlayerIndex,
+        'artifactSelectionPhase/selections': updatedPhaseSelections,
+        updatedAt: Date.now(),
+      })
+
+      console.log(
+        `[MultiplayerGame] Player ${playerId} selected artifact ${artifactId}, next player index: ${nextPlayerIndex}`
+      )
+    }
+  }
+
+  /**
+   * Get artifacts used by a player in previous rounds
+   * @param gameId - Game room ID
+   * @param playerId - Player ID
+   * @returns Array of artifact IDs used in previous rounds
+   */
+  async getUsedArtifacts(gameId: string, playerId: string): Promise<string[]> {
+    const gameRef = ref(database, `games/${gameId}`)
+    const snapshot = await get(gameRef)
+
+    if (!snapshot.exists()) {
+      return []
+    }
+
+    const game: GameRoom = snapshot.val()
+    const playerSelections = game.artifactSelections?.[playerId] || {}
+
+    // Only return selections from previous rounds (not current round)
+    const usedArtifacts: string[] = []
+    for (const [roundStr, artifactId] of Object.entries(playerSelections)) {
+      const selectionRound = parseInt(roundStr, 10)
+      if (selectionRound < game.currentRound) {
+        usedArtifacts.push(artifactId)
+      }
+    }
+
+    return usedArtifacts
   }
 }
 

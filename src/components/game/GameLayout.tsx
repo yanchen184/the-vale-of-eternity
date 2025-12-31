@@ -2,9 +2,9 @@
  * GameLayout Component
  * Symmetric layout container for multiplayer game
  * Fixed height, no scroll, left-right balanced design
- * @version 1.2.0 - Added "View Score" button in GameHeader
+ * @version 1.3.0 - Added "View All Fields" button in GameHeader
  */
-console.log('[components/game/GameLayout.tsx] v1.2.0 loaded')
+console.log('[components/game/GameLayout.tsx] v1.3.0 loaded')
 
 import { memo, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
@@ -144,6 +144,8 @@ export interface GameHeaderProps {
   onLeave: () => void
   /** View score callback */
   onViewScore?: () => void
+  /** View all fields callback */
+  onViewAllFields?: () => void
   /** Pass turn callback */
   onPassTurn?: () => void
   /** Whether to show pass button */
@@ -174,6 +176,7 @@ export const GameHeader = memo(function GameHeader({
   isYourTurn,
   onLeave,
   onViewScore,
+  onViewAllFields,
   onPassTurn,
   showPassTurn = false,
 }: GameHeaderProps) {
@@ -249,6 +252,17 @@ export const GameHeader = memo(function GameHeader({
             data-testid="view-score-btn"
           >
             查看分數
+          </button>
+        )}
+
+        {/* View All Fields Button */}
+        {phase !== 'WAITING' && onViewAllFields && (
+          <button
+            onClick={onViewAllFields}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600/80 hover:bg-emerald-500/80 text-emerald-100 transition-colors"
+            data-testid="view-all-fields-btn"
+          >
+            查看怪獸區
           </button>
         )}
 

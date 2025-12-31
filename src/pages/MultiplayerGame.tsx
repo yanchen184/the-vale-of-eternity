@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 5.8.3 - Fixed canTameCard logic to allow taming during player's turn
+ * @version 5.10.0 - Integrated artifact selection into HUNTING phase for expansion mode
  */
-console.log('[pages/MultiplayerGame.tsx] v5.8.3 loaded')
+console.log('[pages/MultiplayerGame.tsx] v5.10.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -401,6 +401,7 @@ export function MultiplayerGame() {
   const [showGameOverModal, setShowGameOverModal] = useState(false)
   const [showMarketDiscardModal, setShowMarketDiscardModal] = useState(false)
   const [showScoreModal, setShowScoreModal] = useState(false)
+  const [showAllFieldsModal, setShowAllFieldsModal] = useState(false)
   const [scores, setScores] = useState<{ playerId: string; name: string; score: number }[]>([])
 
   // Extract state from location or redirect
@@ -969,6 +970,7 @@ export function MultiplayerGame() {
             isYourTurn={isYourTurn}
             onLeave={handleLeaveGame}
             onViewScore={() => setShowScoreModal(true)}
+            onViewAllFields={() => setShowAllFieldsModal(true)}
             onPassTurn={handlePassTurn}
             showPassTurn={gameRoom.status === 'ACTION'}
           />
@@ -1100,6 +1102,25 @@ export function MultiplayerGame() {
             onScoreAdjust={handleScoreAdjust}
             allowAdjustment={isYourTurn}
             onFlipToggle={handleFlipToggle}
+          />
+        </div>
+      </Modal>
+
+      {/* All Fields Modal */}
+      <Modal
+        isOpen={showAllFieldsModal}
+        onClose={() => setShowAllFieldsModal(false)}
+        size="wide"
+        title="所有玩家的怪獸區"
+      >
+        <div className="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+          <PlayersFieldArea
+            players={playersFieldData}
+            currentPlayerId={playerId ?? ''}
+            currentRound={gameRoom.currentRound}
+            onCardReturn={handleCardReturn}
+            onCardDiscard={handleCardDiscard}
+            showCardActions={false}
           />
         </div>
       </Modal>
