@@ -1,9 +1,9 @@
 /**
  * Card Image Path Mapping
  * Maps card IDs to their corresponding image files
- * @version 2.2.0 - Added DLC card image support
+ * @version 2.3.0 - Corrected DLC card ID mappings based on actual card elements
  */
-console.log('[lib/card-images.ts] v2.2.0 loaded')
+console.log('[lib/card-images.ts] v2.3.0 loaded')
 
 // ============================================
 // IMAGE PATH CONFIGURATION
@@ -117,43 +117,41 @@ const CARD_IMAGE_MAP: Record<string, string> = {
  * DLC cards use .jpg format and are located in assets/dlc/
  */
 const DLC_CARD_IMAGE_MAP: Record<string, string> = {
-  // Fire DLC (7 cards)
+  // Fire DLC (6 cards)
   DLC_F001: 'Ash.jpg',
   DLC_F002: 'Firerat.jpg',
   DLC_F003: 'Bul-gae.jpg',
   DLC_F004: 'Fireblast.jpg',
   DLC_F005: 'Hephaestus.jpg',
   DLC_F006: 'Belphegor.jpg',
-  DLC_F007: 'Pyro.jpg',
 
-  // Water DLC (8 cards)
+  // Water DLC (6 cards)
   DLC_W001: 'Akhlut.jpg',
   DLC_W002: 'Melusine.jpg',
   DLC_W003: 'Thalassa.jpg',
   DLC_W004: 'Siren.jpg',
   DLC_W005: 'Kraken.jpg',
   DLC_W006: 'Taweret.jpg',
-  DLC_W007: 'Deepdive.jpg',
-  DLC_W008: 'Duduri.jpg',
 
-  // Earth DLC (7 cards)
+  // Earth DLC (6 cards)
   DLC_E001: 'Anubis.jpg',
   DLC_E002: 'Duduri.jpg',
   DLC_E003: 'Mandrake.jpg',
   DLC_E004: 'Totempole.jpg',
   DLC_E005: 'Wendigo.jpg',
   DLC_E006: 'Duduriking.jpg',
-  DLC_E007: 'Yeti.jpg', // Note: Image file missing
 
-  // Wind DLC (4 cards)
+  // Wind DLC (6 cards)
   DLC_Wi001: 'Anzu.jpg',
   DLC_Wi002: 'Nurikabe.jpg',
   DLC_Wi003: 'Rukh.jpg',
   DLC_Wi004: 'Banshee.jpg',
+  DLC_Wi005: 'Horus.jpg',
+  DLC_Wi006: 'Loki.jpg',
 
   // Dragon DLC (4 cards)
-  DLC_D001: 'Horus.jpg',
-  DLC_D002: 'Loki.jpg',
+  DLC_D001: 'Pyro.jpg',
+  DLC_D002: 'Deepdive.jpg',
   DLC_D003: 'Rockscale.jpg',
   DLC_D004: 'Whisper.jpg',
 }

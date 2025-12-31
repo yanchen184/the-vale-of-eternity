@@ -1,9 +1,9 @@
 /**
  * DLC Card Templates for Artifacts Expansion
- * Contains all 28 expansion creature cards (Note: YETI missing image)
- * @version 1.1.0 - Fixed image paths to match actual filenames
+ * Contains DLC expansion creature cards
+ * @version 1.3.0 - Added flavor text to all DLC cards
  */
-console.log('[data/dlc-cards.ts] v1.1.0 loaded')
+console.log('[data/dlc-cards.ts] v1.3.0 loaded')
 
 import {
   CardTemplate,
@@ -14,7 +14,7 @@ import {
 } from '@/types/cards'
 
 // ============================================
-// FIRE ELEMENT DLC CARDS (7 cards)
+// FIRE ELEMENT DLC CARDS (6 cards)
 // ============================================
 
 export const ASH: CardTemplate = {
@@ -32,6 +32,8 @@ export const ASH: CardTemplate = {
       descriptionTw: '當從手牌棄掉時，改為回收它並獲得等於回合數的分數。',
     },
   ],
+  flavorText: 'From ashes, new life emerges.',
+  flavorTextTw: '灰燼中蘊藏著重生的力量，每一次捨棄都是新的開始。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Ash.jpg',
 }
 
@@ -51,6 +53,8 @@ export const FIRE_RAT: CardTemplate = {
       descriptionTw: '馴服時：你的場上每有1張火卡，獲得1顆石頭。',
     },
   ],
+  flavorText: 'Flames dance where it runs.',
+  flavorTextTw: '火焰伴隨著牠的奔跑而舞動，點燃周圍的火之精靈。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Firerat.jpg',
 }
 
@@ -70,6 +74,8 @@ export const BUL_GAE: CardTemplate = {
       descriptionTw: '馴服時：獲得1顆火石。計分時算作2張火卡。',
     },
   ],
+  flavorText: 'Guardian of eternal flames.',
+  flavorTextTw: '永恆火焰的守護者，燃燒的熱情倍增火之力量。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Bul-gae.jpg',
 }
 
@@ -89,6 +95,8 @@ export const FIREBLAST: CardTemplate = {
       descriptionTw: '馴服時：所有對手從手牌棄掉1張卡。',
     },
   ],
+  flavorText: 'Burning chaos engulfs all.',
+  flavorTextTw: '熾烈的爆炸吞噬一切，迫使敵人棄械投降。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Fireblast.jpg',
 }
 
@@ -116,6 +124,8 @@ export const HEPHAESTUS: CardTemplate = {
       descriptionTw: '永久：你的火卡費用減少1顆石頭（最低1顆）。',
     },
   ],
+  flavorText: 'Master craftsman of divine forge.',
+  flavorTextTw: '神聖鍛造之神，精湛的技藝減輕火焰的負擔。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Hephaestus.jpg',
 }
 
@@ -143,30 +153,34 @@ export const BELPHEGOR: CardTemplate = {
       descriptionTw: '永久：你的火卡固定費用為1顆石頭。',
     },
   ],
+  flavorText: 'Prince of sloth and innovation.',
+  flavorTextTw: '懶惰與創新的王子，以最省力的方式掌握火焰。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Belphegor.jpg',
 }
 
 export const PYRO: CardTemplate = {
-  id: 'DLC_F007',
+  id: 'DLC_D005',
   name: 'Pyro',
   nameTw: '烈焰',
-  element: Element.FIRE,
-  cost: 5,
-  baseScore: 5,
+  element: Element.DRAGON,
+  cost: 7,
+  baseScore: 7,
   effects: [
     {
       type: EffectType.MULTI_CHOICE,
       trigger: EffectTrigger.ON_TAME,
       description:
-        'When tamed: Choose one - Discard all cards from hand and earn 1pt per card, OR earn 2 fire stones.',
-      descriptionTw: '馴服時：選擇一項 - 棄掉手牌所有卡片並每張獲得1分，或獲得2顆火石。',
+        'When tamed: A player of your choice loses all their summoned cards with this card.',
+      descriptionTw: '馴服時：選擇1位玩家，該玩家失去所有已馴服的卡片。',
     },
   ],
+  flavorText: 'Inferno that devours worlds.',
+  flavorTextTw: '吞噬世界的地獄烈焰，焚毀一切阻礙。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Pyro.jpg',
 }
 
 // ============================================
-// WATER ELEMENT DLC CARDS (8 cards)
+// WATER ELEMENT DLC CARDS (6 cards)
 // ============================================
 
 export const AKHLUT: CardTemplate = {
@@ -185,6 +199,8 @@ export const AKHLUT: CardTemplate = {
       descriptionTw: '馴服時：抽1張卡。',
     },
   ],
+  flavorText: 'Hybrid of wolf and orca.',
+  flavorTextTw: '狼與虎鯨的混合體，帶來知識的流動。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Akhlut.jpg',
 }
 
@@ -204,6 +220,8 @@ export const MELUSINE: CardTemplate = {
       descriptionTw: '馴服時：獲得1顆水石。',
     },
   ],
+  flavorText: 'Water spirit of ancient springs.',
+  flavorTextTw: '古老泉源的水之精靈，賜予純淨的力量。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Melusine.jpg',
 }
 
@@ -222,6 +240,8 @@ export const THALASSA: CardTemplate = {
       descriptionTw: '馴服時：你可以將棄牌堆的1張卡放到你的牌庫頂。',
     },
   ],
+  flavorText: 'Primordial sea goddess.',
+  flavorTextTw: '原始海洋女神，掌控潮汐與回溯之力。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Thalassa.jpg',
 }
 
@@ -248,6 +268,8 @@ export const SIREN: CardTemplate = {
       descriptionTw: '永久：每回合開始時，抽1張卡。',
     },
   ],
+  flavorText: 'Enchanting song of the sea.',
+  flavorTextTw: '迷人的海之歌聲，源源不絕的靈感湧現。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Siren.jpg',
 }
 
@@ -266,6 +288,8 @@ export const KRAKEN: CardTemplate = {
       descriptionTw: '馴服時：選擇1個家族。你的場上每有1張該家族的卡，獲得2分。',
     },
   ],
+  flavorText: 'Leviathan of the abyss.',
+  flavorTextTw: '深淵的利維坦，聚集同族的巨大力量。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Kraken.jpg',
 }
 
@@ -284,47 +308,34 @@ export const TAWERET: CardTemplate = {
       descriptionTw: '永久：你的卡片不會被對手的效果指定。',
     },
   ],
+  flavorText: 'Maternal protector of life.',
+  flavorTextTw: '生命的慈母守護者，庇護萬物免於傷害。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Taweret.jpg',
 }
 
 export const DEEPDIVE: CardTemplate = {
-  id: 'DLC_W007',
+  id: 'DLC_D006',
   name: 'Deepdive',
   nameTw: '深潛',
-  element: Element.WATER,
+  element: Element.DRAGON,
   cost: 7,
-  baseScore: 5,
-  effects: [
-    {
-      type: EffectType.RECOVER_CARD,
-      trigger: EffectTrigger.ON_TAME,
-      description: 'When tamed: Recover all cards from your discard pile to your hand.',
-      descriptionTw: '馴服時：將你的棄牌堆所有卡回收到手牌。',
-    },
-  ],
-  imageUrl: '/the-vale-of-eternity/assets/dlc/Deepdive.jpg',
-}
-
-export const DUDURI_WATER: CardTemplate = {
-  id: 'DLC_W008',
-  name: 'Duduri',
-  nameTw: '豆豆里',
-  element: Element.WATER,
-  cost: 8,
   baseScore: 7,
   effects: [
     {
-      type: EffectType.CONDITIONAL_AREA,
-      trigger: EffectTrigger.ON_SCORE,
-      description: 'Scoring: Earn 5pt if you have exactly 3 Duduri cards.',
-      descriptionTw: '計分時：如果你剛好有3張豆豆里卡，獲得5分。',
+      type: EffectType.MULTI_CHOICE,
+      trigger: EffectTrigger.ON_TAME,
+      description: 'When tamed: A player of your choice swaps one of their summoned cards with this card.',
+      descriptionTw: '馴服時：選擇1位玩家，該玩家的1張已馴服卡片與此卡交換。',
     },
   ],
-  imageUrl: '/the-vale-of-eternity/assets/dlc/Duduri.jpg',
+  flavorText: 'Dragged into the depths.',
+  flavorTextTw: '潛入深海的龍影，將獵物拖入無盡深淵。',
+  imageUrl: '/the-vale-of-eternity/assets/dlc/Deepdive.jpg',
 }
 
+
 // ============================================
-// EARTH ELEMENT DLC CARDS (7 cards)
+// EARTH ELEMENT DLC CARDS (6 cards)
 // ============================================
 
 export const ANUBIS: CardTemplate = {
@@ -346,7 +357,7 @@ export const ANUBIS: CardTemplate = {
   imageUrl: '/the-vale-of-eternity/assets/dlc/Anubis.jpg',
 }
 
-export const DUDURI_EARTH: CardTemplate = {
+export const DUDURI: CardTemplate = {
   id: 'DLC_E002',
   name: 'Duduri',
   nameTw: '豆豆里',
@@ -439,23 +450,6 @@ export const DUDURI_KING: CardTemplate = {
   imageUrl: '/the-vale-of-eternity/assets/dlc/Duduriking.jpg',
 }
 
-export const YETI: CardTemplate = {
-  id: 'DLC_E007',
-  name: 'Yeti',
-  nameTw: '雪人',
-  element: Element.EARTH,
-  cost: 8,
-  baseScore: 8,
-  effects: [
-    {
-      type: EffectType.NONE,
-      trigger: EffectTrigger.NONE,
-      description: 'No effect. Pure score card.',
-      descriptionTw: '無效果。純分數卡。',
-    },
-  ],
-  imageUrl: '/the-vale-of-eternity/assets/dlc/Yeti.jpg',
-}
 
 // ============================================
 // WIND ELEMENT DLC CARDS (4 cards)
@@ -541,29 +535,28 @@ export const BANSHEE: CardTemplate = {
 // ============================================
 
 export const HORUS: CardTemplate = {
-  id: 'DLC_D001',
+  id: 'DLC_Wi005',
   name: 'Horus',
   nameTw: '荷魯斯',
-  element: Element.DRAGON,
-  cost: 6,
-  baseScore: 6,
+  element: Element.WIND,
+  cost: 7,
+  baseScore: 7,
   effects: [
     {
       type: EffectType.COPY_INSTANT_EFFECT,
       trigger: EffectTrigger.ON_TAME,
-      description:
-        'When tamed: Copy instant effect of 1 card in any area. Dragon swap: Exchange with sheltered card.',
-      descriptionTw: '馴服時：複製任一場上1張卡的立即效果。龍交換：與庇護區卡片交換。',
+      description: 'When tamed: Summon a card for free and earn (cost written on the card).',
+      descriptionTw: '馴服時：免費召喚1張卡片並獲得（該卡上的費用）分。',
     },
   ],
   imageUrl: '/the-vale-of-eternity/assets/dlc/Horus.jpg',
 }
 
 export const LOKI: CardTemplate = {
-  id: 'DLC_D002',
+  id: 'DLC_Wi006',
   name: 'Loki',
   nameTw: '洛基',
-  element: Element.DRAGON,
+  element: Element.WIND,
   cost: 7,
   baseScore: 7,
   effects: [
@@ -571,8 +564,8 @@ export const LOKI: CardTemplate = {
       type: EffectType.MULTI_CHOICE,
       trigger: EffectTrigger.PERMANENT,
       description:
-        'Permanent: Can count as any family during your turn. Earn 1pt per card with permanent symbol.',
-      descriptionTw: '永久：在你的回合可以算作任何家族。每張永久符號卡獲得1分。',
+        'You can treat this card as if it were of any family during your turn. Earn (1) for each card with (permanent).',
+      descriptionTw: '你可以將此卡視為任何家族。每張永久符號卡獲得(1)分。',
     },
   ],
   imageUrl: '/the-vale-of-eternity/assets/dlc/Loki.jpg',
@@ -637,7 +630,6 @@ export const DLC_CARDS_BY_ID: Record<string, CardTemplate> = {
   [FIREBLAST.id]: FIREBLAST,
   [HEPHAESTUS.id]: HEPHAESTUS,
   [BELPHEGOR.id]: BELPHEGOR,
-  [PYRO.id]: PYRO,
 
   // Water
   [AKHLUT.id]: AKHLUT,
@@ -646,27 +638,26 @@ export const DLC_CARDS_BY_ID: Record<string, CardTemplate> = {
   [SIREN.id]: SIREN,
   [KRAKEN.id]: KRAKEN,
   [TAWERET.id]: TAWERET,
-  [DEEPDIVE.id]: DEEPDIVE,
-  [DUDURI_WATER.id]: DUDURI_WATER,
 
   // Earth
   [ANUBIS.id]: ANUBIS,
-  [DUDURI_EARTH.id]: DUDURI_EARTH,
+  [DUDURI.id]: DUDURI,
   [MANDRAKE.id]: MANDRAKE,
   [TOTEM_POLE.id]: TOTEM_POLE,
   [WENDIGO.id]: WENDIGO,
   [DUDURI_KING.id]: DUDURI_KING,
-  [YETI.id]: YETI,
 
   // Wind
   [ANZU.id]: ANZU,
   [NURIKABE.id]: NURIKABE,
   [RUKH.id]: RUKH,
   [BANSHEE.id]: BANSHEE,
-
-  // Dragon
   [HORUS.id]: HORUS,
   [LOKI.id]: LOKI,
+
+  // Dragon
+  [PYRO.id]: PYRO,
+  [DEEPDIVE.id]: DEEPDIVE,
   [ROCKSCALE.id]: ROCKSCALE,
   [WHISPER.id]: WHISPER,
 }
@@ -686,7 +677,6 @@ export const DLC_FIRE_CARDS: CardTemplate[] = [
   FIREBLAST,
   HEPHAESTUS,
   BELPHEGOR,
-  PYRO,
 ]
 export const DLC_WATER_CARDS: CardTemplate[] = [
   AKHLUT,
@@ -695,20 +685,17 @@ export const DLC_WATER_CARDS: CardTemplate[] = [
   SIREN,
   KRAKEN,
   TAWERET,
-  DEEPDIVE,
-  DUDURI_WATER,
 ]
 export const DLC_EARTH_CARDS: CardTemplate[] = [
   ANUBIS,
-  DUDURI_EARTH,
+  DUDURI,
   MANDRAKE,
   TOTEM_POLE,
   WENDIGO,
   DUDURI_KING,
-  YETI,
 ]
-export const DLC_WIND_CARDS: CardTemplate[] = [ANZU, NURIKABE, RUKH, BANSHEE]
-export const DLC_DRAGON_CARDS: CardTemplate[] = [HORUS, LOKI, ROCKSCALE, WHISPER]
+export const DLC_WIND_CARDS: CardTemplate[] = [ANZU, NURIKABE, RUKH, BANSHEE, HORUS, LOKI]
+export const DLC_DRAGON_CARDS: CardTemplate[] = [PYRO, DEEPDIVE, ROCKSCALE, WHISPER]
 
 export default {
   DLC_CARDS_BY_ID,
