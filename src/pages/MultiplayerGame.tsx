@@ -1117,30 +1117,45 @@ export function MultiplayerGame() {
               <p className="text-sm text-slate-400 mb-6">
                 共 {discardedCards.length} 張卡片已棄置{isYourTurn ? '（點擊拿取按鈕拿回到手上）' : ''}
               </p>
-              <div className="flex flex-wrap gap-4 max-h-[70vh] overflow-y-auto justify-center">
-                {discardedCards.map((card, index) => (
-                  <div
-                    key={card.instanceId}
-                    className="animate-fade-in relative transform transition-transform hover:scale-105"
-                    style={{ animationDelay: `${index * 30}ms` }}
-                  >
-                    <Card card={card} index={index} compact={false} />
-                    {/* Take button - larger and more prominent */}
-                    {isYourTurn && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleTakeCardFromMarketDiscard(card.instanceId)
-                        }}
-                        className="absolute bottom-2 left-2 right-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold py-3 px-4 rounded-lg transition-all shadow-lg hover:shadow-blue-500/50"
-                        type="button"
-                        title="拿到手上"
-                      >
-                        拿取卡片
-                      </button>
-                    )}
-                  </div>
-                ))}
+              <div className="flex flex-wrap gap-6 max-h-[70vh] overflow-y-auto justify-start px-4">
+                {discardedCards.map((card, index) => {
+                  console.log('[MarketDiscardModal] Rendering card:', index, 'isYourTurn:', isYourTurn)
+                  return (
+                    <div
+                      key={card.instanceId}
+                      className="animate-fade-in relative"
+                      style={{
+                        animationDelay: `${index * 30}ms`,
+                        width: '9rem',  // 144px - about 40% of original 358px
+                        height: '13.5rem'  // 216px - about 40% of original 538px
+                      }}
+                    >
+                      {/* Card scaled down */}
+                      <div className="transform scale-[0.4] origin-top-left">
+                        <Card card={card} index={index} compact={false} />
+                      </div>
+                      {/* Take button - positioned at the bottom of the scaled container */}
+                      {isYourTurn ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            console.log('[MarketDiscardModal] Take button clicked for card:', card.instanceId)
+                            handleTakeCardFromMarketDiscard(card.instanceId)
+                          }}
+                          className="absolute bottom-0 left-0 right-0 z-50 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 px-3 rounded-lg transition-all shadow-lg hover:shadow-blue-500/50 hover:scale-105"
+                          type="button"
+                          title="拿到手上"
+                        >
+                          拿取卡片
+                        </button>
+                      ) : (
+                        <div className="absolute bottom-0 left-0 right-0 z-50 bg-slate-600 text-slate-300 text-xs font-bold py-2 px-3 rounded-lg text-center">
+                          等待回合
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             </>
           )}

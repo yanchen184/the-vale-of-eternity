@@ -1,9 +1,9 @@
 /**
  * PlayerHand Component
  * Displays player's hand cards with enhanced fan layout, animations, and drag-drop support
- * @version 2.3.0 - Added discard hand card functionality
+ * @version 2.3.1 - Changed "Playable" indicator to "可召喚"
  */
-console.log('[components/game/PlayerHand.tsx] v2.3.0 loaded')
+console.log('[components/game/PlayerHand.tsx] v2.3.1 loaded')
 
 import { useState, useCallback, useMemo, memo, useRef, useEffect } from 'react'
 import gsap from 'gsap'
@@ -327,7 +327,7 @@ const HandCardItem = memo(function HandCardItem({
       {/* Tameable indicator */}
       {canTame && !isHovered && (
         <div className="absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-bold shadow-lg animate-bounce-in">
-          Playable
+          可召喚
         </div>
       )}
     </div>

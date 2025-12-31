@@ -176,34 +176,67 @@ const MyCoinsSection = memo(function MyCoinsSection({
 
   return (
     <GlassCard variant="gold" glow={isYourTurn ? 'gold' : 'none'} padding="sm">
-      <div className="space-y-2">
+      <div className="space-y-3">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h4 className="text-sm font-bold text-amber-300 flex items-center gap-1.5">
-            <span>我的錢幣</span>
+          <h4 className="text-base font-bold text-amber-300">
+            我的錢幣
           </h4>
-          <span className="text-xl font-bold text-amber-400">
+          <span className="text-2xl font-bold text-amber-400">
             {totalValue}
           </span>
         </div>
 
-        {/* Coin Grid */}
-        <div className="grid grid-cols-3 gap-1">
-          {VALUE_COINS.map((config) => (
-            <CoinDisplay
-              key={config.type}
-              config={config}
-              count={coins[config.type] || 0}
-              interactive={isYourTurn && (coins[config.type] || 0) > 0}
-              onClick={() => onReturnCoin?.(config.type)}
-              size="sm"
-            />
-          ))}
+        {/* Coin List - Vertical */}
+        <div className="space-y-2">
+          {VALUE_COINS.map((config) => {
+            const count = coins[config.type] || 0
+            const isInteractive = isYourTurn && count > 0
+
+            return (
+              <button
+                key={config.type}
+                type="button"
+                onClick={isInteractive ? () => onReturnCoin?.(config.type) : undefined}
+                disabled={!isInteractive}
+                className={cn(
+                  'w-full flex items-center justify-between p-3 rounded-lg transition-all duration-200',
+                  'border-2 bg-slate-800/60',
+                  isInteractive
+                    ? 'border-amber-500/50 hover:border-amber-500 hover:bg-amber-900/20 cursor-pointer hover:scale-[1.02]'
+                    : 'border-slate-600/30 opacity-60 cursor-default'
+                )}
+                title={isInteractive ? `點擊歸還 ${config.label}` : config.label}
+              >
+                {/* Left: Coin Image */}
+                <div className="flex items-center gap-3">
+                  <div className="relative w-14 h-14 flex-shrink-0">
+                    <img
+                      src={config.image}
+                      alt={config.label}
+                      className="w-full h-full object-contain drop-shadow-lg"
+                    />
+                  </div>
+                  <span className="text-lg font-bold text-amber-300">
+                    {config.value} 元
+                  </span>
+                </div>
+
+                {/* Right: Count */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-400">×</span>
+                  <span className="text-2xl font-bold text-amber-400 min-w-[3rem] text-right">
+                    {count}
+                  </span>
+                </div>
+              </button>
+            )
+          })}
         </div>
 
         {/* Return Hint */}
         {isYourTurn && totalValue > 0 && (
-          <p className="text-[10px] text-amber-400/60 text-center">
+          <p className="text-xs text-amber-400/60 text-center pt-1">
             點擊錢幣歸還銀行
           </p>
         )}
@@ -227,11 +260,10 @@ const BankSection = memo(function BankSection({
 }: BankSectionProps) {
   return (
     <GlassCard variant="blue" glow="none" padding="sm">
-      <div className="space-y-2">
+      <div className="space-y-3">
         {/* Header */}
-        {/* Header */}
-        <h4 className="text-sm font-bold text-blue-300 flex items-center gap-1.5 mb-2">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <h4 className="text-base font-bold text-blue-300 flex items-center gap-2">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -242,30 +274,45 @@ const BankSection = memo(function BankSection({
           <span>銀行</span>
         </h4>
 
-        {/* Coin Grid - Bank coins are always available */}
-        <div className="grid grid-cols-3 gap-1">
+        {/* Coin List - Vertical */}
+        <div className="space-y-2">
           {VALUE_COINS.map((config) => (
-            <CoinDisplay
+            <button
               key={config.type}
-              config={config}
-              count={999}
-              interactive={isYourTurn}
-              onClick={() => onTakeCoin?.(config.type)}
-              size="sm"
-              isBank={true}
-            />
+              type="button"
+              onClick={isYourTurn ? () => onTakeCoin?.(config.type) : undefined}
+              disabled={!isYourTurn}
+              className={cn(
+                'w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200',
+                'border-2 bg-slate-800/60',
+                isYourTurn
+                  ? 'border-blue-500/50 hover:border-blue-500 hover:bg-blue-900/20 cursor-pointer hover:scale-[1.02]'
+                  : 'border-slate-600/30 opacity-60 cursor-default'
+              )}
+              title={isYourTurn ? `從銀行取得 ${config.label}` : config.label}
+            >
+              {/* Coin Image */}
+              <div className="relative w-14 h-14 flex-shrink-0">
+                <img
+                  src={config.image}
+                  alt={config.label}
+                  className="w-full h-full object-contain drop-shadow-lg"
+                />
+              </div>
+              <span className="text-lg font-bold text-blue-300">
+                {config.value} 元
+              </span>
+            </button>
           ))}
         </div>
 
         {/* Take Hint */}
-        {isYourTurn && (
-          <p className="text-[10px] text-blue-400/60 text-center">
+        {isYourTurn ? (
+          <p className="text-xs text-blue-400/60 text-center pt-1">
             點擊錢幣從銀行取得
           </p>
-        )}
-
-        {!isYourTurn && (
-          <p className="text-[10px] text-slate-500 text-center">
+        ) : (
+          <p className="text-xs text-slate-500 text-center pt-1">
             等待你的回合...
           </p>
         )}

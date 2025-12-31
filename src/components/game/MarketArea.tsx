@@ -167,7 +167,7 @@ const MarketCard = memo(function MarketCard({
               )}
               data-testid={`market-card-${index}-tame-btn`}
             >
-              Tame
+              召喚
             </button>
           )}
         </div>

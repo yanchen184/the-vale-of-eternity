@@ -1,9 +1,9 @@
 /**
  * Card Component with Image Display
  * Renders a game card with its image and stats
- * @version 2.16.0 - Added discard button for hand cards
+ * @version 2.16.1 - Changed "Tame" button text to "召喚"
  */
-console.log('[components/game/Card.tsx] v2.16.0 loaded')
+console.log('[components/game/Card.tsx] v2.16.1 loaded')
 
 import { useState, useCallback, memo } from 'react'
 import { Flame, Droplets, TreePine, Wind, Crown, Gem } from 'lucide-react'
@@ -194,7 +194,7 @@ const CardActions = memo(function CardActions({
           }`}
           type="button"
         >
-          Tame
+          召喚
         </button>
       )}
       {onSell && (

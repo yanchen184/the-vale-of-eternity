@@ -86,6 +86,7 @@ export interface PlayerState {
 export interface HuntingState {
   round: 1 | 2  // Snake draft has 2 rounds
   currentPlayerIndex: number
+  startingPlayerIndex: number  // Which player starts this hunting phase (rotates each game round)
   selections: {
     [playerId: string]: string[]  // selected card IDs (legacy, kept for compatibility)
   }
@@ -189,8 +190,17 @@ function shuffleArray<T>(array: T[]): T[] {
  * Round 1: [0, 1, 2, 3]
  * Round 2: [3, 2, 1, 0]
  */
-function getSnakeDraftOrder(playerCount: number, round: 1 | 2): number[] {
-  const order = Array.from({ length: playerCount }, (_, i) => i)
+function getSnakeDraftOrder(
+  playerCount: number,
+  round: 1 | 2,
+  startingPlayerIndex: number = 0
+): number[] {
+  // Generate order starting from startingPlayerIndex
+  const order: number[] = []
+  for (let i = 0; i < playerCount; i++) {
+    order.push((startingPlayerIndex + i) % playerCount)
+  }
+  // Round 2 reverses the order (snake draft)
   return round === 1 ? order : order.reverse()
 }
 
@@ -200,9 +210,10 @@ function getSnakeDraftOrder(playerCount: number, round: 1 | 2): number[] {
 function getNextHuntingPlayer(
   currentIndex: number,
   round: 1 | 2,
-  playerCount: number
+  playerCount: number,
+  startingPlayerIndex: number = 0
 ): { nextIndex: number; nextRound: 1 | 2; isComplete: boolean } {
-  const order = getSnakeDraftOrder(playerCount, round)
+  const order = getSnakeDraftOrder(playerCount, round, startingPlayerIndex)
   const positionInRound = order.indexOf(currentIndex)
 
   if (positionInRound === order.length - 1) {
@@ -211,7 +222,7 @@ function getNextHuntingPlayer(
       return { nextIndex: -1, nextRound: 2, isComplete: true }
     } else {
       // Move to round 2
-      const round2Order = getSnakeDraftOrder(playerCount, 2)
+      const round2Order = getSnakeDraftOrder(playerCount, 2, startingPlayerIndex)
       return { nextIndex: round2Order[0], nextRound: 2, isComplete: false }
     }
   } else {
@@ -231,9 +242,10 @@ function getNextHuntingPlayer(
 export function getPlayerSelectionLimit(
   playerIndex: number,
   round: 1 | 2,
-  playerCount: number
+  playerCount: number,
+  startingPlayerIndex: number = 0
 ): number {
-  const order = getSnakeDraftOrder(playerCount, round)
+  const order = getSnakeDraftOrder(playerCount, round, startingPlayerIndex)
   const positionInRound = order.indexOf(playerIndex)
 
   // Last player in Round 1 gets to pick 2 cards
@@ -500,10 +512,12 @@ export class MultiplayerGameService {
       // game.marketIds = game.marketIds.filter(id => id !== cardInstanceId)
 
       // Get next player
+      const startingPlayerIndex = game.huntingPhase.startingPlayerIndex
       const { nextIndex, nextRound, isComplete } = getNextHuntingPlayer(
         currentPlayerIndex,
         game.huntingPhase.round,
-        game.playerIds.length
+        game.playerIds.length,
+        startingPlayerIndex
       )
 
       if (isComplete) {
@@ -651,7 +665,8 @@ export class MultiplayerGameService {
     const selectionLimit = getPlayerSelectionLimit(
       currentPlayerIndex,
       game.huntingPhase.round,
-      game.playerIds.length
+      game.playerIds.length,
+      game.huntingPhase.startingPlayerIndex
     )
 
     // Count current selections by this player
@@ -734,7 +749,8 @@ export class MultiplayerGameService {
     const selectionLimit = getPlayerSelectionLimit(
       currentPlayerIndex,
       game.huntingPhase.round,
-      game.playerIds.length
+      game.playerIds.length,
+      game.huntingPhase.startingPlayerIndex
     )
 
     // Find ALL cards selected by this player (not yet confirmed)
@@ -791,10 +807,12 @@ export class MultiplayerGameService {
 
     // Get next player in snake draft
     // For last player in Round 1 who picks 2 cards, skip Round 2's first turn
+    const startingPlayerIndex = game.huntingPhase.startingPlayerIndex
     const { nextIndex, nextRound, isComplete } = getNextHuntingPlayer(
       currentPlayerIndex,
       game.huntingPhase.round,
-      game.playerIds.length
+      game.playerIds.length,
+      startingPlayerIndex
     )
 
     // Special handling: if player selected 2 cards, they consumed both R1 last + R2 first turn
@@ -805,7 +823,12 @@ export class MultiplayerGameService {
 
     if (selectionLimit === 2 && !isComplete) {
       // Player picked 2 cards, skip their Round 2 first turn
-      const nextResult = getNextHuntingPlayer(nextIndex, nextRound, game.playerIds.length)
+      const nextResult = getNextHuntingPlayer(
+        nextIndex,
+        nextRound,
+        game.playerIds.length,
+        startingPlayerIndex
+      )
       finalNextIndex = nextResult.nextIndex
       finalNextRound = nextResult.nextRound
       finalIsComplete = nextResult.isComplete
@@ -1695,9 +1718,11 @@ export class MultiplayerGameService {
           // Initialize hunting phase with rotated starting player
           game.huntingPhase = {
             currentPlayerIndex: startingPlayerIndex,
+            startingPlayerIndex: startingPlayerIndex,
             round: 1,
             selections: {},
             confirmedSelections: {},
+            isComplete: false,
           }
 
           console.log(`[MultiplayerGame] All players finished resolution, starting round ${game.currentRound} with player ${startingPlayerIndex}`)
@@ -1780,9 +1805,11 @@ export class MultiplayerGameService {
         // Initialize hunting phase with rotated starting player
         game.huntingPhase = {
           currentPlayerIndex: startingPlayerIndex,
+          startingPlayerIndex: startingPlayerIndex,
           round: 1,
           selections: {},
           confirmedSelections: {},
+          isComplete: false,
         }
 
         console.log(
