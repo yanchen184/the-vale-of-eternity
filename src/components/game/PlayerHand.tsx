@@ -149,7 +149,9 @@ interface HandLimitWarningProps {
   maxCount: number
 }
 
-const HandLimitWarning = memo(function HandLimitWarning({
+// Unused component - reserved for future hand limit warnings
+// @ts-ignore - Reserved for future use
+const _HandLimitWarning = memo(function HandLimitWarning({
   currentCount,
   maxCount,
 }: HandLimitWarningProps) {

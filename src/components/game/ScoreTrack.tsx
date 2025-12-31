@@ -123,7 +123,7 @@ export const ScoreTrack = memo(function ScoreTrack({
         const updated = new Map(prev)
         let hasChanges = false
 
-        updated.forEach((anim, playerId) => {
+        updated.forEach((anim, _playerId) => {
           if (anim.current < anim.to) {
             anim.current += 1
             hasChanges = true
@@ -131,9 +131,9 @@ export const ScoreTrack = memo(function ScoreTrack({
         })
 
         // Remove completed animations
-        updated.forEach((anim, playerId) => {
+        updated.forEach((anim, pid) => {
           if (anim.current >= anim.to) {
-            updated.delete(playerId)
+            updated.delete(pid)
           }
         })
 

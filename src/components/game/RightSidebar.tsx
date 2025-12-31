@@ -89,7 +89,9 @@ interface CoinDisplayProps {
   isBank?: boolean
 }
 
-const CoinDisplay = memo(function CoinDisplay({
+// Unused component - reserved for future coin display functionality
+// @ts-ignore - Reserved for future use
+const _CoinDisplay = memo(function CoinDisplay({
   config,
   count,
   interactive = false,

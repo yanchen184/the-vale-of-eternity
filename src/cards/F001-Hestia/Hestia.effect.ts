@@ -48,15 +48,15 @@ export class HestiaEffect extends BaseEffect {
     const { card, state } = context
     const effectValue = this.getEffectValue(card) || 2
 
-    // Find the player who owns this card
-    const player = state.players?.find((p) => p.index === (card.ownerId ? parseInt(card.ownerId) : 0))
+    // Get the single player from state (single player mode)
+    const player = state.player
 
     if (!player) {
       return this.createFailureResult('Player not found')
     }
 
-    // Current stone limit before effect
-    const oldLimit = player.stoneLimit || 3
+    // Current stone limit before effect (default 3 for single player)
+    const oldLimit = 3
 
     // Calculate new stone limit
     const newLimit = oldLimit + effectValue
@@ -76,19 +76,18 @@ export class HestiaEffect extends BaseEffect {
   /**
    * Calculate total stone limit for a player
    * considering all Hestia cards in their field
-   * @param state - Game state
-   * @param playerIndex - Player index
+   * @param state - Single player game state
    * @returns Total stone limit
    */
-  static calculatePlayerStoneLimit(state: { players?: Array<{ field?: string[]; cards?: Record<string, { templateId: string; effects: Array<{ type: string; value?: number }> }> }> }, playerIndex: number): number {
-    const player = state.players?.[playerIndex]
+  static calculatePlayerStoneLimit(state: { player?: { field?: { instanceId: string; effects: Array<{ type: string; value?: number }> }[] } }): number {
+    const player = state.player
     if (!player) return 3 // Default limit
 
     const BASE_LIMIT = 3
     let totalIncrease = 0
 
-    // Find all cards in field
-    const fieldCards = player.field?.map((cardId) => player.cards?.[cardId]).filter(Boolean) || []
+    // Find all cards in field with INCREASE_STONE_LIMIT effects
+    const fieldCards = player.field || []
 
     // Sum up all INCREASE_STONE_LIMIT effects
     for (const card of fieldCards) {

@@ -64,10 +64,7 @@ describe('MVP Cards Data', () => {
         'element',
         'cost',
         'baseScore',
-        'effectType',
-        'effectTrigger',
-        'effectDescription',
-        'effectDescriptionTw',
+        'effects', // New format uses effects array
       ]
 
       MVP_CARDS.forEach(card => {
@@ -120,17 +117,21 @@ describe('MVP Cards Data', () => {
       })
     })
 
-    it('effectType should be a valid EffectType enum value', () => {
+    it('effects should have valid EffectType enum values', () => {
       const validEffectTypes = Object.values(EffectType)
       MVP_CARDS.forEach(card => {
-        expect(validEffectTypes).toContain(card.effectType)
+        card.effects.forEach(effect => {
+          expect(validEffectTypes).toContain(effect.type)
+        })
       })
     })
 
-    it('effectTrigger should be a valid EffectTrigger enum value', () => {
+    it('effects should have valid EffectTrigger enum values', () => {
       const validTriggers = Object.values(EffectTrigger)
       MVP_CARDS.forEach(card => {
-        expect(validTriggers).toContain(card.effectTrigger)
+        card.effects.forEach(effect => {
+          expect(validTriggers).toContain(effect.trigger)
+        })
       })
     })
   })
@@ -172,47 +173,49 @@ describe('MVP Cards Data', () => {
 
   describe('Effect Distribution', () => {
     it('should have correct number of NONE effect cards', () => {
-      const noEffectCards = MVP_CARDS.filter(c => c.effectType === EffectType.NONE)
+      const noEffectCards = MVP_CARDS.filter(card => card.effects.length === 0)
       // F002, W001, W003, E001, E002, E004, A001, A004, D004 = 9 cards
       expect(noEffectCards).toHaveLength(9)
     })
 
-    it('should have correct number of GAIN_STONES cards', () => {
-      const gainStonesCards = MVP_CARDS.filter(c => c.effectType === EffectType.GAIN_STONES)
+    it('should have correct number of EARN_STONES cards', () => {
+      const earnStonesCards = MVP_CARDS.filter(card =>
+        card.effects.some(e => e.type === EffectType.EARN_STONES)
+      )
       // F004 (+2), A002 (+1) = 2 cards
-      expect(gainStonesCards).toHaveLength(2)
+      expect(earnStonesCards).toHaveLength(2)
     })
 
     it('should have correct number of INCREASE_STONE_LIMIT cards', () => {
-      const increaseLimitCards = MVP_CARDS.filter(
-        c => c.effectType === EffectType.INCREASE_STONE_LIMIT
+      const increaseLimitCards = MVP_CARDS.filter(card =>
+        card.effects.some(e => e.type === EffectType.INCREASE_STONE_LIMIT)
       )
       // F001 (+2) = 1 card
       expect(increaseLimitCards).toHaveLength(1)
     })
 
-    it('should have correct number of SCORE_PER_ELEMENT cards', () => {
-      const scorePerElementCards = MVP_CARDS.filter(
-        c => c.effectType === EffectType.SCORE_PER_ELEMENT
+    it('should have correct number of EARN_PER_ELEMENT cards', () => {
+      const earnPerElementCards = MVP_CARDS.filter(card =>
+        card.effects.some(e => e.type === EffectType.EARN_PER_ELEMENT)
       )
       // F003, W002, E003, A003, D002, D003 = 6 cards
-      expect(scorePerElementCards).toHaveLength(6)
+      expect(earnPerElementCards).toHaveLength(6)
     })
 
-    it('should have correct number of SCORE_PER_DRAGON cards', () => {
-      const scorePerDragonCards = MVP_CARDS.filter(
-        c => c.effectType === EffectType.SCORE_PER_DRAGON
+    it('should have correct number of EARN_PER_FAMILY (dragon) cards', () => {
+      const earnPerFamilyCards = MVP_CARDS.filter(card =>
+        card.effects.some(e => e.type === EffectType.EARN_PER_FAMILY)
       )
       // D001 = 1 card
-      expect(scorePerDragonCards).toHaveLength(1)
+      expect(earnPerFamilyCards).toHaveLength(1)
     })
 
-    it('should have correct number of DRAW_FROM_DISCARD cards', () => {
-      const drawFromDiscardCards = MVP_CARDS.filter(
-        c => c.effectType === EffectType.DRAW_FROM_DISCARD
+    it('should have correct number of RECOVER_CARD cards', () => {
+      const recoverCardCards = MVP_CARDS.filter(card =>
+        card.effects.some(e => e.type === EffectType.RECOVER_CARD)
       )
       // W004 = 1 card
-      expect(drawFromDiscardCards).toHaveLength(1)
+      expect(recoverCardCards).toHaveLength(1)
     })
   })
 
@@ -229,36 +232,41 @@ describe('MVP Cards Data', () => {
       expect(hestia?.element).toBe(Element.FIRE)
       expect(hestia?.cost).toBe(0)
       expect(hestia?.baseScore).toBe(0)
-      expect(hestia?.effectType).toBe(EffectType.INCREASE_STONE_LIMIT)
-      expect(hestia?.effectTrigger).toBe(EffectTrigger.PERMANENT)
-      expect(hestia?.effectValue).toBe(2)
+      // Using effects array for validation
+      expect(hestia?.effects[0]?.type).toBe(EffectType.INCREASE_STONE_LIMIT)
+      expect(hestia?.effects[0]?.trigger).toBe(EffectTrigger.PERMANENT)
+      expect(hestia?.effects[0]?.value).toBe(2)
     })
 
-    it('F004 (Salamander) should have GAIN_STONES effect', () => {
+    it('F004 (Salamander) should have EARN_STONES effect', () => {
       const salamander = getCardById('F004')
       expect(salamander).toBeDefined()
       expect(salamander?.name).toBe('Salamander')
-      expect(salamander?.effectType).toBe(EffectType.GAIN_STONES)
-      expect(salamander?.effectTrigger).toBe(EffectTrigger.ON_TAME)
-      expect(salamander?.effectValue).toBe(2)
+      // Using effects array for validation
+      expect(salamander?.effects[0]?.type).toBe(EffectType.EARN_STONES)
+      expect(salamander?.effects[0]?.trigger).toBe(EffectTrigger.ON_TAME)
+      // Salamander earns 2 x ONE stones
+      expect(salamander?.effects[0]?.stones?.[0]?.amount).toBe(2)
     })
 
-    it('W004 (Sea Spirit) should have DRAW_FROM_DISCARD effect', () => {
+    it('W004 (Sea Spirit) should have RECOVER_CARD effect', () => {
       const seaSpirit = getCardById('W004')
       expect(seaSpirit).toBeDefined()
       expect(seaSpirit?.name).toBe('Sea Spirit')
-      expect(seaSpirit?.effectType).toBe(EffectType.DRAW_FROM_DISCARD)
-      expect(seaSpirit?.effectTrigger).toBe(EffectTrigger.ON_TAME)
-      expect(seaSpirit?.effectValue).toBe(1)
+      // Using effects array for validation
+      expect(seaSpirit?.effects[0]?.type).toBe(EffectType.RECOVER_CARD)
+      expect(seaSpirit?.effects[0]?.trigger).toBe(EffectTrigger.ON_TAME)
+      expect(seaSpirit?.effects[0]?.value).toBe(1)
     })
 
-    it('D001 (Dragon Egg) should have SCORE_PER_DRAGON effect', () => {
+    it('D001 (Dragon Egg) should have EARN_PER_FAMILY effect', () => {
       const dragonEgg = getCardById('D001')
       expect(dragonEgg).toBeDefined()
       expect(dragonEgg?.name).toBe('Dragon Egg')
-      expect(dragonEgg?.effectType).toBe(EffectType.SCORE_PER_DRAGON)
-      expect(dragonEgg?.effectTrigger).toBe(EffectTrigger.ON_SCORE)
-      expect(dragonEgg?.effectValue).toBe(2)
+      // Using effects array for validation
+      expect(dragonEgg?.effects[0]?.type).toBe(EffectType.EARN_PER_FAMILY)
+      expect(dragonEgg?.effects[0]?.trigger).toBe(EffectTrigger.ON_SCORE)
+      expect(dragonEgg?.effects[0]?.value).toBe(2)
     })
 
     it('D004 (Boulder) should be highest cost card', () => {
@@ -324,19 +332,25 @@ describe('MVP Cards Data', () => {
   })
 
   describe('getCardsByEffectType', () => {
-    it('should return all NONE effect cards', () => {
+    it('should return cards with empty effects for NONE type query (no match)', () => {
+      // getCardsByEffectType looks for cards with the specified effect type
+      // Cards without effects have empty effects array, so NONE won't match any
       const cards = getCardsByEffectType(EffectType.NONE)
-      expect(cards).toHaveLength(9)
-      cards.forEach(card => {
-        expect(card.effectType).toBe(EffectType.NONE)
-      })
+      expect(cards).toHaveLength(0)
     })
 
-    it('should return all SCORE_PER_ELEMENT cards', () => {
-      const cards = getCardsByEffectType(EffectType.SCORE_PER_ELEMENT)
+    it('cards without effects should have empty effects array', () => {
+      // Cards without effects (F002, W001, W003, E001, E002, E004, A001, A004, D004) = 9 cards
+      const noEffectCards = MVP_CARDS.filter(card => card.effects.length === 0)
+      expect(noEffectCards).toHaveLength(9)
+    })
+
+    it('should return all EARN_PER_ELEMENT cards', () => {
+      const cards = getCardsByEffectType(EffectType.EARN_PER_ELEMENT)
       expect(cards).toHaveLength(6)
       cards.forEach(card => {
-        expect(card.effectType).toBe(EffectType.SCORE_PER_ELEMENT)
+        const hasEffect = card.effects.some(e => e.type === EffectType.EARN_PER_ELEMENT)
+        expect(hasEffect).toBe(true)
       })
     })
   })
@@ -370,10 +384,13 @@ describe('MVP Cards Data', () => {
       expect(instance.element).toBe(template.element)
       expect(instance.cost).toBe(template.cost)
       expect(instance.baseScore).toBe(template.baseScore)
-      expect(instance.effectType).toBe(template.effectType)
-      expect(instance.effectTrigger).toBe(template.effectTrigger)
-      expect(instance.effectValue).toBe(template.effectValue)
-      expect(instance.effectTarget).toBe(template.effectTarget)
+      // New format: effects array is copied
+      expect(instance.effects).toEqual(template.effects)
+      // Legacy fields are extracted from effects array
+      expect(instance.effectType).toBe(EffectType.EARN_PER_ELEMENT)
+      expect(instance.effectTrigger).toBe(EffectTrigger.ON_SCORE)
+      expect(instance.effectValue).toBe(1)
+      expect(instance.effectTarget).toBe(Element.FIRE)
     })
 
     it('should initialize runtime properties correctly', () => {
@@ -513,50 +530,64 @@ describe('MVP Cards Data', () => {
   // ============================================
 
   describe('Data Consistency', () => {
-    it('cards with ON_TAME trigger should have GAIN_STONES or DRAW_FROM_DISCARD effect', () => {
-      const onTameCards = MVP_CARDS.filter(c => c.effectTrigger === EffectTrigger.ON_TAME)
+    it('cards with ON_TAME trigger should have EARN_STONES or RECOVER_CARD effect', () => {
+      const onTameCards = MVP_CARDS.filter(card =>
+        card.effects.some(e => e.trigger === EffectTrigger.ON_TAME)
+      )
       onTameCards.forEach(card => {
-        expect([EffectType.GAIN_STONES, EffectType.DRAW_FROM_DISCARD]).toContain(card.effectType)
+        const hasValidEffect = card.effects.some(e =>
+          [EffectType.EARN_STONES, EffectType.RECOVER_CARD].includes(e.type)
+        )
+        expect(hasValidEffect).toBe(true)
       })
     })
 
     it('cards with PERMANENT trigger should have INCREASE_STONE_LIMIT effect', () => {
-      const permanentCards = MVP_CARDS.filter(c => c.effectTrigger === EffectTrigger.PERMANENT)
-      permanentCards.forEach(card => {
-        expect(card.effectType).toBe(EffectType.INCREASE_STONE_LIMIT)
-      })
-    })
-
-    it('cards with ON_SCORE trigger should have SCORE_PER_ELEMENT or SCORE_PER_DRAGON effect', () => {
-      const onScoreCards = MVP_CARDS.filter(c => c.effectTrigger === EffectTrigger.ON_SCORE)
-      onScoreCards.forEach(card => {
-        expect([EffectType.SCORE_PER_ELEMENT, EffectType.SCORE_PER_DRAGON]).toContain(
-          card.effectType
-        )
-      })
-    })
-
-    it('cards with NONE trigger should have NONE effect type', () => {
-      const noTriggerCards = MVP_CARDS.filter(c => c.effectTrigger === EffectTrigger.NONE)
-      noTriggerCards.forEach(card => {
-        expect(card.effectType).toBe(EffectType.NONE)
-      })
-    })
-
-    it('SCORE_PER_ELEMENT cards should have effectTarget defined', () => {
-      const scorePerElementCards = MVP_CARDS.filter(
-        c => c.effectType === EffectType.SCORE_PER_ELEMENT
+      const permanentCards = MVP_CARDS.filter(card =>
+        card.effects.some(e => e.trigger === EffectTrigger.PERMANENT)
       )
-      scorePerElementCards.forEach(card => {
-        expect(card.effectTarget).toBeDefined()
+      permanentCards.forEach(card => {
+        const hasLimitEffect = card.effects.some(e => e.type === EffectType.INCREASE_STONE_LIMIT)
+        expect(hasLimitEffect).toBe(true)
       })
     })
 
-    it('cards with effects should have effectValue defined', () => {
-      const cardsWithEffects = MVP_CARDS.filter(c => c.effectType !== EffectType.NONE)
+    it('cards with ON_SCORE trigger should have EARN_PER_ELEMENT or EARN_PER_FAMILY effect', () => {
+      const onScoreCards = MVP_CARDS.filter(card =>
+        card.effects.some(e => e.trigger === EffectTrigger.ON_SCORE)
+      )
+      onScoreCards.forEach(card => {
+        const hasValidEffect = card.effects.some(e =>
+          [EffectType.EARN_PER_ELEMENT, EffectType.EARN_PER_FAMILY].includes(e.type)
+        )
+        expect(hasValidEffect).toBe(true)
+      })
+    })
+
+    it('cards without effects should have empty effects array', () => {
+      const noEffectCards = MVP_CARDS.filter(card => card.effects.length === 0)
+      noEffectCards.forEach(card => {
+        expect(card.effects).toHaveLength(0)
+      })
+    })
+
+    it('EARN_PER_ELEMENT cards should have targetElement defined', () => {
+      const earnPerElementCards = MVP_CARDS.filter(card =>
+        card.effects.some(e => e.type === EffectType.EARN_PER_ELEMENT)
+      )
+      earnPerElementCards.forEach(card => {
+        const effect = card.effects.find(e => e.type === EffectType.EARN_PER_ELEMENT)
+        expect(effect?.targetElement).toBeDefined()
+      })
+    })
+
+    it('cards with effects should have value or stones defined', () => {
+      const cardsWithEffects = MVP_CARDS.filter(card => card.effects.length > 0)
       cardsWithEffects.forEach(card => {
-        expect(card.effectValue).toBeDefined()
-        expect(card.effectValue).toBeGreaterThan(0)
+        card.effects.forEach(effect => {
+          const hasValue = effect.value !== undefined || effect.stones !== undefined
+          expect(hasValue).toBe(true)
+        })
       })
     })
 

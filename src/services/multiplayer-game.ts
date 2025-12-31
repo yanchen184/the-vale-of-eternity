@@ -9,7 +9,8 @@ import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/da
 import { database } from '@/lib/firebase'
 import { getAllBaseCards } from '@/data/cards'
 import type { CardInstance, CardTemplate } from '@/types/cards'
-import { CardLocation, StoneType, Element, EffectType, EffectTrigger } from '@/types/cards'
+import { CardLocation, StoneType, Element, EffectType } from '@/types/cards'
+// Note: EffectTrigger is available in '@/types/cards' if needed for future effect processing
 import { effectProcessor } from './effect-processor'
 import { scoreCalculator, type ScoreBreakdown } from './score-calculator'
 import { type PlayerColor, getColorByIndex } from '@/types/player-color'
@@ -444,6 +445,7 @@ export class MultiplayerGameService {
     const huntingPhase: HuntingState = {
       round: 1,
       currentPlayerIndex: 0,
+      startingPlayerIndex: 0,
       selections: {},
       confirmedSelections: {},
       isComplete: false,

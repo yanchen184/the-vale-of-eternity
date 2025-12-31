@@ -5,7 +5,7 @@
  */
 console.log('[components/ui/MagicBackground.tsx] v1.0.0 loaded')
 
-import { memo, useEffect, useRef, useMemo } from 'react'
+import { memo, useRef, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 
 // ============================================

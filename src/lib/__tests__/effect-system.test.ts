@@ -282,7 +282,7 @@ describe('calculateScoringEffect', () => {
 
     it('should use default value of 2 when effectValue not specified', () => {
       const dragonEgg = createTestCard({
-        effectType: EffectType.SCORE_PER_DRAGON,
+        effectType: EffectType.EARN_PER_FAMILY,
         effectTrigger: EffectTrigger.ON_SCORE,
         element: Element.DRAGON,
         instanceId: 'egg',
@@ -512,8 +512,8 @@ describe('hasPermanentEffect', () => {
 describe('getEffectDescription', () => {
   it('should return Chinese description by default', () => {
     const card = createTestCard({
-      effectType: EffectType.GAIN_STONES,
-      effectDescription: 'Gain 2 stones',
+      effectType: EffectType.EARN_STONES,
+      effectDescription: 'Earn 2 stones',
       effectDescriptionTw: '獲得 2 顆石頭',
     })
 
@@ -522,12 +522,12 @@ describe('getEffectDescription', () => {
 
   it('should return English description when specified', () => {
     const card = createTestCard({
-      effectType: EffectType.GAIN_STONES,
-      effectDescription: 'Gain 2 stones',
+      effectType: EffectType.EARN_STONES,
+      effectDescription: 'Earn 2 stones',
       effectDescriptionTw: '獲得 2 顆石頭',
     })
 
-    expect(getEffectDescription(card, false)).toBe('Gain 2 stones')
+    expect(getEffectDescription(card, false)).toBe('Earn 2 stones')
   })
 
   it('should return empty string for NONE effect', () => {
@@ -539,17 +539,17 @@ describe('getEffectDescription', () => {
 describe('getEffectTypeName', () => {
   it('should return Chinese names by default', () => {
     expect(getEffectTypeName(EffectType.NONE)).toBe('無')
-    expect(getEffectTypeName(EffectType.GAIN_STONES)).toBe('獲得石頭')
+    expect(getEffectTypeName(EffectType.EARN_STONES)).toBe('獲得石頭')
     expect(getEffectTypeName(EffectType.INCREASE_STONE_LIMIT)).toBe('增加上限')
-    expect(getEffectTypeName(EffectType.SCORE_PER_ELEMENT)).toBe('元素加成')
-    expect(getEffectTypeName(EffectType.SCORE_PER_DRAGON)).toBe('龍族加成')
-    expect(getEffectTypeName(EffectType.DRAW_FROM_DISCARD)).toBe('回收卡片')
+    expect(getEffectTypeName(EffectType.EARN_PER_ELEMENT)).toBe('元素加成')
+    expect(getEffectTypeName(EffectType.EARN_PER_FAMILY)).toBe('龍族加成')
+    expect(getEffectTypeName(EffectType.RECOVER_CARD)).toBe('回收卡片')
   })
 
   it('should return English names when specified', () => {
     expect(getEffectTypeName(EffectType.NONE, false)).toBe('None')
-    expect(getEffectTypeName(EffectType.GAIN_STONES, false)).toBe('Gain Stones')
-    expect(getEffectTypeName(EffectType.SCORE_PER_ELEMENT, false)).toBe('Element Synergy')
+    expect(getEffectTypeName(EffectType.EARN_STONES, false)).toBe('Earn Stones')
+    expect(getEffectTypeName(EffectType.EARN_PER_ELEMENT, false)).toBe('Element Synergy')
   })
 })
 

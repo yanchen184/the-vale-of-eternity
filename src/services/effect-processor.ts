@@ -8,7 +8,8 @@ console.log('[services/effect-processor.ts] v3.1.0 loaded')
 import { ref, get, update } from 'firebase/database'
 import { database } from '@/lib/firebase'
 import { getBaseCardById } from '@/data/cards'
-import type { CardEffect, CardTemplate } from '@/types/cards'
+import type { CardEffect } from '@/types/cards'
+// Note: CardTemplate is used indirectly via getBaseCardById return type
 import { EffectType, EffectTrigger, StoneType, CardLocation } from '@/types/cards'
 import type { PlayerState, StonePool, CardInstanceData } from './multiplayer-game'
 
@@ -216,8 +217,8 @@ export class EffectProcessor {
    * EXCHANGE_STONES - Exchange stone types
    */
   private async processExchangeStones(
-    effect: CardEffect,
-    context: EffectContext
+    _effect: CardEffect,
+    _context: EffectContext
   ): Promise<EffectResult> {
     // This requires user interaction to choose which stones to exchange
     // For now, return a message indicating manual processing needed
@@ -231,8 +232,8 @@ export class EffectProcessor {
    * DISCARD_FROM_HAND - Discard cards from hand
    */
   private async processDiscardFromHand(
-    effect: CardEffect,
-    context: EffectContext
+    _effect: CardEffect,
+    _context: EffectContext
   ): Promise<EffectResult> {
     // Requires user interaction to choose which cards to discard
     return {
@@ -244,7 +245,7 @@ export class EffectProcessor {
   /**
    * RECOVER_CARD - Passive effect (card can be recovered)
    */
-  private async processRecoverCard(effect: CardEffect, context: EffectContext): Promise<EffectResult> {
+  private async processRecoverCard(_effect: CardEffect, _context: EffectContext): Promise<EffectResult> {
     // This is a passive effect, just mark it in the card instance
     return {
       success: true,
@@ -255,7 +256,7 @@ export class EffectProcessor {
   /**
    * FREE_SUMMON - Free summon another card
    */
-  private async processFreeSummon(effect: CardEffect, context: EffectContext): Promise<EffectResult> {
+  private async processFreeSummon(_effect: CardEffect, _context: EffectContext): Promise<EffectResult> {
     // Requires user interaction to choose which card to summon
     return {
       success: true,
@@ -267,8 +268,8 @@ export class EffectProcessor {
    * COPY_INSTANT_EFFECT - Copy another card's instant effect
    */
   private async processCopyInstantEffect(
-    effect: CardEffect,
-    context: EffectContext
+    _effect: CardEffect,
+    _context: EffectContext
   ): Promise<EffectResult> {
     // Requires user interaction to choose which card's effect to copy
     return {

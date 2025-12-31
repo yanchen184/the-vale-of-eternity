@@ -16,7 +16,6 @@ import {
   type CardInstanceData,
 } from '@/services/multiplayer-game'
 import {
-  PlayerHand,
   Card,
   PlayerMarker,
   ScoreTrack,
@@ -197,12 +196,13 @@ function HuntingPhaseUI({
   currentPlayerId: _currentPlayerId,
   currentRound,
   onToggleCard,
-  onConfirmSelection,
+  onConfirmSelection: _onConfirmSelection,
   cardSelectionMap,
   mySelectedCardId,
   hasSelectedCard,
 }: HuntingPhaseProps) {
   void _currentPlayerId
+  void _onConfirmSelection // Reserved for future use
 
   return (
     <div className="flex-1 flex flex-col p-4 overflow-hidden" data-testid="hunting-phase">
@@ -293,22 +293,32 @@ interface ActionPhaseUIProps {
 
 function ActionPhaseUI({
   playersFieldData,
-  handCards,
-  playerScores,
+  handCards: _handCards,
+  playerScores: _playerScores,
   currentPlayerId,
   currentRound,
-  isYourTurn,
-  onCardPlay,
-  onCardSell,
-  onHandCardDiscard,
+  isYourTurn: _isYourTurn,
+  onCardPlay: _onCardPlay,
+  onCardSell: _onCardSell,
+  onHandCardDiscard: _onHandCardDiscard,
   onCardReturn,
   onCardDiscard,
-  onScoreAdjust,
-  onFlipToggle,
-  canTameCard,
+  onScoreAdjust: _onScoreAdjust,
+  onFlipToggle: _onFlipToggle,
+  canTameCard: _canTameCard,
   resolutionMode = false,
   onFinishResolution,
 }: ActionPhaseUIProps) {
+  // Reserved for future use
+  void _handCards
+  void _playerScores
+  void _isYourTurn
+  void _onCardPlay
+  void _onCardSell
+  void _onHandCardDiscard
+  void _onScoreAdjust
+  void _onFlipToggle
+  void _canTameCard
   // Split players: self first, others after
   const selfPlayer = playersFieldData.find(p => p.playerId === currentPlayerId)
   const otherPlayers = playersFieldData.filter(p => p.playerId !== currentPlayerId)
@@ -343,7 +353,7 @@ function ActionPhaseUI({
       </div>
 
       {/* Resolution Mode - Finish Button */}
-      {resolutionMode && isYourTurn && onFinishResolution && (
+      {resolutionMode && _isYourTurn && onFinishResolution && (
         <div className="flex-shrink-0 p-3 pt-2 border-t border-purple-900/30">
           <Button
             onClick={onFinishResolution}
@@ -356,7 +366,7 @@ function ActionPhaseUI({
       )}
 
       {/* Resolution Mode - Waiting Message */}
-      {resolutionMode && !isYourTurn && (
+      {resolutionMode && !_isYourTurn && (
         <div className="flex-shrink-0 p-3 pt-2 border-t border-purple-900/30">
           <p className="text-center text-slate-400 text-sm">
             等待其他玩家完成結算...
@@ -940,6 +950,11 @@ export function MultiplayerGame() {
     )
   }
 
+  // Mark reserved but currently unused handlers to suppress TypeScript warnings
+  // These handlers are kept for future card effect implementations
+  void handleReturnFieldCardToHand
+  void handleReturnCardFromDiscard
+
   // Main Game UI with Symmetric Layout
   return (
     <>
@@ -1231,8 +1246,8 @@ export function MultiplayerGame() {
           // Handle card selection if needed
           console.log('Hand card clicked:', card)
         }}
-        onTameCard={(cardId) => {
-          handleTameCard(cardId)
+        onTameCard={(cid) => {
+          handleTameCard(cid)
         }}
         onSellCard={(cardId) => {
           handleSellCard(cardId)
@@ -1241,7 +1256,7 @@ export function MultiplayerGame() {
           handleDiscardCard(cardId)
         }}
         showCardActions={isYourTurn}
-        canTameCard={(cardId) => {
+        canTameCard={(_cardId) => {
           // 只要是你的回合就能召喚
           if (!isYourTurn) return false
           if (gameRoom?.status !== 'ACTION') return false

@@ -20,7 +20,6 @@ import {
 import {
   GameMode,
   ManualOperationType,
-  type ManualOperation,
   createManualOperation,
 } from '@/types/manual'
 import {
@@ -291,18 +290,16 @@ export const useGameStore = create<GameStore>()(
             return
           }
 
-          const stateBefore = { stones: { ...gameState.player.stones } }
           const newStones = { ...gameState.player.stones }
           newStones[type] = (newStones[type] || 0) + amount
-          const stateAfter = { stones: newStones }
 
-          // Create operation record
+          // Create operation record with proper state snapshots
           const operation = createManualOperation(
             ManualOperationType.ADD_STONES,
             `增加 ${amount} 個 ${type} 石頭`,
             { type: 'ADD_STONES', stoneType: type, amount },
-            stateBefore,
-            stateAfter
+            { player: { ...gameState.player, stones: { ...gameState.player.stones } } } as Partial<SinglePlayerGameState>,
+            { player: { ...gameState.player, stones: newStones } } as Partial<SinglePlayerGameState>
           )
 
           set({
@@ -334,18 +331,16 @@ export const useGameStore = create<GameStore>()(
             return
           }
 
-          const stateBefore = { stones: { ...gameState.player.stones } }
           const newStones = { ...gameState.player.stones }
           newStones[type] = currentAmount - amount
-          const stateAfter = { stones: newStones }
 
-          // Create operation record
+          // Create operation record with proper state snapshots
           const operation = createManualOperation(
             ManualOperationType.REMOVE_STONES,
             `減少 ${amount} 個 ${type} 石頭`,
             { type: 'REMOVE_STONES', stoneType: type, amount },
-            stateBefore,
-            stateAfter
+            { player: { ...gameState.player, stones: { ...gameState.player.stones } } } as Partial<SinglePlayerGameState>,
+            { player: { ...gameState.player, stones: newStones } } as Partial<SinglePlayerGameState>
           )
 
           set({
@@ -376,16 +371,13 @@ export const useGameStore = create<GameStore>()(
             ? `調整分數 ${amount > 0 ? '+' : ''}${amount}（${reason}）`
             : `調整分數 ${amount > 0 ? '+' : ''}${amount}`
 
-          const stateBefore = { finalScore: currentScore }
-          const stateAfter = { finalScore: newScore }
-
-          // Create operation record
+          // Create operation record with proper state snapshots
           const operation = createManualOperation(
             ManualOperationType.ADJUST_SCORE,
             description,
             { type: 'ADJUST_SCORE', amount, reason },
-            stateBefore,
-            stateAfter
+            { finalScore: currentScore } as Partial<SinglePlayerGameState>,
+            { finalScore: newScore } as Partial<SinglePlayerGameState>
           )
 
           set({
@@ -418,13 +410,15 @@ export const useGameStore = create<GameStore>()(
           // Restore state before operation
           const restoredState = { ...gameState }
 
-          if (lastOperation.stateBefore.stones) {
+          // Restore player stones if stored in stateBefore
+          if (lastOperation.stateBefore.player?.stones) {
             restoredState.player = {
               ...restoredState.player,
-              stones: lastOperation.stateBefore.stones as StonePool,
+              stones: lastOperation.stateBefore.player.stones,
             }
           }
 
+          // Restore final score if stored in stateBefore
           if (lastOperation.stateBefore.finalScore !== undefined) {
             restoredState.finalScore = lastOperation.stateBefore.finalScore
           }

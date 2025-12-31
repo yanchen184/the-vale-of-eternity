@@ -228,7 +228,7 @@ describe('calculateCardScore', () => {
 
     it('should use default effectValue of 2 when not specified', () => {
       const dragonEgg = createTestCard({
-        effectType: EffectType.SCORE_PER_DRAGON,
+        effectType: EffectType.EARN_PER_FAMILY,
         effectTrigger: EffectTrigger.ON_SCORE,
         element: Element.DRAGON,
         baseScore: 0,

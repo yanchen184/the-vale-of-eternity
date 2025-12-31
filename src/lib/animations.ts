@@ -383,9 +383,12 @@ export function animateShake(element: HTMLElement | null) {
 
   gsap.fromTo(
     element,
-    { x: 0 },
+    { x: -5 },
     {
-      x: [-5, 5, -5, 5, 0],
+      x: 0,
+      keyframes: {
+        x: [-5, 5, -5, 5, 0],
+      },
       duration: ANIMATION_DURATION.NORMAL,
       ease: 'power2.inOut',
     }

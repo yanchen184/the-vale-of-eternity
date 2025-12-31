@@ -20,9 +20,12 @@ describe('F002 - Imp Integration Tests', () => {
     impInstance = {
       ...IMP_CARD,
       instanceId: 'imp-001',
+      cardId: IMP_CARD.id,
       location: CardLocation.FIELD,
       ownerId: '0',
       isRevealed: true,
+      scoreModifier: 0,
+      hasUsedAbility: false,
     }
   })
 
@@ -75,15 +78,13 @@ describe('F002 - Imp Integration Tests', () => {
       context = {
         card: impInstance,
         state: {
-          players: [
-            {
-              index: 0,
-              name: 'Player 1',
-              stones: { ONE: 0, THREE: 0, SIX: 0, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 },
-              field: ['imp-001'],
-            },
-          ],
-        },
+          player: {
+            name: 'Player 1',
+            hand: [],
+            field: [],
+            stones: { ONE: 0, THREE: 0, SIX: 0, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 },
+          },
+        } as unknown as EffectContext['state'],
         triggerType: EffectTrigger.ON_TAME,
       }
     })
@@ -122,15 +123,13 @@ describe('F002 - Imp Integration Tests', () => {
       context = {
         card: impInstance,
         state: {
-          players: [
-            {
-              index: 0,
-              name: 'Player 1',
-              stones: { ONE: 0, THREE: 0, SIX: 0, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 },
-              field: ['imp-001'],
-            },
-          ],
-        },
+          player: {
+            name: 'Player 1',
+            hand: [],
+            field: [],
+            stones: { ONE: 0, THREE: 0, SIX: 0, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 },
+          },
+        } as unknown as EffectContext['state'],
         triggerType: EffectTrigger.ON_TAME,
       }
     })
@@ -149,7 +148,7 @@ describe('F002 - Imp Integration Tests', () => {
     })
 
     it('should fail when player not found', () => {
-      context.state.players = []
+      context.state = { player: undefined } as unknown as EffectContext['state']
       const result = effect.apply(context)
       expect(result.success).toBe(false)
       expect(result.message).toContain('Player not found')
@@ -169,14 +168,13 @@ describe('F002 - Imp Integration Tests', () => {
       context = {
         card: impInstance,
         state: {
-          players: [
-            {
-              index: 0,
-              name: 'Player 1',
-              field: ['imp-001'],
-            },
-          ],
-        },
+          player: {
+            name: 'Player 1',
+            hand: [],
+            field: [],
+            stones: { ONE: 0, THREE: 0, SIX: 0, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 },
+          },
+        } as unknown as EffectContext['state'],
         triggerType: EffectTrigger.PERMANENT,
       }
     })
@@ -215,14 +213,13 @@ describe('F002 - Imp Integration Tests', () => {
       context = {
         card: impInstance,
         state: {
-          players: [
-            {
-              index: 0,
-              name: 'Player 1',
-              field: ['imp-001'],
-            },
-          ],
-        },
+          player: {
+            name: 'Player 1',
+            hand: [],
+            field: [],
+            stones: { ONE: 0, THREE: 0, SIX: 0, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 },
+          },
+        } as unknown as EffectContext['state'],
         triggerType: EffectTrigger.PERMANENT,
       }
     })
@@ -281,15 +278,13 @@ describe('F002 - Imp Integration Tests', () => {
       context = {
         card: impInstance,
         state: {
-          players: [
-            {
-              index: 0,
-              name: 'Player 1',
-              stones: { ONE: 0, THREE: 0, SIX: 0, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 },
-              field: ['imp-001'],
-            },
-          ],
-        },
+          player: {
+            name: 'Player 1',
+            hand: [],
+            field: [],
+            stones: { ONE: 0, THREE: 0, SIX: 0, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 },
+          },
+        } as unknown as EffectContext['state'],
         triggerType: EffectTrigger.ON_TAME,
       }
     })
@@ -318,15 +313,13 @@ describe('F002 - Imp Integration Tests', () => {
       const context1: EffectContext = {
         card: impInstance,
         state: {
-          players: [
-            {
-              index: 0,
-              name: 'Player 1',
-              stones: { ONE: 0, THREE: 0, SIX: 0, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 },
-              field: [],
-            },
-          ],
-        },
+          player: {
+            name: 'Player 1',
+            hand: [],
+            field: [],
+            stones: { ONE: 0, THREE: 0, SIX: 0, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 },
+          },
+        } as unknown as EffectContext['state'],
         triggerType: EffectTrigger.ON_TAME,
       }
 
@@ -341,15 +334,13 @@ describe('F002 - Imp Integration Tests', () => {
       const context2: EffectContext = {
         ...context1,
         state: {
-          players: [
-            {
-              index: 0,
-              name: 'Player 1',
-              stones: { ONE: 3, THREE: 0, SIX: 0, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 },
-              field: ['imp-001'],
-            },
-          ],
-        },
+          player: {
+            name: 'Player 1',
+            hand: [],
+            field: [],
+            stones: { ONE: 3, THREE: 0, SIX: 0, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 },
+          },
+        } as unknown as EffectContext['state'],
       }
 
       const result2 = earnEffect.apply(context2)

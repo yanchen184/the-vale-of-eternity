@@ -103,7 +103,7 @@ export class ScoreCalculator {
    */
   private calculateScoreEffect(
     effect: any,
-    template: CardTemplate,
+    _template: CardTemplate,
     playerState: PlayerState,
     gameCards: { [instanceId: string]: CardInstanceData }
   ): number {

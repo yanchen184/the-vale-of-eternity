@@ -36,12 +36,12 @@ describe('Base Cards Data', () => {
       expect(WATER_CARDS.length).toBe(15)
     })
 
-    it('should have 16 Earth cards', () => {
-      expect(EARTH_CARDS.length).toBe(16)
+    it('should have 15 Earth cards', () => {
+      expect(EARTH_CARDS.length).toBe(15)
     })
 
-    it('should have 14 Wind cards', () => {
-      expect(WIND_CARDS.length).toBe(14)
+    it('should have 15 Wind cards', () => {
+      expect(WIND_CARDS.length).toBe(15)
     })
 
     it('should have 10 Dragon cards', () => {
@@ -57,8 +57,8 @@ describe('Base Cards Data', () => {
 
       expect(fireCounts).toBe(15)
       expect(waterCounts).toBe(15)
-      expect(earthCounts).toBe(16)
-      expect(windCounts).toBe(14)
+      expect(earthCounts).toBe(15)
+      expect(windCounts).toBe(15)
       expect(dragonCounts).toBe(10)
       expect(fireCounts + waterCounts + earthCounts + windCounts + dragonCounts).toBe(70)
     })
@@ -91,17 +91,17 @@ describe('Base Cards Data', () => {
   })
 
   describe('Card Properties Validation', () => {
-    it('should have valid cost values (0-6)', () => {
+    it('should have valid cost values (0-12)', () => {
       BASE_CARDS.forEach(card => {
         expect(card.cost).toBeGreaterThanOrEqual(0)
-        expect(card.cost).toBeLessThanOrEqual(6)
+        expect(card.cost).toBeLessThanOrEqual(12)
       })
     })
 
-    it('should have valid base score values (0-8)', () => {
+    it('should have valid base score values (0-15)', () => {
       BASE_CARDS.forEach(card => {
         expect(card.baseScore).toBeGreaterThanOrEqual(0)
-        expect(card.baseScore).toBeLessThanOrEqual(8)
+        expect(card.baseScore).toBeLessThanOrEqual(15)
       })
     })
 
@@ -121,10 +121,13 @@ describe('Base Cards Data', () => {
       })
     })
 
-    it('should have valid effect types', () => {
+    it('should have valid effect types in effects array', () => {
       const validEffectTypes = Object.values(EffectType)
       BASE_CARDS.forEach(card => {
-        expect(validEffectTypes).toContain(card.effectType)
+        // New format: check effects array
+        card.effects.forEach(effect => {
+          expect(validEffectTypes).toContain(effect.type)
+        })
       })
     })
   })
@@ -215,9 +218,10 @@ describe('Base Cards Data', () => {
       expect(hestia?.name).toBe('Hestia')
       expect(hestia?.element).toBe(Element.FIRE)
       expect(hestia?.cost).toBe(0)
-      expect(hestia?.baseScore).toBe(0)
-      expect(hestia?.effectType).toBe(EffectType.INCREASE_STONE_LIMIT)
-      expect(hestia?.effectValue).toBe(2)
+      expect(hestia?.baseScore).toBe(1)
+      // Hestia has INCREASE_STONE_LIMIT effect
+      expect(hestia?.effects[0]?.type).toBe(EffectType.INCREASE_STONE_LIMIT)
+      expect(hestia?.effects[0]?.value).toBe(2)
     })
 
     it('should have Eternity (legendary dragon) with correct properties', () => {
@@ -225,17 +229,18 @@ describe('Base Cards Data', () => {
       expect(eternity).toBeDefined()
       expect(eternity?.name).toBe('Eternity')
       expect(eternity?.element).toBe(Element.DRAGON)
-      expect(eternity?.cost).toBe(6)
-      expect(eternity?.baseScore).toBe(6)
-      expect(eternity?.effectType).toBe(EffectType.SCORE_PER_UNIQUE_ELEMENT)
-      expect(eternity?.effectValue).toBe(3)
+      expect(eternity?.cost).toBe(12)
+      expect(eternity?.baseScore).toBe(15)
+      // Eternity uses EARN_PER_FAMILY effect
+      expect(eternity?.effects[0]?.type).toBe(EffectType.EARN_PER_FAMILY)
     })
 
-    it('should have Dragon Egg with dragon synergy', () => {
+    it('should have Dragon Egg with FREE_SUMMON effect', () => {
       const dragonEgg = getCardById('D001')
       expect(dragonEgg).toBeDefined()
-      expect(dragonEgg?.effectType).toBe(EffectType.SCORE_PER_DRAGON)
-      expect(dragonEgg?.effectValue).toBe(2)
+      // Dragon Egg uses FREE_SUMMON for dragon summoning
+      expect(dragonEgg?.effects[0]?.type).toBe(EffectType.FREE_SUMMON)
+      expect(dragonEgg?.effects[0]?.targetElement).toBe(Element.DRAGON)
     })
   })
 })

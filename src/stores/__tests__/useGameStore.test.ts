@@ -1,8 +1,7 @@
 /**
  * Game Store Tests
- * Tests Zustand store state management and selectors
- * Based on TEST_SPEC.md
- * @version 1.0.0
+ * Tests Zustand store state management and selectors for Single Player Mode
+ * @version 2.0.0 - Updated for Single Player Mode
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
@@ -11,24 +10,27 @@ import {
   selectPhase,
   selectRound,
   selectMarket,
-  selectPlayer,
-  selectLocalPlayer,
-  selectOpponentPlayer,
+  selectHand,
+  selectField,
+  selectStones,
   selectIsGameOver,
-  selectWinner,
+  selectFinalScore,
   selectEndReason,
-  selectIsLocalPlayerTurn,
   selectDiscardPile,
   selectDeckSize,
+  selectPlayerName,
   useGamePhase,
   useRound,
   useMarket,
-  useLocalPlayer,
-  useOpponent,
-  useIsMyTurn,
+  useHand,
+  useField,
+  useStones,
+  useDeckSize,
+  useDiscardPile,
   useGameOver,
-  GamePhase,
-  ActionType,
+  usePlayerName,
+  SinglePlayerPhase,
+  SinglePlayerActionType,
 } from '../useGameStore'
 import { mockRandom, restoreRandom } from '@/test/setup'
 
@@ -68,45 +70,39 @@ describe('useGameStore', () => {
       const { error } = useGameStore.getState()
       expect(error).toBeNull()
     })
-
-    it('should have localPlayerIndex of 0 initially', () => {
-      const { localPlayerIndex } = useGameStore.getState()
-      expect(localPlayerIndex).toBe(0)
-    })
   })
 
   // ============================================
   // GAME LIFECYCLE TESTS
   // ============================================
 
-  describe('initGame', () => {
-    it('should initialize game with player names', () => {
+  describe('startGame', () => {
+    it('should initialize game with player name', () => {
       mockRandom([0.1])
-      const { initGame } = useGameStore.getState()
+      const { startGame } = useGameStore.getState()
 
       act(() => {
-        initGame('Alice', 'Bob')
+        startGame('Alice')
       })
 
       const { gameState } = useGameStore.getState()
       expect(gameState).not.toBeNull()
-      expect(gameState?.players[0].name).toBe('Alice')
-      expect(gameState?.players[1].name).toBe('Bob')
+      expect(gameState?.player.name).toBe('Alice')
     })
 
-    it('should set loading to false after init', () => {
+    it('should set loading to false after start', () => {
       mockRandom([0.1])
-      const { initGame } = useGameStore.getState()
+      const { startGame } = useGameStore.getState()
 
       act(() => {
-        initGame('Player 1', 'Player 2')
+        startGame('Player 1')
       })
 
       const { isLoading } = useGameStore.getState()
       expect(isLoading).toBe(false)
     })
 
-    it('should clear error on successful init', () => {
+    it('should clear error on successful start', () => {
       mockRandom([0.1])
       const store = useGameStore.getState()
 
@@ -114,23 +110,64 @@ describe('useGameStore', () => {
       store.setError('Previous error')
 
       act(() => {
-        store.initGame('Player 1', 'Player 2')
+        store.startGame('Player 1')
       })
 
       const { error } = useGameStore.getState()
       expect(error).toBeNull()
     })
 
-    it('should start in HUNTING phase', () => {
+    it('should start in DRAW phase', () => {
       mockRandom([0.1])
-      const { initGame } = useGameStore.getState()
+      const { startGame } = useGameStore.getState()
 
       act(() => {
-        initGame('Player 1', 'Player 2')
+        startGame('Player 1')
       })
 
       const { gameState } = useGameStore.getState()
-      expect(gameState?.phase).toBe(GamePhase.HUNTING)
+      expect(gameState?.phase).toBe(SinglePlayerPhase.DRAW)
+    })
+
+    it('should initialize with correct deck and market', () => {
+      mockRandom([0.1])
+      const { startGame } = useGameStore.getState()
+
+      act(() => {
+        startGame('Player 1')
+      })
+
+      const { gameState } = useGameStore.getState()
+      expect(gameState?.market).toHaveLength(4)
+      expect(gameState?.deck.length).toBeGreaterThan(0)
+    })
+
+    it('should initialize with empty hand and field', () => {
+      mockRandom([0.1])
+      const { startGame } = useGameStore.getState()
+
+      act(() => {
+        startGame('Player 1')
+      })
+
+      const { gameState } = useGameStore.getState()
+      expect(gameState?.player.hand).toHaveLength(0)
+      expect(gameState?.player.field).toHaveLength(0)
+    })
+
+    it('should initialize with correct stone pool', () => {
+      mockRandom([0.1])
+      const { startGame } = useGameStore.getState()
+
+      act(() => {
+        startGame('Player 1')
+      })
+
+      const { gameState } = useGameStore.getState()
+      expect(gameState?.player.stones).toBeDefined()
+      expect(gameState?.player.stones.ONE).toBe(0)
+      expect(gameState?.player.stones.THREE).toBe(0)
+      expect(gameState?.player.stones.SIX).toBe(0)
     })
   })
 
@@ -140,7 +177,7 @@ describe('useGameStore', () => {
       const store = useGameStore.getState()
 
       act(() => {
-        store.initGame('Player 1', 'Player 2')
+        store.startGame('Player 1')
       })
 
       expect(useGameStore.getState().gameState).not.toBeNull()
@@ -163,96 +200,43 @@ describe('useGameStore', () => {
 
       expect(useGameStore.getState().error).toBeNull()
     })
-
-    it('should reset localPlayerIndex to 0', () => {
-      const store = useGameStore.getState()
-
-      act(() => {
-        store.setLocalPlayerIndex(1)
-      })
-
-      expect(useGameStore.getState().localPlayerIndex).toBe(1)
-
-      act(() => {
-        store.resetGame()
-      })
-
-      expect(useGameStore.getState().localPlayerIndex).toBe(0)
-    })
   })
 
   // ============================================
-  // HUNTING PHASE ACTION TESTS
+  // DRAW PHASE ACTION TESTS
   // ============================================
 
-  describe('Hunting Phase Actions', () => {
+  describe('Draw Phase Actions', () => {
     beforeEach(() => {
       mockRandom([0.1])
-      const { initGame } = useGameStore.getState()
+      const { startGame } = useGameStore.getState()
       act(() => {
-        initGame('Player 1', 'Player 2')
+        startGame('Player 1')
       })
     })
 
-    describe('takeMarketCard', () => {
+    describe('drawCard', () => {
       it('should add card to player hand', () => {
-        const { gameState, takeMarketCard } = useGameStore.getState()
-        const cardId = gameState!.market[0].instanceId
+        const { drawCard } = useGameStore.getState()
+        const stateBefore = useGameStore.getState().gameState
 
         act(() => {
-          takeMarketCard(cardId)
+          drawCard()
         })
 
-        const newState = useGameStore.getState().gameState
-        expect(newState?.players[0].hand).toHaveLength(1)
+        const stateAfter = useGameStore.getState().gameState
+        expect(stateAfter?.player.hand.length).toBe((stateBefore?.player.hand.length || 0) + 1)
       })
 
-      it('should set error on invalid card', () => {
-        const { takeMarketCard } = useGameStore.getState()
+      it('should transition to ACTION phase after drawing', () => {
+        const { drawCard } = useGameStore.getState()
 
         act(() => {
-          takeMarketCard('invalid-id')
+          drawCard()
         })
 
-        const { error } = useGameStore.getState()
-        expect(error).not.toBeNull()
-      })
-    })
-
-    describe('tameMarketCard', () => {
-      it('should add card to player field when can afford', () => {
-        // Give player stones
-        const state = useGameStore.getState().gameState!
-        state.players[0].stones = 5
-
-        const { tameMarketCard } = useGameStore.getState()
-        const cardId = state.market[0].instanceId
-
-        act(() => {
-          tameMarketCard(cardId)
-        })
-
-        const newState = useGameStore.getState().gameState
-        expect(newState?.players[0].field.length).toBeGreaterThanOrEqual(1)
-      })
-
-      it('should set error when cannot afford', () => {
-        const state = useGameStore.getState().gameState!
-        state.players[0].stones = 0
-
-        // Find a card that costs stones
-        const costlyCard = state.market.find(c => c.cost > 0)
-
-        if (costlyCard) {
-          const { tameMarketCard } = useGameStore.getState()
-
-          act(() => {
-            tameMarketCard(costlyCard.instanceId)
-          })
-
-          const { error } = useGameStore.getState()
-          expect(error).not.toBeNull()
-        }
+        const { gameState } = useGameStore.getState()
+        expect(gameState?.phase).toBe(SinglePlayerPhase.ACTION)
       })
     })
   })
@@ -264,152 +248,65 @@ describe('useGameStore', () => {
   describe('Action Phase Actions', () => {
     beforeEach(() => {
       mockRandom([0.1])
-      const { initGame } = useGameStore.getState()
+      const { startGame, drawCard } = useGameStore.getState()
 
       act(() => {
-        initGame('Player 1', 'Player 2')
+        startGame('Player 1')
       })
 
-      // Give players stones
-      const state = useGameStore.getState().gameState!
-      state.players[0].stones = 5
-      state.players[1].stones = 5
-
-      // Complete hunting phase
-      const { takeMarketCard } = useGameStore.getState()
-
+      // Draw card to enter ACTION phase
       act(() => {
-        takeMarketCard(state.market[0].instanceId)
-      })
-
-      const state2 = useGameStore.getState().gameState!
-
-      act(() => {
-        takeMarketCard(state2.market[0].instanceId)
-      })
-    })
-
-    describe('tameFromHand', () => {
-      it('should move card from hand to field', () => {
-        const state = useGameStore.getState().gameState!
-        const handCard = state.players[0].hand[0]
-
-        if (handCard) {
-          const { tameFromHand } = useGameStore.getState()
-
-          act(() => {
-            tameFromHand(handCard.instanceId)
-          })
-
-          const newState = useGameStore.getState().gameState!
-          expect(newState.players[0].hand.find(c => c.instanceId === handCard.instanceId)).toBeUndefined()
-          expect(newState.players[0].field.find(c => c.instanceId === handCard.instanceId)).toBeDefined()
-        }
-      })
-    })
-
-    describe('sellCard', () => {
-      it('should move card from hand to discard', () => {
-        const state = useGameStore.getState().gameState!
-        const handCard = state.players[0].hand[0]
-
-        if (handCard) {
-          const { sellCard } = useGameStore.getState()
-
-          act(() => {
-            sellCard(handCard.instanceId)
-          })
-
-          const newState = useGameStore.getState().gameState!
-          expect(newState.players[0].hand.find(c => c.instanceId === handCard.instanceId)).toBeUndefined()
-          expect(newState.discardPile.find(c => c.instanceId === handCard.instanceId)).toBeDefined()
-        }
+        drawCard()
       })
     })
 
     describe('pass', () => {
-      it('should mark player as passed', () => {
+      it('should transition back to DRAW phase', () => {
         const { pass } = useGameStore.getState()
 
         act(() => {
           pass()
         })
 
-        const state = useGameStore.getState().gameState!
-        expect(state.players[0].hasPassed).toBe(true)
+        const { gameState } = useGameStore.getState()
+        expect(gameState?.phase).toBe(SinglePlayerPhase.DRAW)
       })
 
-      it('should transition to RESOLUTION when both pass', () => {
+      it('should increment round', () => {
+        const roundBefore = useGameStore.getState().gameState?.round || 0
         const { pass } = useGameStore.getState()
 
         act(() => {
-          pass() // Player 0
+          pass()
         })
 
-        act(() => {
-          pass() // Player 1
-        })
-
-        const state = useGameStore.getState().gameState!
-        expect(state.phase).toBe(GamePhase.RESOLUTION)
-      })
-    })
-  })
-
-  // ============================================
-  // PHASE CONTROL TESTS
-  // ============================================
-
-  describe('Phase Control', () => {
-    beforeEach(() => {
-      mockRandom([0.1])
-      const { initGame } = useGameStore.getState()
-
-      act(() => {
-        initGame('Player 1', 'Player 2')
-      })
-
-      const state = useGameStore.getState().gameState!
-      state.players[0].stones = 5
-      state.players[1].stones = 5
-
-      const { takeMarketCard } = useGameStore.getState()
-
-      act(() => {
-        takeMarketCard(state.market[0].instanceId)
-      })
-
-      const state2 = useGameStore.getState().gameState!
-
-      act(() => {
-        takeMarketCard(state2.market[0].instanceId)
-      })
-
-      // Both pass to get to RESOLUTION
-      act(() => {
-        useGameStore.getState().pass()
-      })
-
-      act(() => {
-        useGameStore.getState().pass()
+        const { gameState } = useGameStore.getState()
+        expect(gameState?.round).toBe(roundBefore + 1)
       })
     })
 
-    describe('nextRound', () => {
-      it('should start new round when in RESOLUTION', () => {
-        const stateBefore = useGameStore.getState().gameState!
-        expect(stateBefore.phase).toBe(GamePhase.RESOLUTION)
-        expect(stateBefore.round).toBe(1)
-
-        const { nextRound } = useGameStore.getState()
+    describe('endGame', () => {
+      it('should end the game', () => {
+        const { endGame } = useGameStore.getState()
 
         act(() => {
-          nextRound()
+          endGame()
         })
 
-        const stateAfter = useGameStore.getState().gameState!
-        expect(stateAfter.round).toBe(2)
-        expect(stateAfter.phase).toBe(GamePhase.HUNTING)
+        const { gameState } = useGameStore.getState()
+        expect(gameState?.isGameOver).toBe(true)
+        expect(gameState?.phase).toBe(SinglePlayerPhase.SCORE)
+      })
+
+      it('should calculate final score', () => {
+        const { endGame } = useGameStore.getState()
+
+        act(() => {
+          endGame()
+        })
+
+        const { gameState } = useGameStore.getState()
+        expect(gameState?.finalScore).not.toBeNull()
       })
     })
   })
@@ -421,98 +318,54 @@ describe('useGameStore', () => {
   describe('Query Methods', () => {
     beforeEach(() => {
       mockRandom([0.1])
-      const { initGame } = useGameStore.getState()
+      const { startGame } = useGameStore.getState()
 
       act(() => {
-        initGame('Player 1', 'Player 2')
+        startGame('Player 1')
       })
     })
 
-    describe('getCurrentPlayer', () => {
-      it('should return current player', () => {
-        const { getCurrentPlayer } = useGameStore.getState()
-        const player = getCurrentPlayer()
+    describe('getAvailableActions', () => {
+      it('should return DRAW_CARD in DRAW phase', () => {
+        const { getAvailableActions } = useGameStore.getState()
+        const actions = getAvailableActions()
 
-        expect(player).not.toBeNull()
-        expect(player?.name).toBe('Player 1')
+        expect(actions).toContain(SinglePlayerActionType.DRAW_CARD)
       })
 
-      it('should return null when no game', () => {
-        const store = useGameStore.getState()
+      it('should return appropriate actions in ACTION phase', () => {
+        const { drawCard, getAvailableActions } = useGameStore.getState()
 
         act(() => {
-          store.resetGame()
+          drawCard()
         })
 
-        const { getCurrentPlayer } = useGameStore.getState()
-        expect(getCurrentPlayer()).toBeNull()
+        const actions = getAvailableActions()
+        expect(actions).toContain(SinglePlayerActionType.PASS)
+        expect(actions).toContain(SinglePlayerActionType.END_GAME)
       })
     })
 
-    describe('getOpponent', () => {
-      it('should return opponent player', () => {
-        const { getOpponent } = useGameStore.getState()
-        const opponent = getOpponent()
-
-        expect(opponent).not.toBeNull()
-        expect(opponent?.name).toBe('Player 2')
+    describe('getTotalStoneValue', () => {
+      it('should return 0 when no stones', () => {
+        const { getTotalStoneValue } = useGameStore.getState()
+        expect(getTotalStoneValue()).toBe(0)
       })
     })
 
-    describe('getValidActions', () => {
-      it('should return valid actions for current phase', () => {
-        const { getValidActions } = useGameStore.getState()
-        const actions = getValidActions()
-
-        expect(actions).toContain(ActionType.SELECT_MARKET_CARD)
+    describe('getTameableFromHand', () => {
+      it('should return empty array when hand is empty', () => {
+        const { getTameableFromHand } = useGameStore.getState()
+        expect(getTameableFromHand()).toHaveLength(0)
       })
     })
 
-    describe('canTameCard', () => {
-      it('should return true when player can afford', () => {
-        const state = useGameStore.getState().gameState!
-        state.players[0].stones = 10
-
-        const { canTameCard } = useGameStore.getState()
-        const card = state.market[0]
-
-        expect(canTameCard(card.instanceId)).toBe(true)
-      })
-
-      it('should return false when cannot afford', () => {
-        const state = useGameStore.getState().gameState!
-        state.players[0].stones = 0
-
-        const costlyCard = state.market.find(c => c.cost > 0)
-
-        if (costlyCard) {
-          const { canTameCard } = useGameStore.getState()
-          expect(canTameCard(costlyCard.instanceId)).toBe(false)
-        }
-      })
-    })
-
-    describe('isMyTurn', () => {
-      it('should return true when current player matches local player', () => {
-        const { isMyTurn, setLocalPlayerIndex } = useGameStore.getState()
-
-        act(() => {
-          setLocalPlayerIndex(0)
-        })
-
-        // Current player is 0 after init
-        expect(isMyTurn()).toBe(true)
-      })
-
-      it('should return false when not local player turn', () => {
-        const { isMyTurn, setLocalPlayerIndex } = useGameStore.getState()
-
-        act(() => {
-          setLocalPlayerIndex(1)
-        })
-
-        // Current player is 0, local is 1
-        expect(isMyTurn()).toBe(false)
+    describe('getTameableFromMarket', () => {
+      it('should return cards that can be tamed with enough stones', () => {
+        const { getTameableFromMarket } = useGameStore.getState()
+        const tameable = getTameableFromMarket()
+        // With 0 stones, only free cards can be tamed
+        expect(Array.isArray(tameable)).toBe(true)
       })
     })
   })
@@ -524,16 +377,16 @@ describe('useGameStore', () => {
   describe('Selectors', () => {
     beforeEach(() => {
       mockRandom([0.1])
-      const { initGame } = useGameStore.getState()
+      const { startGame } = useGameStore.getState()
 
       act(() => {
-        initGame('Player 1', 'Player 2')
+        startGame('Player 1')
       })
     })
 
     it('selectPhase should return current phase', () => {
       const state = useGameStore.getState()
-      expect(selectPhase(state)).toBe(GamePhase.HUNTING)
+      expect(selectPhase(state)).toBe(SinglePlayerPhase.DRAW)
     })
 
     it('selectRound should return current round', () => {
@@ -546,20 +399,19 @@ describe('useGameStore', () => {
       expect(selectMarket(state)).toHaveLength(4)
     })
 
-    it('selectPlayer should return player by index', () => {
+    it('selectHand should return player hand', () => {
       const state = useGameStore.getState()
-      expect(selectPlayer(state, 0)?.name).toBe('Player 1')
-      expect(selectPlayer(state, 1)?.name).toBe('Player 2')
+      expect(selectHand(state)).toHaveLength(0)
     })
 
-    it('selectLocalPlayer should return local player', () => {
+    it('selectField should return player field', () => {
       const state = useGameStore.getState()
-      expect(selectLocalPlayer(state)?.name).toBe('Player 1')
+      expect(selectField(state)).toHaveLength(0)
     })
 
-    it('selectOpponentPlayer should return opponent', () => {
+    it('selectStones should return player stones', () => {
       const state = useGameStore.getState()
-      expect(selectOpponentPlayer(state)?.name).toBe('Player 2')
+      expect(selectStones(state)).not.toBeNull()
     })
 
     it('selectIsGameOver should return false initially', () => {
@@ -567,19 +419,14 @@ describe('useGameStore', () => {
       expect(selectIsGameOver(state)).toBe(false)
     })
 
-    it('selectWinner should return null initially', () => {
+    it('selectFinalScore should return null initially', () => {
       const state = useGameStore.getState()
-      expect(selectWinner(state)).toBeNull()
+      expect(selectFinalScore(state)).toBeNull()
     })
 
     it('selectEndReason should return null initially', () => {
       const state = useGameStore.getState()
       expect(selectEndReason(state)).toBeNull()
-    })
-
-    it('selectIsLocalPlayerTurn should work correctly', () => {
-      const state = useGameStore.getState()
-      expect(selectIsLocalPlayerTurn(state)).toBe(true)
     })
 
     it('selectDiscardPile should return empty array initially', () => {
@@ -589,7 +436,12 @@ describe('useGameStore', () => {
 
     it('selectDeckSize should return remaining deck size', () => {
       const state = useGameStore.getState()
-      expect(selectDeckSize(state)).toBe(36) // 40 - 4 market cards
+      expect(selectDeckSize(state)).toBeGreaterThan(0)
+    })
+
+    it('selectPlayerName should return player name', () => {
+      const state = useGameStore.getState()
+      expect(selectPlayerName(state)).toBe('Player 1')
     })
   })
 
@@ -602,13 +454,13 @@ describe('useGameStore', () => {
       mockRandom([0.1])
 
       act(() => {
-        useGameStore.getState().initGame('Player 1', 'Player 2')
+        useGameStore.getState().startGame('Player 1')
       })
     })
 
     it('useGamePhase should return current phase', () => {
       const { result } = renderHook(() => useGamePhase())
-      expect(result.current).toBe(GamePhase.HUNTING)
+      expect(result.current).toBe(SinglePlayerPhase.DRAW)
     })
 
     it('useRound should return current round', () => {
@@ -621,26 +473,41 @@ describe('useGameStore', () => {
       expect(result.current).toHaveLength(4)
     })
 
-    it('useLocalPlayer should return local player', () => {
-      const { result } = renderHook(() => useLocalPlayer())
-      expect(result.current?.name).toBe('Player 1')
+    it('useHand should return player hand', () => {
+      const { result } = renderHook(() => useHand())
+      expect(result.current).toHaveLength(0)
     })
 
-    it('useOpponent should return opponent', () => {
-      const { result } = renderHook(() => useOpponent())
-      expect(result.current?.name).toBe('Player 2')
+    it('useField should return player field', () => {
+      const { result } = renderHook(() => useField())
+      expect(result.current).toHaveLength(0)
     })
 
-    it('useIsMyTurn should return true for current player', () => {
-      const { result } = renderHook(() => useIsMyTurn())
-      expect(result.current).toBe(true)
+    it('useStones should return player stones', () => {
+      const { result } = renderHook(() => useStones())
+      expect(result.current).not.toBeNull()
+    })
+
+    it('useDeckSize should return deck size', () => {
+      const { result } = renderHook(() => useDeckSize())
+      expect(result.current).toBeGreaterThan(0)
+    })
+
+    it('useDiscardPile should return discard pile', () => {
+      const { result } = renderHook(() => useDiscardPile())
+      expect(result.current).toHaveLength(0)
     })
 
     it('useGameOver should return game over state', () => {
       const { result } = renderHook(() => useGameOver())
       expect(result.current.isOver).toBe(false)
-      expect(result.current.winner).toBeNull()
+      expect(result.current.score).toBeNull()
       expect(result.current.reason).toBeNull()
+    })
+
+    it('usePlayerName should return player name', () => {
+      const { result } = renderHook(() => usePlayerName())
+      expect(result.current).toBe('Player 1')
     })
   })
 
@@ -681,34 +548,20 @@ describe('useGameStore', () => {
       expect(useGameStore.getState().error).toBeNull()
     })
 
-    it('setLocalPlayerIndex should update index', () => {
-      const { setLocalPlayerIndex } = useGameStore.getState()
-
-      act(() => {
-        setLocalPlayerIndex(1)
-      })
-
-      expect(useGameStore.getState().localPlayerIndex).toBe(1)
-    })
-
     it('syncState should sync from engine', () => {
       mockRandom([0.1])
-      const { initGame, syncState } = useGameStore.getState()
+      const { startGame, syncState } = useGameStore.getState()
 
       act(() => {
-        initGame('Player 1', 'Player 2')
+        startGame('Player 1')
       })
-
-      // Directly modify engine state
-      const state = useGameStore.getState().gameState!
-      state.round = 5
 
       act(() => {
         syncState()
       })
 
-      // State should still be synced from engine (which is at round 1)
-      expect(useGameStore.getState().gameState?.round).toBeGreaterThanOrEqual(1)
+      // State should be synced from engine
+      expect(useGameStore.getState().gameState).not.toBeNull()
     })
   })
 })

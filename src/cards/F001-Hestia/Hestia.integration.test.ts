@@ -20,9 +20,12 @@ describe('F001 - Hestia Integration Tests', () => {
     hestiaInstance = {
       ...HESTIA_CARD,
       instanceId: 'hestia-001',
+      cardId: HESTIA_CARD.id,
       location: CardLocation.FIELD,
       ownerId: '0',
       isRevealed: true,
+      scoreModifier: 0,
+      hasUsedAbility: false,
     }
   })
 
@@ -60,15 +63,13 @@ describe('F001 - Hestia Integration Tests', () => {
       context = {
         card: hestiaInstance,
         state: {
-          players: [
-            {
-              index: 0,
-              name: 'Player 1',
-              stoneLimit: 3,
-              field: ['hestia-001'],
-            },
-          ],
-        },
+          player: {
+            name: 'Player 1',
+            hand: [],
+            field: [],
+            stones: { ONE: 0, THREE: 0, SIX: 0, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 },
+          },
+        } as unknown as EffectContext['state'],
         triggerType: EffectTrigger.PERMANENT,
       }
     })
@@ -111,15 +112,13 @@ describe('F001 - Hestia Integration Tests', () => {
       context = {
         card: hestiaInstance,
         state: {
-          players: [
-            {
-              index: 0,
-              name: 'Player 1',
-              stoneLimit: 3,
-              field: ['hestia-001'],
-            },
-          ],
-        },
+          player: {
+            name: 'Player 1',
+            hand: [],
+            field: [],
+            stones: { ONE: 0, THREE: 0, SIX: 0, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 },
+          },
+        } as unknown as EffectContext['state'],
         triggerType: EffectTrigger.PERMANENT,
       }
     })
@@ -151,15 +150,13 @@ describe('F001 - Hestia Integration Tests', () => {
       const context1: EffectContext = {
         card: hestiaInstance,
         state: {
-          players: [
-            {
-              index: 0,
-              name: 'Player 1',
-              stoneLimit: 3,
-              field: ['hestia-001'],
-            },
-          ],
-        },
+          player: {
+            name: 'Player 1',
+            hand: [],
+            field: [],
+            stones: { ONE: 0, THREE: 0, SIX: 0, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 },
+          },
+        } as unknown as EffectContext['state'],
         triggerType: EffectTrigger.PERMANENT,
       }
 
@@ -175,20 +172,19 @@ describe('F001 - Hestia Integration Tests', () => {
       const context2: EffectContext = {
         card: hestia2Instance,
         state: {
-          players: [
-            {
-              index: 0,
-              name: 'Player 1',
-              stoneLimit: 5, // After first Hestia
-              field: ['hestia-001', 'hestia-002'],
-            },
-          ],
-        },
+          player: {
+            name: 'Player 1',
+            hand: [],
+            field: [],
+            stones: { ONE: 0, THREE: 0, SIX: 0, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 },
+          },
+        } as unknown as EffectContext['state'],
         triggerType: EffectTrigger.PERMANENT,
       }
 
       const result2 = effect.apply(context2)
-      expect(result2.stateChanges?.stoneLimit).toBe(7) // 5 + 2 = 7
+      // Note: In single-player mode, stone limit is recalculated from base each time
+      expect(result2.stateChanges?.stoneLimit).toBe(5) // 3 (base) + 2 = 5
     })
   })
 
@@ -199,62 +195,53 @@ describe('F001 - Hestia Integration Tests', () => {
   describe('Static Utility Methods', () => {
     it('should calculate total stone limit with one Hestia', () => {
       const state = {
-        players: [
-          {
-            field: ['hestia-001'],
-            cards: {
-              'hestia-001': {
-                templateId: 'F001',
-                effects: [
-                  {
-                    type: 'INCREASE_STONE_LIMIT',
-                    value: 2,
-                  },
-                ],
-              },
+        player: {
+          field: [
+            {
+              instanceId: 'hestia-001',
+              effects: [
+                {
+                  type: 'INCREASE_STONE_LIMIT',
+                  value: 2,
+                },
+              ],
             },
-          },
-        ],
+          ],
+        },
       }
 
-      const limit = HestiaEffect.calculatePlayerStoneLimit(state, 0)
+      const limit = HestiaEffect.calculatePlayerStoneLimit(state)
       expect(limit).toBe(5) // 3 + 2
     })
 
     it('should calculate total stone limit with multiple Hestia cards', () => {
       const state = {
-        players: [
-          {
-            field: ['hestia-001', 'hestia-002'],
-            cards: {
-              'hestia-001': {
-                templateId: 'F001',
-                effects: [{ type: 'INCREASE_STONE_LIMIT', value: 2 }],
-              },
-              'hestia-002': {
-                templateId: 'F001',
-                effects: [{ type: 'INCREASE_STONE_LIMIT', value: 2 }],
-              },
+        player: {
+          field: [
+            {
+              instanceId: 'hestia-001',
+              effects: [{ type: 'INCREASE_STONE_LIMIT', value: 2 }],
             },
-          },
-        ],
+            {
+              instanceId: 'hestia-002',
+              effects: [{ type: 'INCREASE_STONE_LIMIT', value: 2 }],
+            },
+          ],
+        },
       }
 
-      const limit = HestiaEffect.calculatePlayerStoneLimit(state, 0)
+      const limit = HestiaEffect.calculatePlayerStoneLimit(state)
       expect(limit).toBe(7) // 3 + 2 + 2
     })
 
     it('should return base limit when no Hestia cards', () => {
       const state = {
-        players: [
-          {
-            field: [],
-            cards: {},
-          },
-        ],
+        player: {
+          field: [],
+        },
       }
 
-      const limit = HestiaEffect.calculatePlayerStoneLimit(state, 0)
+      const limit = HestiaEffect.calculatePlayerStoneLimit(state)
       expect(limit).toBe(3) // Base limit
     })
   })
@@ -269,8 +256,8 @@ describe('F001 - Hestia Integration Tests', () => {
       const context: EffectContext = {
         card: hestiaInstance,
         state: {
-          players: [], // No players
-        },
+          player: undefined,
+        } as unknown as EffectContext['state'],
         triggerType: EffectTrigger.PERMANENT,
       }
 

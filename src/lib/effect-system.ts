@@ -505,7 +505,7 @@ export function getEffectTypeName(
     [EffectType.CONDITIONAL_AREA]: { en: 'Area Bonus', tw: '區域加成' },
     [EffectType.CONDITIONAL_HAND]: { en: 'Hand Bonus', tw: '手牌加成' },
     [EffectType.EARN_PER_ELEMENT]: { en: 'Element Synergy', tw: '元素加成' },
-    [EffectType.EARN_PER_FAMILY]: { en: 'Family Synergy', tw: '家族加成' },
+    [EffectType.EARN_PER_FAMILY]: { en: 'Family Synergy', tw: '龍族加成' },
     [EffectType.EARN_ON_SUMMON]: { en: 'Summon Bonus', tw: '召喚加成' },
     [EffectType.DISCARD_ALL_FOR_POINTS]: { en: 'All for Points', tw: '全換分數' },
     [EffectType.MULTI_CHOICE]: { en: 'Multi Choice', tw: '多選效果' },

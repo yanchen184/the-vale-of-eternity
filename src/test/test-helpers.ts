@@ -55,6 +55,7 @@ export function createTestCard(overrides: Partial<CardInstance> = {}): CardInsta
     element: overrides.element ?? Element.FIRE,
     cost: overrides.cost ?? 1,
     baseScore: overrides.baseScore ?? 2,
+    effects: overrides.effects ?? [],
     effectType: overrides.effectType ?? EffectType.NONE,
     effectTrigger: overrides.effectTrigger ?? EffectTrigger.NONE,
     effectValue: overrides.effectValue,
@@ -80,6 +81,7 @@ export function createTestCardTemplate(overrides: Partial<CardTemplate> = {}): C
     element: overrides.element ?? Element.FIRE,
     cost: overrides.cost ?? 1,
     baseScore: overrides.baseScore ?? 2,
+    effects: overrides.effects ?? [],
     effectType: overrides.effectType ?? EffectType.NONE,
     effectTrigger: overrides.effectTrigger ?? EffectTrigger.NONE,
     effectValue: overrides.effectValue,
@@ -122,7 +124,7 @@ export function createDragonCard(overrides: Partial<CardInstance> = {}): CardIns
 }
 
 /**
- * Create a card with SCORE_PER_ELEMENT effect
+ * Create a card with EARN_PER_ELEMENT effect (scores per element)
  */
 export function createScorePerElementCard(
   targetElement: Element,
@@ -130,7 +132,7 @@ export function createScorePerElementCard(
   overrides: Partial<CardInstance> = {}
 ): CardInstance {
   return createTestCard({
-    effectType: EffectType.SCORE_PER_ELEMENT,
+    effectType: EffectType.EARN_PER_ELEMENT,
     effectTrigger: EffectTrigger.ON_SCORE,
     effectTarget: targetElement,
     effectValue,
@@ -139,7 +141,7 @@ export function createScorePerElementCard(
 }
 
 /**
- * Create a card with SCORE_PER_DRAGON effect
+ * Create a card with EARN_PER_FAMILY effect (scores per dragon)
  */
 export function createScorePerDragonCard(
   effectValue: number = 2,
@@ -147,7 +149,7 @@ export function createScorePerDragonCard(
 ): CardInstance {
   return createTestCard({
     element: Element.DRAGON,
-    effectType: EffectType.SCORE_PER_DRAGON,
+    effectType: EffectType.EARN_PER_FAMILY,
     effectTrigger: EffectTrigger.ON_SCORE,
     effectValue,
     ...overrides,
@@ -155,14 +157,14 @@ export function createScorePerDragonCard(
 }
 
 /**
- * Create a card with GAIN_STONES effect
+ * Create a card with EARN_STONES effect
  */
 export function createGainStonesCard(
   stonesAmount: number = 2,
   overrides: Partial<CardInstance> = {}
 ): CardInstance {
   return createTestCard({
-    effectType: EffectType.GAIN_STONES,
+    effectType: EffectType.EARN_STONES,
     effectTrigger: EffectTrigger.ON_TAME,
     effectValue: stonesAmount,
     ...overrides,
@@ -185,14 +187,14 @@ export function createIncreaseStoneLimitCard(
 }
 
 /**
- * Create a card with DRAW_FROM_DISCARD effect
+ * Create a card with RECOVER_CARD effect (draw from discard)
  */
 export function createDrawFromDiscardCard(
   drawCount: number = 1,
   overrides: Partial<CardInstance> = {}
 ): CardInstance {
   return createTestCard({
-    effectType: EffectType.DRAW_FROM_DISCARD,
+    effectType: EffectType.RECOVER_CARD,
     effectTrigger: EffectTrigger.ON_TAME,
     effectValue: drawCount,
     ...overrides,

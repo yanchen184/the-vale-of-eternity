@@ -71,8 +71,8 @@ export class ImpEarnStonesEffect extends BaseEffect {
     // Convert stone configs to pool format
     const stonesGained = stoneConfigsToPool(stonesConfig) as Partial<StonePool>
 
-    // Validate player exists
-    const player = state.players?.find((p) => p.index === (card.ownerId ? parseInt(card.ownerId) : 0))
+    // Validate player exists (single player mode)
+    const player = state.player
     if (!player) {
       return this.createFailureResult('Player not found')
     }
