@@ -351,16 +351,18 @@ export const PlayerHand = memo(function PlayerHand({
   const [draggedCardId, setDraggedCardId] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Helper function to check if a card can be sold (only cards from current round)
+  // Helper function to check if a card can be sold (only hunting phase cards from current round)
   const canSellCard = useCallback((card: CardInstance) => {
     // If no currentRound is provided, allow selling all cards (backward compatibility)
     if (currentRound === undefined) return true
-    // @ts-expect-error - acquiredInRound is added at runtime from Firebase
+    // @ts-expect-error - acquiredInRound and acquiredViaHunting are added at runtime from Firebase
     const acquiredInRound = card.acquiredInRound
+    // @ts-expect-error - acquiredViaHunting is added at runtime from Firebase
+    const acquiredViaHunting = card.acquiredViaHunting
     // If card doesn't have acquiredInRound (old cards), allow selling (backward compatibility)
     if (acquiredInRound === undefined) return true
-    // Only allow selling if card was acquired in current round
-    return acquiredInRound === currentRound
+    // Only allow selling if card was acquired via hunting in current round
+    return acquiredInRound === currentRound && acquiredViaHunting === true
   }, [currentRound])
 
   // Limit visible cards

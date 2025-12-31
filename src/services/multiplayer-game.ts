@@ -140,6 +140,8 @@ export interface CardInstanceData extends Omit<CardInstance, 'effects'> {
   confirmedBy?: string | null
   /** Round number when this card was acquired by current owner (for sell restriction) */
   acquiredInRound?: number
+  /** Whether this card was acquired via hunting phase (only these can be sold) */
+  acquiredViaHunting?: boolean
 }
 
 // ============================================
@@ -524,7 +526,7 @@ export class MultiplayerGameService {
         // Hunting phase complete, move to action phase
         game.huntingPhase.isComplete = true
         game.status = 'ACTION'
-        game.currentPlayerIndex = 0
+        game.currentPlayerIndex = startingPlayerIndex  // Start ACTION phase from starting player
         game.passedPlayerIds = []
       } else {
         game.huntingPhase.currentPlayerIndex = nextIndex
@@ -588,6 +590,7 @@ export class MultiplayerGameService {
           ownerId: playerId,
           selectedBy: null, // Clear the marker
           acquiredInRound: game.currentRound, // Mark which round this card was acquired
+          acquiredViaHunting: true, // Only hunting phase cards can be sold
         })
       }
     }
@@ -875,7 +878,7 @@ export class MultiplayerGameService {
         'huntingPhase/selections': selections,
         'huntingPhase/isComplete': true,
         status: 'ACTION',
-        currentPlayerIndex: 0,
+        currentPlayerIndex: startingPlayerIndex,
         passedPlayerIds: [],
         updatedAt: Date.now(),
       })
@@ -893,7 +896,7 @@ export class MultiplayerGameService {
         'huntingPhase/selections': selections,
         'huntingPhase/isComplete': true,
         status: 'ACTION',
-        currentPlayerIndex: 0,
+        currentPlayerIndex: startingPlayerIndex,
         passedPlayerIds: [],
         updatedAt: Date.now(),
       })
@@ -1245,9 +1248,9 @@ export class MultiplayerGameService {
 
     const card: CardInstanceData = cardSnapshot.val()
 
-    // Check if card can be sold (only cards acquired in current round)
-    if (card.acquiredInRound !== game.currentRound) {
-      throw new Error('只能賣出本回合獲得的卡片')
+    // Check if card can be sold (only cards acquired via hunting phase in current round)
+    if (card.acquiredInRound !== game.currentRound || !card.acquiredViaHunting) {
+      throw new Error('只能賣出選卡階段獲得的卡片')
     }
 
     // Get card template to find element
@@ -1487,11 +1490,12 @@ export class MultiplayerGameService {
         hand: updatedHand,
       })
 
-      // Update card location and owner
+      // Update card location and owner (DO NOT set acquiredViaHunting - cannot be sold)
       await update(ref(database, `games/${gameId}/cards/${cardInstanceId}`), {
         location: CardLocation.HAND,
         ownerId: playerId,
-        acquiredInRound: game.currentRound, // Mark which round this card was acquired
+        acquiredInRound: game.currentRound,
+        // DO NOT set acquiredViaHunting - only hunting phase cards can be sold
       })
 
       console.log(
@@ -1506,11 +1510,12 @@ export class MultiplayerGameService {
         field: updatedField,
       })
 
-      // Update card location and owner
+      // Update card location and owner (DO NOT set acquiredViaHunting - cannot be sold)
       await update(ref(database, `games/${gameId}/cards/${cardInstanceId}`), {
         location: CardLocation.FIELD,
         ownerId: playerId,
-        acquiredInRound: game.currentRound, // Mark which round this card was acquired
+        acquiredInRound: game.currentRound,
+        // DO NOT set acquiredViaHunting - only hunting phase cards can be sold
       })
 
       console.log(
