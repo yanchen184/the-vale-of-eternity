@@ -1,9 +1,9 @@
 /**
  * Card Component with Image Display
  * Renders a game card with its image and stats
- * @version 2.17.0 - Adjusted to 75% size (21rem × 31.5rem)
+ * @version 2.18.0 - Compact mode increased to 1.5x (15.75rem × 23.625rem)
  */
-console.log('[components/game/Card.tsx] v2.17.0 loaded')
+console.log('[components/game/Card.tsx] v2.18.0 loaded')
 
 import { useState, useCallback, memo } from 'react'
 import { Flame, Droplets, TreePine, Wind, Crown, Gem } from 'lucide-react'
@@ -313,7 +313,7 @@ export const Card = memo(function Card({
     )
   }
 
-  // Compact card (for field display) - 50% size
+  // Compact card (for field display) - 1.5x size (was 0.5x, now 1.5x = 3x larger)
   if (compact) {
     return (
       <div
@@ -325,7 +325,7 @@ export const Card = memo(function Card({
           ${isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900' : ''}
           ${className}
         `}
-        style={{ width: '10.5rem', height: '15.75rem' }}
+        style={{ width: '15.75rem', height: '23.625rem' }}
         onClick={handleClick}
         data-testid={`card-compact-${card.instanceId}`}
       >
