@@ -1,9 +1,9 @@
 /**
  * PlayersFieldArea Component
  * Displays all players' field cards - each player gets a horizontal row
- * @version 1.2.0 - Added "Return to Hand" button for current player's cards
+ * @version 1.3.0 - Cards wrap to new row after 5 cards
  */
-console.log('[components/game/PlayersFieldArea.tsx] v1.2.0 loaded')
+console.log('[components/game/PlayersFieldArea.tsx] v1.3.0 loaded')
 
 import { memo, useMemo, useCallback } from 'react'
 import { Card } from './Card'
@@ -119,53 +119,51 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
         </span>
       </div>
 
-      {/* Cards Container - Horizontal Scrollable */}
+      {/* Cards Container - Wraps after 5 cards */}
       {player.fieldCards.length === 0 ? (
         <div className="flex items-center justify-center h-24 text-slate-600 text-sm">
           <span>尚無場上卡片</span>
         </div>
       ) : (
-        <div className="overflow-x-auto pb-2">
-          <div className="flex gap-2 min-w-max">
-            {player.fieldCards.map((card, index) => (
-              <div
-                key={card.instanceId}
-                className="relative group transform transition-transform duration-200 hover:scale-105 hover:z-10 flex-shrink-0"
-              >
-                <Card
-                  card={card}
-                  index={index}
-                  compact={true}
-                  onClick={() => handleCardClick(card.instanceId)}
-                  className={cn(
-                    'shadow-md',
-                    player.isCurrentTurn && 'ring-1 ring-vale-500/30'
-                  )}
-                />
-                {/* Return button - only show for current player's own cards during their turn */}
-                {isCurrentPlayer && player.isCurrentTurn && !player.hasPassed && onCardReturn && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleCardReturn(card.instanceId)
-                    }}
-                    className={cn(
-                      'absolute -bottom-2 left-1/2 -translate-x-1/2',
-                      'px-2 py-1 text-xs rounded-md',
-                      'bg-amber-600 hover:bg-amber-500 text-white',
-                      'opacity-0 group-hover:opacity-100',
-                      'transition-opacity duration-200',
-                      'shadow-lg border border-amber-400/50',
-                      'whitespace-nowrap z-20'
-                    )}
-                    type="button"
-                  >
-                    撤回
-                  </button>
+        <div className="flex flex-wrap gap-2">
+          {player.fieldCards.map((card, index) => (
+            <div
+              key={card.instanceId}
+              className="relative group transform transition-transform duration-200 hover:scale-105 hover:z-10"
+            >
+              <Card
+                card={card}
+                index={index}
+                compact={true}
+                onClick={() => handleCardClick(card.instanceId)}
+                className={cn(
+                  'shadow-md',
+                  player.isCurrentTurn && 'ring-1 ring-vale-500/30'
                 )}
-              </div>
-            ))}
-          </div>
+              />
+              {/* Return button - only show for current player's own cards during their turn */}
+              {isCurrentPlayer && player.isCurrentTurn && !player.hasPassed && onCardReturn && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleCardReturn(card.instanceId)
+                  }}
+                  className={cn(
+                    'absolute -bottom-2 left-1/2 -translate-x-1/2',
+                    'px-2 py-1 text-xs rounded-md',
+                    'bg-amber-600 hover:bg-amber-500 text-white',
+                    'opacity-0 group-hover:opacity-100',
+                    'transition-opacity duration-200',
+                    'shadow-lg border border-amber-400/50',
+                    'whitespace-nowrap z-20'
+                  )}
+                  type="button"
+                >
+                  撤回
+                </button>
+              )}
+            </div>
+          ))}
         </div>
       )}
 

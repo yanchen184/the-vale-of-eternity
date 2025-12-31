@@ -311,8 +311,8 @@ export const LeftSidebar = memo(function LeftSidebar({
   return (
     <aside
       className={cn(
-        // Fixed width sidebar
-        'w-72 flex-shrink-0',
+        // Fixed width sidebar - increased from w-72 to w-80
+        'w-80 flex-shrink-0',
         // Background with gradient
         'bg-gradient-to-b from-purple-900/20 via-slate-900/40 to-slate-900/20',
         // Glass effect

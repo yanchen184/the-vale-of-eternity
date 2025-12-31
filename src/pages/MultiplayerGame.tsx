@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 5.3.1 - Fixed currentTurnPlayer showing Unknown during RESOLUTION
+ * @version 5.4.1 - Removed DiscardPile from hand area, keep only in RightSidebar
  */
-console.log('[pages/MultiplayerGame.tsx] v5.3.1 loaded')
+console.log('[pages/MultiplayerGame.tsx] v5.4.1 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -21,7 +21,6 @@ import {
   PlayerMarker,
   ScoreTrack,
   PlayersFieldArea,
-  DiscardPile,
   GameLayout,
   GameHeader,
   LeftSidebar,
@@ -291,14 +290,12 @@ function HuntingPhaseUI({
 interface ActionPhaseUIProps {
   playersFieldData: PlayerFieldData[]
   handCards: CardInstance[]
-  discardedCards: CardInstance[]
   playerScores: PlayerScoreInfo[]
   currentPlayerId: string
   isYourTurn: boolean
   onCardPlay: (cardId: string) => void
   onCardSell: (cardId: string) => void
   onCardReturn: (playerId: string, cardId: string) => void
-  onReturnCardFromDiscard: (cardId: string) => void
   onScoreAdjust: (playerId: string, score: number) => void
   onFlipToggle: (playerId: string) => void
   canTameCard: (cardId: string) => boolean
@@ -309,14 +306,12 @@ interface ActionPhaseUIProps {
 function ActionPhaseUI({
   playersFieldData,
   handCards,
-  discardedCards,
   playerScores,
   currentPlayerId,
   isYourTurn,
   onCardPlay,
   onCardSell,
   onCardReturn,
-  onReturnCardFromDiscard,
   onScoreAdjust,
   onFlipToggle,
   canTameCard,
@@ -325,7 +320,7 @@ function ActionPhaseUI({
 }: ActionPhaseUIProps) {
   return (
     <div className="flex-1 flex flex-col overflow-hidden" data-testid={resolutionMode ? "resolution-phase" : "action-phase"}>
-      {/* Top Section - Field Area & Score Track */}
+      {/* Top Section - Field Area & Hand */}
       <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar min-h-0">
         {/* Players Field Area */}
         <PlayersFieldArea
@@ -334,7 +329,23 @@ function ActionPhaseUI({
           onCardReturn={onCardReturn}
         />
 
-        {/* Score Track */}
+        {/* Player Hand Section */}
+        <div>
+          <PlayerHand
+            cards={handCards}
+            maxHandSize={10}
+            showActions={isYourTurn && !resolutionMode}
+            enableDrag={isYourTurn && !resolutionMode}
+            onCardPlay={onCardPlay}
+            onCardSell={onCardSell}
+            canTameCard={canTameCard}
+            className="rounded-xl border border-purple-900/30"
+          />
+        </div>
+      </div>
+
+      {/* Bottom Section - Score Track */}
+      <div className="flex-shrink-0 border-t border-purple-900/30 bg-gradient-to-t from-slate-900/80 to-transparent p-3">
         <ScoreTrack
           players={playerScores}
           maxScore={60}
@@ -345,56 +356,27 @@ function ActionPhaseUI({
         />
       </div>
 
-      {/* Bottom Section - Hand & Discard */}
-      <div className="flex-shrink-0 border-t border-purple-900/30 bg-gradient-to-t from-slate-900/80 to-transparent">
-        <div className="flex items-end gap-3 p-3">
-          {/* Discard Pile - Left side */}
-          <div className="flex-shrink-0">
-            <DiscardPile
-              cards={discardedCards}
-              interactive={true}
-              onReturnCard={onReturnCardFromDiscard}
-              allowReturn={isYourTurn}
-            />
-          </div>
-
-          {/* Player Hand - Takes remaining space */}
-          <div className="flex-1 min-w-0">
-            <PlayerHand
-              cards={handCards}
-              maxHandSize={10}
-              showActions={isYourTurn && !resolutionMode}
-              enableDrag={isYourTurn && !resolutionMode}
-              onCardPlay={onCardPlay}
-              onCardSell={onCardSell}
-              canTameCard={canTameCard}
-              className="rounded-xl border border-purple-900/30"
-            />
-          </div>
+      {/* Resolution Mode - Finish Button */}
+      {resolutionMode && isYourTurn && onFinishResolution && (
+        <div className="flex-shrink-0 p-3 pt-2 border-t border-purple-900/30">
+          <Button
+            onClick={onFinishResolution}
+            className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400"
+            data-testid="finish-resolution-btn"
+          >
+            完成結算（觸發回合結束效果）
+          </Button>
         </div>
+      )}
 
-        {/* Resolution Mode - Finish Button */}
-        {resolutionMode && isYourTurn && onFinishResolution && (
-          <div className="p-3 pt-2 border-t border-purple-900/30">
-            <Button
-              onClick={onFinishResolution}
-              className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400"
-              data-testid="finish-resolution-btn"
-            >
-              完成結算（觸發回合結束效果）
-            </Button>
-          </div>
-        )}
-
-        {/* Resolution Mode - Waiting Message */}
-        {resolutionMode && !isYourTurn && (
-          <div className="p-3 pt-2 border-t border-purple-900/30">
-            <p className="text-center text-slate-400 text-sm">
-              等待其他玩家完成結算...
-            </p>
-          </div>
-        )}
-      </div>
+      {/* Resolution Mode - Waiting Message */}
+      {resolutionMode && !isYourTurn && (
+        <div className="flex-shrink-0 p-3 pt-2 border-t border-purple-900/30">
+          <p className="text-center text-slate-400 text-sm">
+            等待其他玩家完成結算...
+          </p>
+        </div>
+      )}
     </div>
   )
 }
@@ -985,14 +967,12 @@ export function MultiplayerGame() {
               <ActionPhaseUI
                 playersFieldData={playersFieldData}
                 handCards={handCards}
-                discardedCards={discardedCards}
                 playerScores={playerScores}
                 currentPlayerId={playerId ?? ''}
                 isYourTurn={isYourTurn}
                 onCardPlay={handleTameCard}
                 onCardSell={handleSellCard}
                 onCardReturn={handleReturnCard}
-                onReturnCardFromDiscard={handleReturnCardFromDiscard}
                 onScoreAdjust={handleScoreAdjust}
                 onFlipToggle={handleFlipToggle}
                 canTameCard={() => true}
@@ -1004,14 +984,12 @@ export function MultiplayerGame() {
               <ActionPhaseUI
                 playersFieldData={playersFieldData}
                 handCards={handCards}
-                discardedCards={discardedCards}
                 playerScores={playerScores}
                 currentPlayerId={playerId ?? ''}
                 isYourTurn={isYourTurn}
                 onCardPlay={handleTameCard}
                 onCardSell={handleSellCard}
                 onCardReturn={handleReturnCard}
-                onReturnCardFromDiscard={handleReturnCardFromDiscard}
                 onScoreAdjust={handleScoreAdjust}
                 onFlipToggle={handleFlipToggle}
                 canTameCard={() => false}  // Cannot tame during resolution
