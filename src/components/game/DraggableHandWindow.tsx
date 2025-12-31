@@ -1,12 +1,12 @@
 /**
  * DraggableHandWindow Component
  * Floating, draggable, resizable window for displaying player's hand
- * @version 1.6.0 - Removed minimize feature, added zoom controls to top-right
+ * @version 1.7.0 - Added draggable zoom slider control
  */
-console.log('[components/game/DraggableHandWindow.tsx] v1.6.0 loaded')
+console.log('[components/game/DraggableHandWindow.tsx] v1.7.0 loaded')
 
 import { memo, useState, useRef, useCallback, useEffect } from 'react'
-import { ZoomIn, ZoomOut, GripHorizontal, Maximize } from 'lucide-react'
+import { GripHorizontal, Maximize, GripVertical } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PlayerHand } from './PlayerHand'
 import type { CardInstance } from '@/types/cards'
@@ -75,6 +75,8 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
   const [zoom, setZoom] = useState(0.7) // Zoom level: 0.5 to 2.5, default 0.7 to match field card size
   const [isPanning, setIsPanning] = useState(false)
   const [scrollStart, setScrollStart] = useState({ scrollLeft: 0, scrollTop: 0, mouseX: 0, mouseY: 0 })
+  const [isZoomDragging, setIsZoomDragging] = useState(false)
+  const [zoomDragStart, setZoomDragStart] = useState({ y: 0, zoom: 0.7 })
 
   // Refs
   const windowRef = useRef<HTMLDivElement>(null)
@@ -119,14 +121,40 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
     }
   }, [isDragging, dragOffset])
 
-  // Zoom in/out functions
-  const handleZoomIn = useCallback(() => {
-    setZoom((prev) => Math.min(2.5, prev + 0.1))
-  }, [])
+  // Handle zoom drag start
+  const handleZoomDragStart = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsZoomDragging(true)
+    setZoomDragStart({
+      y: e.clientY,
+      zoom: zoom,
+    })
+  }, [zoom])
 
-  const handleZoomOut = useCallback(() => {
-    setZoom((prev) => Math.max(0.5, prev - 0.1))
-  }, [])
+  // Handle zoom drag move
+  useEffect(() => {
+    if (!isZoomDragging) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaY = zoomDragStart.y - e.clientY // Inverted: drag up = zoom in
+      const zoomChange = deltaY * 0.005 // Sensitivity: 200px drag = 1.0 zoom change
+      const newZoom = zoomDragStart.zoom + zoomChange
+      setZoom(Math.max(0.5, Math.min(2.5, newZoom)))
+    }
+
+    const handleMouseUp = () => {
+      setIsZoomDragging(false)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isZoomDragging, zoomDragStart])
 
   // Handle resize start
   const handleResizeStart = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -281,27 +309,36 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
           </h3>
         </div>
 
-        {/* Right: Zoom Controls */}
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={handleZoomOut}
-            className="p-1.5 rounded hover:bg-purple-500/20 transition-colors"
-            title="縮小 (Ctrl+滾輪向下)"
+        {/* Right: Zoom and Resize Controls */}
+        <div className="flex items-center gap-3">
+          {/* Zoom Control */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-purple-300">
+              {Math.round(zoom * 100)}%
+            </span>
+            <div
+              className={cn(
+                'p-2 rounded cursor-ns-resize hover:bg-purple-500/20 transition-colors',
+                isZoomDragging && 'bg-purple-500/30'
+              )}
+              onMouseDown={handleZoomDragStart}
+              title="上下拖曳調整縮放 (或使用 Ctrl+滾輪)"
+            >
+              <GripVertical className="w-4 h-4 text-purple-400" />
+            </div>
+          </div>
+
+          {/* Resize Control */}
+          <div
+            className={cn(
+              'p-2 rounded cursor-nwse-resize hover:bg-purple-500/20 transition-colors',
+              isResizing && 'bg-purple-500/30'
+            )}
+            onMouseDown={handleResizeStart}
+            title="拖曳調整視窗大小"
           >
-            <ZoomOut className="w-4 h-4 text-purple-400" />
-          </button>
-          <span className="text-xs text-purple-300 min-w-[3rem] text-center">
-            {Math.round(zoom * 100)}%
-          </span>
-          <button
-            type="button"
-            onClick={handleZoomIn}
-            className="p-1.5 rounded hover:bg-purple-500/20 transition-colors"
-            title="放大 (Ctrl+滾輪向上)"
-          >
-            <ZoomIn className="w-4 h-4 text-purple-400" />
-          </button>
+            <Maximize className="w-4 h-4 text-purple-400" />
+          </div>
         </div>
       </div>
 
@@ -341,14 +378,6 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
         </div>
       </div>
 
-      {/* Resize Handle - Bottom Right Corner */}
-      <div
-        className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize opacity-50 hover:opacity-100 transition-opacity"
-        onMouseDown={handleResizeStart}
-        title="拖動調整大小"
-      >
-        <Maximize className="w-4 h-4 text-purple-400" />
-      </div>
     </div>
   )
 })
