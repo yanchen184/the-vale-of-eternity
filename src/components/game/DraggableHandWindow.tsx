@@ -156,7 +156,7 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
     }
   }, [isZoomDragging, zoomDragStart])
 
-  // Handle resize start
+  // Handle resize start (from top-right corner)
   const handleResizeStart = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
@@ -169,7 +169,7 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
     })
   }, [size])
 
-  // Handle resize move
+  // Handle resize move (top-right corner behavior)
   useEffect(() => {
     if (!isResizing) return
 
@@ -177,10 +177,29 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
       const deltaX = e.clientX - resizeStart.x
       const deltaY = e.clientY - resizeStart.y
 
+      // Right: expand width when dragging right
+      const newWidth = Math.max(400, resizeStart.width + deltaX)
+
+      // Top: expand height when dragging up (negative deltaY)
+      const newHeight = Math.max(280, resizeStart.height - deltaY)
+
       setSize({
-        width: Math.max(400, resizeStart.width + deltaX),
-        height: Math.max(280, resizeStart.height + deltaY), // 最小高度調整為 280px
+        width: newWidth,
+        height: newHeight,
       })
+
+      // Adjust position when resizing from top (move window up when expanding upward)
+      if (deltaY !== 0) {
+        setPosition(prev => ({
+          x: prev.x,
+          y: prev.y + deltaY,
+        }))
+        // Reset resizeStart.y to current position for smooth continuous dragging
+        setResizeStart(prev => ({
+          ...prev,
+          y: e.clientY,
+        }))
+      }
     }
 
     const handleMouseUp = () => {
@@ -331,11 +350,11 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
           {/* Resize Control */}
           <div
             className={cn(
-              'p-2 rounded cursor-nwse-resize hover:bg-purple-500/20 transition-colors',
+              'p-2 rounded cursor-nesw-resize hover:bg-purple-500/20 transition-colors',
               isResizing && 'bg-purple-500/30'
             )}
             onMouseDown={handleResizeStart}
-            title="拖曳調整視窗大小"
+            title="往右上拖曳可放大視窗"
           >
             <Maximize className="w-4 h-4 text-purple-400" />
           </div>
