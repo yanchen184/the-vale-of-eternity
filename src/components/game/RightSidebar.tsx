@@ -1,9 +1,9 @@
 /**
  * RightSidebar Component
  * Right sidebar for multiplayer game - displays bank coins, player coins, and deck info
- * @version 1.2.0 - Added market discard pile button
+ * @version 1.3.0 - Removed deck count display, user doesn't need to track it
  */
-console.log('[components/game/RightSidebar.tsx] v1.2.0 loaded')
+console.log('[components/game/RightSidebar.tsx] v1.3.0 loaded')
 
 import { memo } from 'react'
 import { cn } from '@/lib/utils'
@@ -27,8 +27,6 @@ export interface RightSidebarProps {
   discardCount: number
   /** Number of cards in market discard pile */
   marketDiscardCount: number
-  /** Number of cards remaining in deck */
-  deckCount: number
   /** Whether it's the current player's turn */
   isYourTurn: boolean
   /** Current game phase */
@@ -277,7 +275,6 @@ const BankSection = memo(function BankSection({
 // ============================================
 
 interface DeckInfoSectionProps {
-  deckCount: number
   discardCount: number
   marketDiscardCount: number
   onDiscardClick?: () => void
@@ -285,7 +282,6 @@ interface DeckInfoSectionProps {
 }
 
 const DeckInfoSection = memo(function DeckInfoSection({
-  deckCount,
   discardCount,
   marketDiscardCount,
   onDiscardClick,
@@ -293,37 +289,24 @@ const DeckInfoSection = memo(function DeckInfoSection({
 }: DeckInfoSectionProps) {
   return (
     <div className="space-y-2">
-      {/* Deck and Discard Pile */}
-      <div className="grid grid-cols-2 gap-2">
-        {/* Deck */}
-        <GlassCard variant="default" padding="sm" className="text-center">
-          <div className="space-y-1">
-            <div className="w-10 h-14 mx-auto bg-gradient-to-br from-blue-900 to-blue-950 rounded border-2 border-blue-700 flex items-center justify-center shadow-lg">
-              <span className="text-blue-300 text-lg font-bold">{deckCount}</span>
-            </div>
-            <div className="text-[10px] text-slate-400">牌庫</div>
+      {/* Discard Pile */}
+      <GlassCard
+        variant="default"
+        padding="sm"
+        className="text-center cursor-pointer hover:bg-white/10 transition-colors"
+        onClick={onDiscardClick}
+        hoverable
+      >
+        <div className="space-y-1">
+          <div className="w-10 h-14 mx-auto bg-gradient-to-br from-slate-700 to-slate-800 rounded border-2 border-slate-600 flex items-center justify-center shadow-lg relative">
+            <span className="text-slate-300 text-lg font-bold">{discardCount + marketDiscardCount}</span>
+            {(discardCount + marketDiscardCount) > 0 && (
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-400 rounded-full animate-pulse" />
+            )}
           </div>
-        </GlassCard>
-
-        {/* Discard Pile (combined) */}
-        <GlassCard
-          variant="default"
-          padding="sm"
-          className="text-center cursor-pointer hover:bg-white/10 transition-colors"
-          onClick={onDiscardClick}
-          hoverable
-        >
-          <div className="space-y-1">
-            <div className="w-10 h-14 mx-auto bg-gradient-to-br from-slate-700 to-slate-800 rounded border-2 border-slate-600 flex items-center justify-center shadow-lg relative">
-              <span className="text-slate-300 text-lg font-bold">{discardCount + marketDiscardCount}</span>
-              {(discardCount + marketDiscardCount) > 0 && (
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-400 rounded-full animate-pulse" />
-              )}
-            </div>
-            <div className="text-[10px] text-slate-400">棄牌堆</div>
-          </div>
-        </GlassCard>
-      </div>
+          <div className="text-[10px] text-slate-400">棄牌堆</div>
+        </div>
+      </GlassCard>
     </div>
   )
 })
@@ -338,7 +321,6 @@ export const RightSidebar = memo(function RightSidebar({
   playerName: _playerName,
   discardCount,
   marketDiscardCount,
-  deckCount,
   isYourTurn,
   phase,
   onTakeCoin,
@@ -408,7 +390,6 @@ export const RightSidebar = memo(function RightSidebar({
 
         {/* Deck Info */}
         <DeckInfoSection
-          deckCount={deckCount}
           discardCount={discardCount}
           marketDiscardCount={marketDiscardCount}
           onDiscardClick={onDiscardClick}

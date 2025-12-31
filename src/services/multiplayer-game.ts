@@ -137,6 +137,8 @@ export interface CardInstanceData extends Omit<CardInstance, 'effects'> {
   selectedBy?: string | null
   /** Player ID who confirmed selection of this card (locked, cannot be cancelled) */
   confirmedBy?: string | null
+  /** Round number when this card was acquired by current owner (for sell restriction) */
+  acquiredInRound?: number
 }
 
 // ============================================
@@ -807,9 +809,16 @@ export class MultiplayerGameService {
       finalIsComplete = nextResult.isComplete
     }
 
+    // Check if ALL players have confirmed their selections
+    // Each player should have 2 cards in total (1 from Round 1 + 1 from Round 2, or 2 from transition)
+    const allPlayersConfirmed = game.playerIds.every(pid => {
+      const playerSelections = confirmedSelections[pid] || []
+      return playerSelections.length >= 2
+    })
+
     // Update game state
-    if (finalIsComplete) {
-      // Hunting phase complete
+    if (allPlayersConfirmed) {
+      // All players have confirmed 2 cards → Hunting phase complete
       await update(gameRef, {
         'huntingPhase/confirmedSelections': confirmedSelections,
         'huntingPhase/selections': selections,
@@ -822,8 +831,9 @@ export class MultiplayerGameService {
 
       // Distribute confirmed cards to players
       await this.distributeConfirmedCards(gameId)
+      console.log(`[MultiplayerGame] All players confirmed selections, moving to ACTION phase`)
     } else {
-      // Move to next player
+      // Not all players confirmed yet, move to next player
       await update(gameRef, {
         'huntingPhase/confirmedSelections': confirmedSelections,
         'huntingPhase/selections': selections,
@@ -884,6 +894,7 @@ export class MultiplayerGameService {
           ownerId: playerId,
           selectedBy: null,
           confirmedBy: null,
+          acquiredInRound: game.currentRound, // Mark which round this card was acquired
         })
       }
     }
@@ -1113,6 +1124,11 @@ export class MultiplayerGameService {
     }
 
     const card: CardInstanceData = cardSnapshot.val()
+
+    // Check if card can be sold (only cards acquired in current round)
+    if (card.acquiredInRound !== game.currentRound) {
+      throw new Error('只能賣出本回合獲得的卡片')
+    }
 
     // Get card template to find element
     const allCards = getAllBaseCards()

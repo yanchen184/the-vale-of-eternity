@@ -37,6 +37,8 @@ export interface PlayerHandProps {
   onDragToField?: (cardId: string) => void
   /** Check if a card can be tamed */
   canTameCard?: (cardId: string) => boolean
+  /** Current round number (for sell restriction) */
+  currentRound?: number
   /** Additional CSS classes */
   className?: string
 }
@@ -184,6 +186,7 @@ interface HandCardItemProps {
   showActions: boolean
   enableDrag: boolean
   canTame: boolean
+  canSell: boolean
   onSelect: () => void
   onTame?: () => void
   onSell?: () => void
@@ -203,6 +206,7 @@ const HandCardItem = memo(function HandCardItem({
   showActions,
   enableDrag,
   canTame,
+  canSell,
   onSelect,
   onTame,
   onSell,
@@ -305,7 +309,7 @@ const HandCardItem = memo(function HandCardItem({
         isSelected={isSelected}
         showActions={showActions && isHovered}
         onTame={onTame}
-        onSell={onSell}
+        onSell={canSell ? onSell : undefined}
         onClick={onSelect}
         canTame={canTame}
         className={cn(
@@ -340,12 +344,21 @@ export const PlayerHand = memo(function PlayerHand({
   onCardSell,
   onDragToField: _onDragToField,
   canTameCard,
+  currentRound,
   className,
 }: PlayerHandProps) {
   void _onDragToField
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const [draggedCardId, setDraggedCardId] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Helper function to check if a card can be sold (only cards from current round)
+  const canSellCard = useCallback((card: CardInstance) => {
+    // If no currentRound is provided, allow selling all cards (backward compatibility)
+    if (currentRound === undefined) return true
+    // @ts-expect-error - acquiredInRound is added at runtime from Firebase
+    return card.acquiredInRound === currentRound
+  }, [currentRound])
 
   // Limit visible cards
   const visibleCards = useMemo(() => {
@@ -482,6 +495,7 @@ export const PlayerHand = memo(function PlayerHand({
             showActions={showActions}
             enableDrag={enableDrag && draggedCardId !== card.instanceId}
             canTame={canTameCard?.(card.instanceId) ?? false}
+            canSell={canSellCard(card)}
             onSelect={() => handleCardSelect(card.instanceId)}
             onTame={() => handleCardTame(card.instanceId)}
             onSell={() => handleCardSell(card.instanceId)}

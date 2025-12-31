@@ -926,12 +926,11 @@ export function MultiplayerGame() {
             playerName={currentPlayer?.name ?? ''}
             discardCount={discardedCards.length}
             marketDiscardCount={gameRoom.discardIds?.length ?? 0}
-            deckCount={gameRoom.deckIds?.length ?? 0}
             isYourTurn={isYourTurn}
             phase={gameRoom.status}
             onTakeCoin={handleTakeCoinFromBank}
             onReturnCoin={handleReturnCoinToBank}
-            onDiscardClick={() => {}} // TODO: Player's discard pile modal
+            onDiscardClick={() => setShowMarketDiscardModal(true)}
             onMarketDiscardClick={() => setShowMarketDiscardModal(true)}
             onConfirmSelection={handleConfirmCardSelection}
             onEndTurn={handlePassTurn}
