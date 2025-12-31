@@ -153,7 +153,7 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
               {/* Action buttons - only show for current player's own cards */}
               {isCurrentPlayer && (
                 <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
-                  {/* Return to Hand button - only show during player's own turn */}
+                  {/* Return to Hand button - show during player's own turn */}
                   {player.isCurrentTurn && !player.hasPassed && onCardReturn && (
                     <button
                       onClick={(e) => {
@@ -173,8 +173,8 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
                     </button>
                   )}
 
-                  {/* Discard button - show during other players' turns */}
-                  {!player.isCurrentTurn && onCardDiscard && (
+                  {/* Discard button - always show */}
+                  {onCardDiscard && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
@@ -259,7 +259,7 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
       {/* Header - Removed to save space */}
 
       {/* Players' Fields - Stacked Rows (每個玩家一列) */}
-      <div className="space-y-3">
+      <div className="space-y-2">
         {sortedPlayers.map((player) => (
           <PlayerFieldSection
             key={player.playerId}

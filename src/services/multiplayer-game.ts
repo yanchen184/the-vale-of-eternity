@@ -1,9 +1,9 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 3.12.2 - Enhanced Tengu return logging + removed element stone effects
+ * @version 3.13.0 - Tengu PUT_ON_DECK_TOP works with returnCardToHand
  */
-console.log('[services/multiplayer-game.ts] v3.12.2 loaded')
+console.log('[services/multiplayer-game.ts] v3.13.0 loaded')
 
 import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -1077,6 +1077,7 @@ export class MultiplayerGameService {
 
   /**
    * Return a card from field back to hand (undo taming)
+   * Special case: Cards with PUT_ON_DECK_TOP effect (like Tengu) go to deck top instead
    */
   async returnCardToHand(
     gameId: string,
@@ -1120,24 +1121,74 @@ export class MultiplayerGameService {
       throw new Error('Card not in field')
     }
 
-    // Move card from field back to hand
-    const currentHand = Array.isArray(player.hand) ? player.hand : []
+    // Get card data to check if it has special return behavior
+    const cardSnapshot = await get(ref(database, `games/${gameId}/cards/${cardInstanceId}`))
+    if (!cardSnapshot.exists()) {
+      throw new Error('Card not found')
+    }
+
+    const card: CardInstanceData = cardSnapshot.val()
+
+    // Get card template to check for PUT_ON_DECK_TOP effect
+    const allCards = getAllBaseCards()
+    const cardTemplate = allCards.find(c => c.id === card.cardId)
+
+    console.log(`[MultiplayerGame] 🔍 Returning field card ${cardInstanceId}`)
+    console.log(`[MultiplayerGame] 🔍 Card.cardId:`, card.cardId)
+    console.log(`[MultiplayerGame] 🔍 Card.name:`, card.name, card.nameTw)
+    console.log(`[MultiplayerGame] 🔍 Card template found:`, cardTemplate?.id, cardTemplate?.name, cardTemplate?.nameTw)
+    console.log(`[MultiplayerGame] 🔍 Card template effects:`, cardTemplate?.effects)
+
+    const hasDeckTopEffect = cardTemplate?.effects?.some(
+      e => e.type === EffectType.PUT_ON_DECK_TOP
+    )
+
+    console.log(`[MultiplayerGame] 🔍 Has PUT_ON_DECK_TOP effect:`, hasDeckTopEffect)
+    console.log(`[MultiplayerGame] 🔍 EffectType.PUT_ON_DECK_TOP value:`, EffectType.PUT_ON_DECK_TOP)
+
+    // Remove from field
     const currentField = Array.isArray(player.field) ? player.field : []
-    const updatedHand = [...currentHand, cardInstanceId]
     const updatedField = currentField.filter(id => id !== cardInstanceId)
 
-    // Update player state
-    await update(ref(database, `games/${gameId}/players/${playerId}`), {
-      hand: updatedHand,
-      field: updatedField,
-    })
+    if (hasDeckTopEffect) {
+      // Special case: Card goes to top of deck (like Tengu 天狗)
+      console.log(`[MultiplayerGame] ⭐ TENGU SPECIAL: Card ${card.nameTw || card.name} returning to TOP of deck!`)
 
-    // Update card location
-    await update(ref(database, `games/${gameId}/cards/${cardInstanceId}`), {
-      location: CardLocation.HAND,
-    })
+      await update(ref(database, `games/${gameId}/players/${playerId}`), {
+        field: updatedField,
+      })
 
-    console.log(`[MultiplayerGame] Player ${playerId} returned card ${cardInstanceId} to hand`)
+      await update(ref(database, `games/${gameId}/cards/${cardInstanceId}`), {
+        location: CardLocation.DECK,
+        ownerId: null,
+      })
+
+      // Add to top of deck (unshift to beginning of array)
+      const currentDeckIds = Array.isArray(game.deckIds) ? game.deckIds : []
+      const newDeckIds = [cardInstanceId, ...currentDeckIds]
+      await update(ref(database, `games/${gameId}`), {
+        deckIds: newDeckIds,
+        updatedAt: Date.now(),
+      })
+
+      console.log(`[MultiplayerGame] ✅ ${card.nameTw || card.name} is now at top of deck (position 0 in deckIds array)`)
+      console.log(`[MultiplayerGame] Deck now has ${newDeckIds.length} cards, first card is: ${newDeckIds[0]}`)
+    } else {
+      // Normal case: Card returns to hand
+      const currentHand = Array.isArray(player.hand) ? player.hand : []
+      const updatedHand = [...currentHand, cardInstanceId]
+
+      await update(ref(database, `games/${gameId}/players/${playerId}`), {
+        hand: updatedHand,
+        field: updatedField,
+      })
+
+      await update(ref(database, `games/${gameId}/cards/${cardInstanceId}`), {
+        location: CardLocation.HAND,
+      })
+
+      console.log(`[MultiplayerGame] Player ${playerId} returned card ${cardInstanceId} to hand`)
+    }
   }
 
   /**

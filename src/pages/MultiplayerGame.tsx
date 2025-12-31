@@ -312,7 +312,7 @@ function ActionPhaseUI({
   return (
     <div className="flex-1 flex flex-col overflow-hidden" data-testid={resolutionMode ? "resolution-phase" : "action-phase"}>
       {/* Top Section - Field Area & Hand */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar min-h-0">
+      <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar min-h-0">
         {/* Self Player's Field Area */}
         {selfPlayer && (
           <PlayersFieldArea
