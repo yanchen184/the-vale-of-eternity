@@ -62,11 +62,12 @@ const COIN_CONFIGS: CoinConfig[] = [
 // ============================================
 
 export const BankArea = memo(function BankArea({
-  bankCoins,
+  bankCoins: _bankCoins,
   allowInteraction = false,
   onTakeCoin,
   className = '',
 }: BankAreaProps) {
+  void _bankCoins // Reserved for displaying coin counts
   return (
     <div
       className={cn(

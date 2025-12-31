@@ -1,9 +1,9 @@
 /**
  * Game components exports
  * Core UI components for The Vale of Eternity game
- * @version 3.6.0 - Added PlayersInfoArea and PlayersFieldArea for ACTION phase
+ * @version 4.0.0 - Added symmetric layout components (LeftSidebar, RightSidebar, MainGameArea, GameLayout)
  */
-console.log('[components/game/index.ts] v3.6.0 loaded')
+console.log('[components/game/index.ts] v4.0.0 loaded')
 
 // Card components
 export { Card, CardBack } from './Card'
@@ -65,3 +65,13 @@ export { PlayersInfoArea } from './PlayersInfoArea'
 export type { PlayersInfoAreaProps, PlayerInfoData } from './PlayersInfoArea'
 export { PlayersFieldArea } from './PlayersFieldArea'
 export type { PlayersFieldAreaProps, PlayerFieldData } from './PlayersFieldArea'
+
+// Symmetric Layout components (v4.0.0)
+export { LeftSidebar } from './LeftSidebar'
+export type { LeftSidebarProps, PlayerSidebarData } from './LeftSidebar'
+export { RightSidebar } from './RightSidebar'
+export type { RightSidebarProps } from './RightSidebar'
+export { MainGameArea } from './MainGameArea'
+export type { MainGameAreaProps } from './MainGameArea'
+export { GameLayout, GameHeader } from './GameLayout'
+export type { GameLayoutProps, GameHeaderProps } from './GameLayout'

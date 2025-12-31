@@ -5,7 +5,7 @@
  */
 console.log('[pages/MultiplayerLobby.tsx] v3.1.0 loaded')
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { multiplayerGameService } from '@/services/multiplayer-game'
 import { Button } from '@/components/ui/Button'

@@ -1,9 +1,9 @@
 /**
  * Card Component with Image Display
  * Renders a game card with its image and stats
- * @version 2.7.0 - Sell button shows coin breakdown (6/3/1 denomination)
+ * @version 2.8.0 - Sell button shows element-based coin breakdown
  */
-console.log('[components/game/Card.tsx] v2.7.0 loaded')
+console.log('[components/game/Card.tsx] v2.8.0 loaded')
 
 import { useState, useCallback, memo } from 'react'
 import { Flame, Droplets, TreePine, Wind, Crown, Gem } from 'lucide-react'
@@ -12,6 +12,7 @@ import type { CardInstance } from '@/types/cards'
 import { Element } from '@/types/cards'
 import { PlayerMarker } from './PlayerMarker'
 import type { PlayerColor } from '@/types/player-color'
+import { getElementSellCoins } from '@/services/multiplayer-game'
 
 // ============================================
 // ELEMENT ICON COMPONENTS
@@ -141,20 +142,7 @@ interface CardActionsProps {
   onTame?: () => void
   onSell?: () => void
   canTame: boolean
-  sellValue?: number  // Card's baseScore for calculating sell coins
-}
-
-/**
- * Calculate optimal coin breakdown for a given value
- */
-function calculateCoinBreakdown(value: number): { six: number; three: number; one: number } {
-  let remaining = value
-  const six = Math.floor(remaining / 6)
-  remaining -= six * 6
-  const three = Math.floor(remaining / 3)
-  remaining -= three * 3
-  const one = remaining
-  return { six, three, one }
+  cardElement: Element  // Card's element for calculating sell coins
 }
 
 const CardActions = memo(function CardActions({
@@ -162,19 +150,17 @@ const CardActions = memo(function CardActions({
   onTame,
   onSell,
   canTame,
-  sellValue = 0,
+  cardElement,
 }: CardActionsProps) {
-  // Calculate coins for sell button
-  const coins = sellValue > 0 ? calculateCoinBreakdown(sellValue) : null
-  const coinText = coins
-    ? [
-        coins.six > 0 ? `${coins.six}×6` : null,
-        coins.three > 0 ? `${coins.three}×3` : null,
-        coins.one > 0 ? `${coins.one}×1` : null,
-      ]
-        .filter(Boolean)
-        .join(' ')
-    : ''
+  // Calculate coins for sell button based on element
+  const coins = getElementSellCoins(cardElement)
+  const coinText = [
+    coins.six > 0 ? `${coins.six}×6` : null,
+    coins.three > 0 ? `${coins.three}×3` : null,
+    coins.one > 0 ? `${coins.one}×1` : null,
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   return (
     <div className="absolute bottom-0 left-0 right-0 p-1 bg-slate-900/80 flex gap-1">
@@ -215,7 +201,7 @@ const CardActions = memo(function CardActions({
           }}
           className="flex-1 text-xs bg-amber-600 hover:bg-amber-500 text-white py-1 px-2 rounded transition-colors"
           type="button"
-          title={`賣出獲得: ${coinText || sellValue}`}
+          title={`賣出獲得: ${coinText}`}
         >
           <div className="flex flex-col items-center">
             <span>賣出</span>
@@ -440,7 +426,7 @@ export const Card = memo(function Card({
           onTame={onTame}
           onSell={onSell}
           canTame={canTame}
-          sellValue={card.baseScore}
+          cardElement={card.element}
         />
       )}
     </div>

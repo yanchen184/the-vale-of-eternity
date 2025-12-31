@@ -1,18 +1,58 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 3.7.0 - Manual payment: tameCard no longer auto-deducts stones, added returnCardToHand
+ * @version 3.8.1 - Added RESOLUTION phase: passTurn now moves to RESOLUTION instead of ENDED, added endGame function
  */
-console.log('[services/multiplayer-game.ts] v3.7.0 loaded')
+console.log('[services/multiplayer-game.ts] v3.8.1 loaded')
 
 import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
 import { getAllBaseCards } from '@/data/cards'
 import type { CardInstance, CardTemplate } from '@/types/cards'
-import { CardLocation, StoneType } from '@/types/cards'
+import { CardLocation, StoneType, Element } from '@/types/cards'
 import { effectProcessor } from './effect-processor'
 import { scoreCalculator, type ScoreBreakdown } from './score-calculator'
 import { type PlayerColor, getColorByIndex } from '@/types/player-color'
+
+// ============================================
+// CONSTANTS
+// ============================================
+
+/**
+ * Element to coins mapping for selling cards
+ * 火元素: 3個1元 (3×1)
+ * 水元素: 1個3元 (1×3)
+ * 龍元素: 1個6元 (1×6)
+ * 風元素: 1個3元 + 1個1元 (1×3 + 1×1 = 4)
+ * 土元素: 4個1元 (4×1)
+ */
+const ELEMENT_SELL_COINS: Record<Element, { type: StoneType; amount: number }[]> = {
+  [Element.FIRE]: [{ type: StoneType.ONE, amount: 3 }],
+  [Element.WATER]: [{ type: StoneType.THREE, amount: 1 }],
+  [Element.DRAGON]: [{ type: StoneType.SIX, amount: 1 }],
+  [Element.WIND]: [
+    { type: StoneType.THREE, amount: 1 },
+    { type: StoneType.ONE, amount: 1 },
+  ],
+  [Element.EARTH]: [{ type: StoneType.ONE, amount: 4 }],
+}
+
+/**
+ * Get coin breakdown for selling a card based on its element
+ * Returns array of { denomination, count } for display
+ */
+export function getElementSellCoins(element: Element): { six: number; three: number; one: number } {
+  const coins = ELEMENT_SELL_COINS[element] || []
+  const result = { six: 0, three: 0, one: 0 }
+
+  coins.forEach(({ type, amount }) => {
+    if (type === StoneType.SIX) result.six = amount
+    else if (type === StoneType.THREE) result.three = amount
+    else if (type === StoneType.ONE) result.one = amount
+  })
+
+  return result
+}
 
 // ============================================
 // TYPES
@@ -1021,7 +1061,8 @@ export class MultiplayerGameService {
   }
 
   /**
-   * Sell a card from field for stones (Action Phase)
+   * Sell a card from hand for coins based on element (Action Phase)
+   * Auto-gives coins to player based on card element
    */
   async sellCard(
     gameId: string,
@@ -1073,15 +1114,33 @@ export class MultiplayerGameService {
 
     const card: CardInstanceData = cardSnapshot.val()
 
-    // Selling just moves card to discard - player takes coins manually from bank
+    // Get card template to find element
+    const allCards = getAllBaseCards()
+    const cardTemplate = allCards.find(c => c.id === card.cardId)
+    if (!cardTemplate) {
+      throw new Error(`Card template not found for ${card.cardId}`)
+    }
+
+    // Get coins based on element
+    const coinsToGive = ELEMENT_SELL_COINS[cardTemplate.element]
+    if (!coinsToGive) {
+      throw new Error(`No sell coins defined for element ${cardTemplate.element}`)
+    }
+
+    // Calculate new stone amounts
+    const updatedStones = { ...player.stones }
+    coinsToGive.forEach(({ type, amount }) => {
+      updatedStones[type] = (updatedStones[type] || 0) + amount
+    })
+
     // Move card from hand to discard
-    // Ensure hand is an array
     const currentHand = Array.isArray(player.hand) ? player.hand : []
     const updatedHand = currentHand.filter(id => id !== cardInstanceId)
 
-    // Update player state (only remove card from hand, no automatic coin payment)
+    // Update player state (remove card from hand AND give coins)
     await update(ref(database, `games/${gameId}/players/${playerId}`), {
       hand: updatedHand,
+      stones: updatedStones,
     })
 
     // Update card location
@@ -1096,8 +1155,134 @@ export class MultiplayerGameService {
       updatedAt: Date.now(),
     })
 
+    // Format coins for logging
+    const coinsDescription = coinsToGive
+      .map(({ type, amount }) => `${amount}×${type}`)
+      .join(' + ')
+
     console.log(
-      `[MultiplayerGame] Player ${playerId} sold card ${cardInstanceId} (${card.name}) worth ${card.baseScore} - player takes coins manually from bank`
+      `[MultiplayerGame] Player ${playerId} sold ${cardTemplate.element} card ${cardInstanceId} (${card.name}) and received ${coinsDescription}`
+    )
+  }
+
+  /**
+   * Return a sold card from discard pile back to hand (undo sell, Action Phase)
+   * Returns the coins that were received from selling
+   */
+  async returnCardFromDiscard(
+    gameId: string,
+    playerId: string,
+    cardInstanceId: string
+  ): Promise<void> {
+    const gameRef = ref(database, `games/${gameId}`)
+    const snapshot = await get(gameRef)
+
+    if (!snapshot.exists()) {
+      throw new Error('Game not found')
+    }
+
+    const game: GameRoom = snapshot.val()
+
+    if (game.status !== 'ACTION') {
+      throw new Error('Not in action phase')
+    }
+
+    const currentPlayerIndex = game.currentPlayerIndex
+    const expectedPlayerId = game.playerIds[currentPlayerIndex]
+
+    if (playerId !== expectedPlayerId) {
+      throw new Error('Not your turn')
+    }
+
+    // Get player state
+    const playerSnapshot = await get(ref(database, `games/${gameId}/players/${playerId}`))
+    if (!playerSnapshot.exists()) {
+      throw new Error('Player not found')
+    }
+
+    const player: PlayerState = playerSnapshot.val()
+
+    // Check if card is in discard pile
+    const currentDiscardIds = Array.isArray(game.discardIds) ? game.discardIds : []
+    if (!currentDiscardIds.includes(cardInstanceId)) {
+      throw new Error('Card not in discard pile')
+    }
+
+    // Get card data
+    const cardSnapshot = await get(ref(database, `games/${gameId}/cards/${cardInstanceId}`))
+    if (!cardSnapshot.exists()) {
+      throw new Error('Card not found')
+    }
+
+    const card: CardInstanceData = cardSnapshot.val()
+
+    // Verify card was owned by this player (or allow any player to take from discard?)
+    // For now, only allow the original owner to return
+    if (card.ownerId !== playerId) {
+      throw new Error('You can only return cards you sold')
+    }
+
+    // Get card template to find element and calculate coins to return
+    const allCards = getAllBaseCards()
+    const cardTemplate = allCards.find(c => c.id === card.cardId)
+    if (!cardTemplate) {
+      throw new Error(`Card template not found for ${card.cardId}`)
+    }
+
+    // Get coins that were given when selling
+    const coinsToReturn = ELEMENT_SELL_COINS[cardTemplate.element]
+    if (!coinsToReturn) {
+      throw new Error(`No sell coins defined for element ${cardTemplate.element}`)
+    }
+
+    // Calculate new stone amounts (subtract the coins)
+    const updatedStones = { ...player.stones }
+    let canReturn = true
+    coinsToReturn.forEach(({ type, amount }) => {
+      const currentAmount = updatedStones[type] || 0
+      if (currentAmount < amount) {
+        canReturn = false
+      }
+    })
+
+    if (!canReturn) {
+      throw new Error('Not enough coins to return (you must have used some of the coins already)')
+    }
+
+    // Deduct coins
+    coinsToReturn.forEach(({ type, amount }) => {
+      updatedStones[type] = (updatedStones[type] || 0) - amount
+    })
+
+    // Move card from discard to hand
+    const currentHand = Array.isArray(player.hand) ? player.hand : []
+    const updatedHand = [...currentHand, cardInstanceId]
+    const updatedDiscardIds = currentDiscardIds.filter(id => id !== cardInstanceId)
+
+    // Update player state (add card to hand AND remove coins)
+    await update(ref(database, `games/${gameId}/players/${playerId}`), {
+      hand: updatedHand,
+      stones: updatedStones,
+    })
+
+    // Update card location
+    await update(ref(database, `games/${gameId}/cards/${cardInstanceId}`), {
+      location: CardLocation.HAND,
+    })
+
+    // Update game discard pile
+    await update(ref(database, `games/${gameId}`), {
+      discardIds: updatedDiscardIds,
+      updatedAt: Date.now(),
+    })
+
+    // Format coins for logging
+    const coinsDescription = coinsToReturn
+      .map(({ type, amount }) => `${amount}×${type}`)
+      .join(' + ')
+
+    console.log(
+      `[MultiplayerGame] Player ${playerId} returned ${cardTemplate.element} card ${cardInstanceId} (${card.name}) from discard and returned ${coinsDescription}`
     )
   }
 
@@ -1131,10 +1316,9 @@ export class MultiplayerGameService {
 
       // Check if all players have passed
       if (game.passedPlayerIds.length === game.playerIds.length) {
-        // All players passed → End game
-        game.status = 'ENDED'
-        game.endedAt = Date.now()
-        console.log(`[MultiplayerGame] All players passed, game ${game.gameId} ended`)
+        // All players passed → Move to RESOLUTION phase
+        game.status = 'RESOLUTION'
+        console.log(`[MultiplayerGame] All players passed, moving to RESOLUTION phase for game ${game.gameId}`)
       } else {
         // Move to next player
         const nextPlayerIndex = (currentPlayerIndex + 1) % game.playerIds.length
@@ -1152,6 +1336,30 @@ export class MultiplayerGameService {
       }
 
       game.updatedAt = Date.now()
+      return game
+    })
+  }
+
+  /**
+   * End the game (from RESOLUTION phase to ENDED)
+   * Only callable by host during RESOLUTION phase
+   */
+  async endGame(gameId: string): Promise<void> {
+    await runTransaction(ref(database, `games/${gameId}`), (game: GameRoom | null) => {
+      if (!game) {
+        throw new Error('Game not found')
+      }
+
+      if (game.status !== 'RESOLUTION') {
+        throw new Error('Game must be in RESOLUTION phase to end')
+      }
+
+      // Move to ENDED status
+      game.status = 'ENDED'
+      game.endedAt = Date.now()
+      game.updatedAt = Date.now()
+
+      console.log(`[MultiplayerGame] Game ${gameId} ended`)
       return game
     })
   }

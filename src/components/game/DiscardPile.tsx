@@ -1,9 +1,9 @@
 /**
  * DiscardPile Component
  * Displays discarded cards face-up with full card details visible
- * @version 1.1.0 - Cards are face-up and readable
+ * @version 1.2.0 - Added return button for reversible sells
  */
-console.log('[components/game/DiscardPile.tsx] v1.1.0 loaded')
+console.log('[components/game/DiscardPile.tsx] v1.2.0 loaded')
 
 import { useState, memo, useRef, useEffect, useCallback } from 'react'
 import gsap from 'gsap'
@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { ANIMATION_DURATION, ANIMATION_EASE, prefersReducedMotion } from '@/lib/animations'
 import { Modal } from '@/components/ui/Modal'
 import { Card } from './Card'
+import { getElementSellCoins } from '@/services/multiplayer-game'
 
 // ============================================
 // TYPES
@@ -24,6 +25,10 @@ export interface DiscardPileProps {
   interactive?: boolean
   /** Callback when a card is viewed */
   onViewCard?: (cardId: string) => void
+  /** Callback when a card should be returned from discard (undo sell) */
+  onReturnCard?: (cardInstanceId: string) => void
+  /** Whether return button is enabled */
+  allowReturn?: boolean
   /** Additional CSS classes */
   className?: string
 }
@@ -96,7 +101,7 @@ const StackedCard = memo(function StackedCard({
       data-testid={`discard-stack-${index}`}
     >
       {/* Show actual card face-up */}
-      <Card card={card} size="sm" compact />
+      <Card card={card} compact />
     </div>
   )
 })
@@ -109,12 +114,16 @@ interface DiscardModalProps {
   isOpen: boolean
   cards: CardInstance[]
   onClose: () => void
+  onReturnCard?: (cardInstanceId: string) => void
+  allowReturn?: boolean
 }
 
 const DiscardModal = memo(function DiscardModal({
   isOpen,
   cards,
   onClose,
+  onReturnCard,
+  allowReturn = false,
 }: DiscardModalProps) {
   console.log('[DiscardModal] Rendering with cards:', cards.length, cards)
 
@@ -133,15 +142,26 @@ const DiscardModal = memo(function DiscardModal({
         ) : (
           <>
             <p className="text-sm text-slate-400 mb-4">
-              共 {cards.length} 張卡片已棄置
+              共 {cards.length} 張卡片已棄置{allowReturn ? '（點擊取回按鈕反悔賣出）' : ''}
             </p>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 max-h-[60vh] overflow-y-auto">
               {cards.map((card, index) => {
                 console.log(`[DiscardModal] Rendering card ${index}:`, card.name, card.instanceId)
+
+                // Calculate coins for this card
+                const coins = getElementSellCoins(card.element)
+                const coinText = [
+                  coins.six > 0 ? `${coins.six}×6` : null,
+                  coins.three > 0 ? `${coins.three}×3` : null,
+                  coins.one > 0 ? `${coins.one}×1` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' ')
+
                 return (
                   <div
                     key={card.instanceId}
-                    className="animate-fade-in"
+                    className="animate-fade-in relative"
                     style={{ animationDelay: `${index * 50}ms` }}
                   >
                     <Card
@@ -149,6 +169,17 @@ const DiscardModal = memo(function DiscardModal({
                       index={index}
                       compact
                     />
+                    {/* Return button */}
+                    {allowReturn && onReturnCard && (
+                      <button
+                        onClick={() => onReturnCard(card.instanceId)}
+                        className="absolute bottom-0 left-0 right-0 bg-green-600 hover:bg-green-500 text-white text-[10px] py-1 px-2 rounded-b transition-colors"
+                        type="button"
+                        title={`取回（歸還 ${coinText}）`}
+                      >
+                        取回
+                      </button>
+                    )}
                   </div>
                 )
               })}
@@ -168,6 +199,8 @@ export const DiscardPile = memo(function DiscardPile({
   cards,
   interactive = true,
   onViewCard: _onViewCard,
+  onReturnCard,
+  allowReturn = false,
   className,
 }: DiscardPileProps) {
   void _onViewCard
@@ -294,6 +327,8 @@ export const DiscardPile = memo(function DiscardPile({
         isOpen={isModalOpen}
         cards={cards}
         onClose={handleCloseModal}
+        onReturnCard={onReturnCard}
+        allowReturn={allowReturn}
       />
     </>
   )

@@ -57,6 +57,7 @@ const CELLS_PER_ROW = 20 // Snake pattern: 20 cells per row
  * Row 3: [60] (right to left display if needed)
  * (Currently unused but kept for future drag-and-drop positioning feature)
  */
+// @ts-ignore: Reserved for future drag-and-drop feature
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getPositionFromScore(score: number): { row: number; col: number } {
   const clampedScore = Math.max(0, Math.min(TRACK_LENGTH, score))
