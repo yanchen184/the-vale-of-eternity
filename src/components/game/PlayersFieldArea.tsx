@@ -34,6 +34,8 @@ export interface PlayersFieldAreaProps {
   onCardClick?: (playerId: string, cardId: string) => void
   /** Callback when a card is returned to hand (optional) */
   onCardReturn?: (playerId: string, cardId: string) => void
+  /** Callback when a card is discarded from field (optional) */
+  onCardDiscard?: (playerId: string, cardId: string) => void
   /** Additional CSS classes */
   className?: string
 }
@@ -48,6 +50,7 @@ interface PlayerFieldSectionProps {
   position: 'top' | 'bottom' | 'left' | 'right' | 'grid'
   onCardClick?: (cardId: string) => void
   onCardReturn?: (cardId: string) => void
+  onCardDiscard?: (cardId: string) => void
 }
 
 const PlayerFieldSection = memo(function PlayerFieldSection({
@@ -56,6 +59,7 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
   position,
   onCardClick,
   onCardReturn,
+  onCardDiscard,
 }: PlayerFieldSectionProps) {
   const colorConfig = PLAYER_COLORS[player.color]
 
@@ -66,6 +70,10 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
   const handleCardReturn = useCallback((cardId: string) => {
     onCardReturn?.(cardId)
   }, [onCardReturn])
+
+  const handleCardDiscard = useCallback((cardId: string) => {
+    onCardDiscard?.(cardId)
+  }, [onCardDiscard])
 
   return (
     <div
@@ -141,26 +149,50 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
                   player.isCurrentTurn && 'ring-1 ring-vale-500/30'
                 )}
               />
-              {/* Return button - only show for current player's own cards during their turn */}
-              {isCurrentPlayer && player.isCurrentTurn && !player.hasPassed && onCardReturn && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleCardReturn(card.instanceId)
-                  }}
-                  className={cn(
-                    'absolute -bottom-2 left-1/2 -translate-x-1/2',
-                    'px-2 py-1 text-xs rounded-md',
-                    'bg-amber-600 hover:bg-amber-500 text-white',
-                    'opacity-0 group-hover:opacity-100',
-                    'transition-opacity duration-200',
-                    'shadow-lg border border-amber-400/50',
-                    'whitespace-nowrap z-20'
+
+              {/* Action buttons - only show for current player's own cards */}
+              {isCurrentPlayer && (
+                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
+                  {/* Return to Hand button - always available */}
+                  {onCardReturn && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleCardReturn(card.instanceId)
+                      }}
+                      className={cn(
+                        'px-2 py-1 text-xs rounded-md',
+                        'bg-blue-600 hover:bg-blue-500 text-white',
+                        'shadow-lg border border-blue-400/50',
+                        'whitespace-nowrap'
+                      )}
+                      type="button"
+                      title="回到手牌"
+                    >
+                      回手
+                    </button>
                   )}
-                  type="button"
-                >
-                  撤回
-                </button>
+
+                  {/* Discard button - only during player's turn */}
+                  {player.isCurrentTurn && !player.hasPassed && onCardDiscard && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleCardDiscard(card.instanceId)
+                      }}
+                      className={cn(
+                        'px-2 py-1 text-xs rounded-md',
+                        'bg-red-600 hover:bg-red-500 text-white',
+                        'shadow-lg border border-red-400/50',
+                        'whitespace-nowrap'
+                      )}
+                      type="button"
+                      title="捨棄到棄牌堆"
+                    >
+                      捨棄
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           ))}
@@ -189,6 +221,7 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
   currentPlayerId,
   onCardClick,
   onCardReturn,
+  onCardDiscard,
   className,
 }: PlayersFieldAreaProps) {
   // Sort players: self first, then others by index
@@ -210,6 +243,10 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
   const handlePlayerCardReturn = useCallback((playerId: string, cardId: string) => {
     onCardReturn?.(playerId, cardId)
   }, [onCardReturn])
+
+  const handlePlayerCardDiscard = useCallback((playerId: string, cardId: string) => {
+    onCardDiscard?.(playerId, cardId)
+  }, [onCardDiscard])
 
   return (
     <section
@@ -237,6 +274,7 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
             position="grid"
             onCardClick={(cardId) => handlePlayerCardClick(player.playerId, cardId)}
             onCardReturn={(cardId) => handlePlayerCardReturn(player.playerId, cardId)}
+            onCardDiscard={(cardId) => handlePlayerCardDiscard(player.playerId, cardId)}
           />
         ))}
       </div>

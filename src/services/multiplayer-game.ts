@@ -1381,6 +1381,144 @@ export class MultiplayerGameService {
   }
 
   /**
+   * Return a field card back to hand (Resolution Phase or when card effect requires it)
+   */
+  async returnFieldCardToHand(
+    gameId: string,
+    playerId: string,
+    cardInstanceId: string
+  ): Promise<void> {
+    const gameRef = ref(database, `games/${gameId}`)
+    const snapshot = await get(gameRef)
+
+    if (!snapshot.exists()) {
+      throw new Error('Game not found')
+    }
+
+    const game: GameRoom = snapshot.val()
+
+    // Get player state
+    const playerSnapshot = await get(ref(database, `games/${gameId}/players/${playerId}`))
+    if (!playerSnapshot.exists()) {
+      throw new Error('Player not found')
+    }
+
+    const player: PlayerState = playerSnapshot.val()
+
+    // Check if card is in player's field
+    const currentField = Array.isArray(player.field) ? player.field : []
+    if (!currentField.includes(cardInstanceId)) {
+      throw new Error('Card not in field')
+    }
+
+    // Get card data to check if it has special return behavior
+    const cardSnapshot = await get(ref(database, `games/${gameId}/cards/${cardInstanceId}`))
+    if (!cardSnapshot.exists()) {
+      throw new Error('Card not found')
+    }
+
+    const card: CardInstanceData = cardSnapshot.val()
+
+    // Get card template to check for PUT_ON_DECK_TOP effect
+    const allCards = getAllBaseCards()
+    const cardTemplate = allCards.find(c => c.id === card.cardId)
+    const hasDeckTopEffect = cardTemplate?.effects?.some(
+      e => e.type === EffectType.PUT_ON_DECK_TOP
+    )
+
+    // Remove from field
+    const updatedField = currentField.filter(id => id !== cardInstanceId)
+
+    if (hasDeckTopEffect) {
+      // Special case: Card goes to top of deck (like Tengu)
+      await update(ref(database, `games/${gameId}/players/${playerId}`), {
+        field: updatedField,
+      })
+
+      await update(ref(database, `games/${gameId}/cards/${cardInstanceId}`), {
+        location: CardLocation.DECK,
+        ownerId: null,
+      })
+
+      // Add to top of deck (unshift to beginning of array)
+      const currentDeckIds = Array.isArray(game.deckIds) ? game.deckIds : []
+      await update(ref(database, `games/${gameId}`), {
+        deckIds: [cardInstanceId, ...currentDeckIds],
+        updatedAt: Date.now(),
+      })
+
+      console.log(`[MultiplayerGame] Player ${playerId} returned ${cardInstanceId} to top of deck`)
+    } else {
+      // Normal case: Card returns to hand
+      const currentHand = Array.isArray(player.hand) ? player.hand : []
+      const updatedHand = [...currentHand, cardInstanceId]
+
+      await update(ref(database, `games/${gameId}/players/${playerId}`), {
+        hand: updatedHand,
+        field: updatedField,
+      })
+
+      await update(ref(database, `games/${gameId}/cards/${cardInstanceId}`), {
+        location: CardLocation.HAND,
+      })
+
+      console.log(`[MultiplayerGame] Player ${playerId} returned ${cardInstanceId} from field to hand`)
+    }
+  }
+
+  /**
+   * Discard a field card (Action/Resolution Phase)
+   */
+  async discardFieldCard(
+    gameId: string,
+    playerId: string,
+    cardInstanceId: string
+  ): Promise<void> {
+    const gameRef = ref(database, `games/${gameId}`)
+    const snapshot = await get(gameRef)
+
+    if (!snapshot.exists()) {
+      throw new Error('Game not found')
+    }
+
+    const game: GameRoom = snapshot.val()
+
+    // Get player state
+    const playerSnapshot = await get(ref(database, `games/${gameId}/players/${playerId}`))
+    if (!playerSnapshot.exists()) {
+      throw new Error('Player not found')
+    }
+
+    const player: PlayerState = playerSnapshot.val()
+
+    // Check if card is in player's field
+    const currentField = Array.isArray(player.field) ? player.field : []
+    if (!currentField.includes(cardInstanceId)) {
+      throw new Error('Card not in field')
+    }
+
+    // Remove from field
+    const updatedField = currentField.filter(id => id !== cardInstanceId)
+
+    await update(ref(database, `games/${gameId}/players/${playerId}`), {
+      field: updatedField,
+    })
+
+    await update(ref(database, `games/${gameId}/cards/${cardInstanceId}`), {
+      location: CardLocation.DISCARD,
+    })
+
+    // Add to game discard pile
+    const currentDiscardIds = Array.isArray(game.discardIds) ? game.discardIds : []
+    await update(ref(database, `games/${gameId}`), {
+      discardIds: [...currentDiscardIds, cardInstanceId],
+      updatedAt: Date.now(),
+    })
+
+    console.log(`[MultiplayerGame] Player ${playerId} discarded ${cardInstanceId} from field`)
+  }
+
+  /**
    * Pass turn (Action Phase)
    */
   async passTurn(gameId: string, playerId: string): Promise<void> {

@@ -1,9 +1,9 @@
 /**
  * PlayerHand Component
  * Displays player's hand cards with enhanced fan layout, animations, and drag-drop support
- * @version 2.1.0 - Optimized fan animation and visual effects
+ * @version 2.2.0 - Added round-based sell restriction (only current round cards can be sold)
  */
-console.log('[components/game/PlayerHand.tsx] v2.1.0 loaded')
+console.log('[components/game/PlayerHand.tsx] v2.2.0 loaded')
 
 import { useState, useCallback, useMemo, memo, useRef, useEffect } from 'react'
 import gsap from 'gsap'

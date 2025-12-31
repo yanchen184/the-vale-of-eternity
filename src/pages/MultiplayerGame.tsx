@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 5.5.0 - Reordered layout: self field → hand → other players' fields
+ * @version 5.6.0 - Added round-based sell restriction (only current round cards can be sold)
  */
-console.log('[pages/MultiplayerGame.tsx] v5.5.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v5.6.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -273,6 +273,7 @@ interface ActionPhaseUIProps {
   handCards: CardInstance[]
   playerScores: PlayerScoreInfo[]
   currentPlayerId: string
+  currentRound: number
   isYourTurn: boolean
   onCardPlay: (cardId: string) => void
   onCardSell: (cardId: string) => void
@@ -289,6 +290,7 @@ function ActionPhaseUI({
   handCards,
   playerScores,
   currentPlayerId,
+  currentRound,
   isYourTurn,
   onCardPlay,
   onCardSell,
@@ -326,6 +328,7 @@ function ActionPhaseUI({
             onCardPlay={onCardPlay}
             onCardSell={onCardSell}
             canTameCard={canTameCard}
+            currentRound={currentRound}
             className="rounded-xl border border-purple-900/30"
           />
         </div>
@@ -924,7 +927,7 @@ export function MultiplayerGame() {
             bankCoins={gameRoom.bankCoins || createEmptyStonePool()}
             playerCoins={currentPlayer?.stones || createEmptyStonePool()}
             playerName={currentPlayer?.name ?? ''}
-            discardCount={discardedCards.length}
+            discardCount={0}
             marketDiscardCount={gameRoom.discardIds?.length ?? 0}
             isYourTurn={isYourTurn}
             phase={gameRoom.status}
@@ -967,6 +970,7 @@ export function MultiplayerGame() {
                 handCards={handCards}
                 playerScores={playerScores}
                 currentPlayerId={playerId ?? ''}
+                currentRound={gameRoom.currentRound}
                 isYourTurn={isYourTurn}
                 onCardPlay={handleTameCard}
                 onCardSell={handleSellCard}
@@ -984,6 +988,7 @@ export function MultiplayerGame() {
                 handCards={handCards}
                 playerScores={playerScores}
                 currentPlayerId={playerId ?? ''}
+                currentRound={gameRoom.currentRound}
                 isYourTurn={isYourTurn}
                 onCardPlay={handleTameCard}
                 onCardSell={handleSellCard}
