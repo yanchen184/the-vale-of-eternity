@@ -2,9 +2,9 @@
  * GameLayout Component
  * Symmetric layout container for multiplayer game
  * Fixed height, no scroll, left-right balanced design
- * @version 1.0.0
+ * @version 1.1.0 - Added scoreBar support at the bottom
  */
-console.log('[components/game/GameLayout.tsx] v1.0.0 loaded')
+console.log('[components/game/GameLayout.tsx] v1.1.0 loaded')
 
 import { memo, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
@@ -22,6 +22,8 @@ export interface GameLayoutProps {
   mainContent?: ReactNode
   /** Right sidebar content (fixed width) */
   rightSidebar?: ReactNode
+  /** Score bar content (fixed height, bottom of screen) */
+  scoreBar?: ReactNode
   /** Whether to show sidebars */
   showSidebars?: boolean
   /** Additional CSS classes for the container */
@@ -58,6 +60,7 @@ export const GameLayout = memo(function GameLayout({
   leftSidebar,
   mainContent,
   rightSidebar,
+  scoreBar,
   showSidebars = true,
   className,
   testId = 'game-layout',
@@ -108,6 +111,16 @@ export const GameLayout = memo(function GameLayout({
           </div>
         )}
       </div>
+
+      {/* Score Bar - Fixed Height at Bottom */}
+      {scoreBar && (
+        <footer
+          className="h-12 flex-shrink-0 border-t border-purple-500/30 bg-slate-900/80 backdrop-blur-sm z-20"
+          data-testid="game-layout-score-bar"
+        >
+          {scoreBar}
+        </footer>
+      )}
     </div>
   )
 })

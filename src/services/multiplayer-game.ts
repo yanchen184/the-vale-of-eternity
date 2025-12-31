@@ -1,9 +1,9 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 3.8.1 - Added RESOLUTION phase: passTurn now moves to RESOLUTION instead of ENDED, added endGame function
+ * @version 3.9.1 - finishResolution deals 4 new cards to market when starting next round
  */
-console.log('[services/multiplayer-game.ts] v3.8.1 loaded')
+console.log('[services/multiplayer-game.ts] v3.9.1 loaded')
 
 import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -1287,6 +1287,84 @@ export class MultiplayerGameService {
   }
 
   /**
+   * Take a card from market discard pile to hand (Action Phase)
+   * No cost - just moves card from market discard to player's hand
+   */
+  async takeCardFromMarketDiscard(
+    gameId: string,
+    playerId: string,
+    cardInstanceId: string
+  ): Promise<void> {
+    const gameRef = ref(database, `games/${gameId}`)
+    const snapshot = await get(gameRef)
+
+    if (!snapshot.exists()) {
+      throw new Error('Game not found')
+    }
+
+    const game: GameRoom = snapshot.val()
+
+    if (game.status !== 'ACTION') {
+      throw new Error('Not in action phase')
+    }
+
+    const currentPlayerIndex = game.currentPlayerIndex
+    const expectedPlayerId = game.playerIds[currentPlayerIndex]
+
+    if (playerId !== expectedPlayerId) {
+      throw new Error('Not your turn')
+    }
+
+    // Get player state
+    const playerSnapshot = await get(ref(database, `games/${gameId}/players/${playerId}`))
+    if (!playerSnapshot.exists()) {
+      throw new Error('Player not found')
+    }
+
+    const player: PlayerState = playerSnapshot.val()
+
+    // Check if card is in market discard pile
+    const currentDiscardIds = Array.isArray(game.discardIds) ? game.discardIds : []
+    if (!currentDiscardIds.includes(cardInstanceId)) {
+      throw new Error('Card not in market discard pile')
+    }
+
+    // Get card data
+    const cardSnapshot = await get(ref(database, `games/${gameId}/cards/${cardInstanceId}`))
+    if (!cardSnapshot.exists()) {
+      throw new Error('Card not found')
+    }
+
+    const card: CardInstanceData = cardSnapshot.val()
+
+    // Move card from market discard to hand
+    const currentHand = Array.isArray(player.hand) ? player.hand : []
+    const updatedHand = [...currentHand, cardInstanceId]
+    const updatedDiscardIds = currentDiscardIds.filter(id => id !== cardInstanceId)
+
+    // Update player state (add card to hand)
+    await update(ref(database, `games/${gameId}/players/${playerId}`), {
+      hand: updatedHand,
+    })
+
+    // Update card location and owner
+    await update(ref(database, `games/${gameId}/cards/${cardInstanceId}`), {
+      location: CardLocation.HAND,
+      ownerId: playerId, // Set owner to current player
+    })
+
+    // Update game market discard pile
+    await update(ref(database, `games/${gameId}`), {
+      discardIds: updatedDiscardIds,
+      updatedAt: Date.now(),
+    })
+
+    console.log(
+      `[MultiplayerGame] Player ${playerId} took card ${cardInstanceId} (${card.name}) from market discard pile to hand`
+    )
+  }
+
+  /**
    * Pass turn (Action Phase)
    */
   async passTurn(gameId: string, playerId: string): Promise<void> {
@@ -1318,6 +1396,8 @@ export class MultiplayerGameService {
       if (game.passedPlayerIds.length === game.playerIds.length) {
         // All players passed → Move to RESOLUTION phase
         game.status = 'RESOLUTION'
+        game.currentPlayerIndex = 0  // Start resolution from first player
+        game.passedPlayerIds = []  // Reset for tracking who finished resolution
         console.log(`[MultiplayerGame] All players passed, moving to RESOLUTION phase for game ${game.gameId}`)
       } else {
         // Move to next player
@@ -1333,6 +1413,68 @@ export class MultiplayerGameService {
           game.currentPlayerIndex = (game.currentPlayerIndex + 1) % game.playerIds.length
           skipCount++
         }
+      }
+
+      game.updatedAt = Date.now()
+      return game
+    })
+  }
+
+  /**
+   * Finish resolution for current player
+   * Moves to next player's resolution, or starts next round if all done
+   */
+  async finishResolution(gameId: string, playerId: string): Promise<void> {
+    await runTransaction(ref(database, `games/${gameId}`), (game: GameRoom | null) => {
+      if (!game) return game
+
+      if (game.status !== 'RESOLUTION') {
+        throw new Error('Not in resolution phase')
+      }
+
+      const currentPlayerIndex = game.currentPlayerIndex
+      const expectedPlayerId = game.playerIds[currentPlayerIndex]
+
+      if (playerId !== expectedPlayerId) {
+        throw new Error('Not your turn for resolution')
+      }
+
+      // Mark player as finished resolution
+      if (!Array.isArray(game.passedPlayerIds)) {
+        game.passedPlayerIds = []
+      }
+      if (!game.passedPlayerIds.includes(playerId)) {
+        game.passedPlayerIds.push(playerId)
+      }
+
+      // Check if all players finished resolution
+      if (game.passedPlayerIds.length === game.playerIds.length) {
+        // All players finished resolution → Start next round
+        game.currentRound = (game.currentRound || 1) + 1
+        game.status = 'ACTION'
+        game.currentPlayerIndex = 0
+        game.passedPlayerIds = []
+
+        // Deal 4 new cards to market
+        if (!Array.isArray(game.deckIds)) {
+          game.deckIds = []
+        }
+        if (!Array.isArray(game.marketIds)) {
+          game.marketIds = []
+        }
+
+        const cardsToDeal = Math.min(4, game.deckIds.length)
+        const newMarketCards = game.deckIds.slice(0, cardsToDeal)
+        game.marketIds.push(...newMarketCards)
+        game.deckIds = game.deckIds.slice(cardsToDeal)
+
+        console.log(
+          `[MultiplayerGame] All players finished resolution, starting round ${game.currentRound}, dealt ${cardsToDeal} cards to market`
+        )
+      } else {
+        // Move to next player for resolution
+        game.currentPlayerIndex = (currentPlayerIndex + 1) % game.playerIds.length
+        console.log(`[MultiplayerGame] Player ${playerId} finished resolution, moving to next player`)
       }
 
       game.updatedAt = Date.now()

@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 5.0.2 - Added RESOLUTION phase UI with ranking and end game button
+ * @version 5.2.0 - RESOLUTION phase redesigned as cycling round-end phase
  */
-console.log('[pages/MultiplayerGame.tsx] v5.0.2 loaded')
+console.log('[pages/MultiplayerGame.tsx] v5.2.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -26,8 +26,9 @@ import {
   GameHeader,
   LeftSidebar,
   RightSidebar,
+  ScoreBar,
 } from '@/components/game'
-import type { PlayerScoreInfo, PlayerFieldData, PlayerSidebarData } from '@/components/game'
+import type { PlayerScoreInfo, PlayerFieldData, PlayerSidebarData, ScoreBarPlayerData } from '@/components/game'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { cn } from '@/lib/utils'
@@ -301,6 +302,8 @@ interface ActionPhaseUIProps {
   onScoreAdjust: (playerId: string, score: number) => void
   onFlipToggle: (playerId: string) => void
   canTameCard: (cardId: string) => boolean
+  resolutionMode?: boolean
+  onFinishResolution?: () => void
 }
 
 function ActionPhaseUI({
@@ -317,9 +320,11 @@ function ActionPhaseUI({
   onScoreAdjust,
   onFlipToggle,
   canTameCard,
+  resolutionMode = false,
+  onFinishResolution,
 }: ActionPhaseUIProps) {
   return (
-    <div className="flex-1 flex flex-col overflow-hidden" data-testid="action-phase">
+    <div className="flex-1 flex flex-col overflow-hidden" data-testid={resolutionMode ? "resolution-phase" : "action-phase"}>
       {/* Top Section - Field Area & Score Track */}
       <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar min-h-0">
         {/* Players Field Area */}
@@ -358,8 +363,8 @@ function ActionPhaseUI({
             <PlayerHand
               cards={handCards}
               maxHandSize={10}
-              showActions={isYourTurn}
-              enableDrag={isYourTurn}
+              showActions={isYourTurn && !resolutionMode}
+              enableDrag={isYourTurn && !resolutionMode}
               onCardPlay={onCardPlay}
               onCardSell={onCardSell}
               canTameCard={canTameCard}
@@ -367,6 +372,28 @@ function ActionPhaseUI({
             />
           </div>
         </div>
+
+        {/* Resolution Mode - Finish Button */}
+        {resolutionMode && isYourTurn && onFinishResolution && (
+          <div className="p-3 pt-2 border-t border-purple-900/30">
+            <Button
+              onClick={onFinishResolution}
+              className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400"
+              data-testid="finish-resolution-btn"
+            >
+              完成結算（觸發回合結束效果）
+            </Button>
+          </div>
+        )}
+
+        {/* Resolution Mode - Waiting Message */}
+        {resolutionMode && !isYourTurn && (
+          <div className="p-3 pt-2 border-t border-purple-900/30">
+            <p className="text-center text-slate-400 text-sm">
+              等待其他玩家完成結算...
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -394,6 +421,7 @@ export function MultiplayerGame() {
   const [isLoading, setIsLoading] = useState(true)
   const [showLeaveModal, setShowLeaveModal] = useState(false)
   const [showGameOverModal, setShowGameOverModal] = useState(false)
+  const [showMarketDiscardModal, setShowMarketDiscardModal] = useState(false)
   const [scores, setScores] = useState<{ playerId: string; name: string; score: number }[]>([])
 
   // Extract state from location or redirect
@@ -633,6 +661,16 @@ export function MultiplayerGame() {
     }))
   }, [players])
 
+  // Player data for score bar (bottom)
+  const scoreBarData = useMemo((): ScoreBarPlayerData[] => {
+    return players.map(player => ({
+      playerId: player.playerId,
+      name: player.name,
+      color: player.color || 'green',
+      score: player.score ?? 0,
+    }))
+  }, [players])
+
   // Player field data for PlayersFieldArea
   const playersFieldData = useMemo((): PlayerFieldData[] => {
     return players.map(player => {
@@ -807,6 +845,20 @@ export function MultiplayerGame() {
     [gameId, playerId]
   )
 
+  const handleTakeCardFromMarketDiscard = useCallback(
+    async (cardInstanceId: string) => {
+      if (!gameId || !playerId) return
+
+      try {
+        await multiplayerGameService.takeCardFromMarketDiscard(gameId, playerId, cardInstanceId)
+        setShowMarketDiscardModal(false)
+      } catch (err: any) {
+        setError(err.message || 'Failed to take card from market discard pile')
+      }
+    },
+    [gameId, playerId]
+  )
+
   // Clear error after timeout
   useEffect(() => {
     if (error) {
@@ -890,11 +942,20 @@ export function MultiplayerGame() {
             playerCoins={currentPlayer?.stones || createEmptyStonePool()}
             playerName={currentPlayer?.name ?? ''}
             discardCount={discardedCards.length}
+            marketDiscardCount={gameRoom.discardIds?.length ?? 0}
             deckCount={gameRoom.deckIds?.length ?? 0}
             isYourTurn={isYourTurn}
             onTakeCoin={handleTakeCoinFromBank}
             onReturnCoin={handleReturnCoinToBank}
-            onDiscardClick={() => {}}
+            onDiscardClick={() => {}} // TODO: Player's discard pile modal
+            onMarketDiscardClick={() => setShowMarketDiscardModal(true)}
+          />
+        }
+        scoreBar={
+          <ScoreBar
+            players={scoreBarData}
+            currentPlayerId={playerId ?? ''}
+            maxScore={60}
           />
         }
         mainContent={
@@ -935,66 +996,30 @@ export function MultiplayerGame() {
 
             {/* Resolution Phase */}
             {gameRoom.status === 'RESOLUTION' && (
-              <div className="flex-1 flex flex-col items-center justify-center p-8" data-testid="resolution-phase">
-                <div className="max-w-2xl w-full bg-slate-800/50 rounded-2xl p-8 border border-purple-500/30">
-                  <h2 className="text-3xl font-bold text-center text-purple-400 mb-6">結算階段</h2>
-                  <p className="text-center text-slate-300 mb-8">
-                    所有玩家已結束回合，進入最終結算...
-                  </p>
-
-                  {/* Player Scores */}
-                  <div className="space-y-4 mb-8">
-                    {playerScores
-                      .slice()
-                      .sort((a, b) => b.score - a.score)
-                      .map((player, index) => (
-                        <div
-                          key={player.playerId}
-                          className={cn(
-                            'flex items-center justify-between p-4 rounded-lg',
-                            index === 0 ? 'bg-amber-500/20 border-2 border-amber-500' : 'bg-slate-700/50'
-                          )}
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="text-2xl">{index === 0 ? '🏆' : `#${index + 1}`}</span>
-                            <span className={cn(
-                              'font-semibold',
-                              player.playerId === playerId ? 'text-vale-400' : 'text-slate-200'
-                            )}>
-                              {player.playerName}
-                              {player.playerId === playerId && ' (你)'}
-                            </span>
-                          </div>
-                          <span className="text-2xl font-bold text-amber-400">{player.score} 分</span>
-                        </div>
-                      ))}
-                  </div>
-
-                  {/* End Game Button (only for host) */}
-                  {isHost && (
-                    <Button
-                      onClick={async () => {
-                        if (!gameId) return
-                        try {
-                          await multiplayerGameService.endGame(gameId)
-                        } catch (err: any) {
-                          setError(err.message || 'Failed to end game')
-                        }
-                      }}
-                      className="w-full"
-                      data-testid="end-game-btn"
-                    >
-                      結束遊戲
-                    </Button>
-                  )}
-
-                  {!isHost && (
-                    <p className="text-center text-slate-400 text-sm">
-                      等待房主結束遊戲...
-                    </p>
-                  )}
-                </div>
-              </div>
+              <ActionPhaseUI
+                playersFieldData={playersFieldData}
+                handCards={handCards}
+                discardedCards={discardedCards}
+                playerScores={playerScores}
+                currentPlayerId={playerId ?? ''}
+                isYourTurn={isYourTurn}
+                onCardPlay={handleTameCard}
+                onCardSell={handleSellCard}
+                onCardReturn={handleReturnCard}
+                onReturnCardFromDiscard={handleReturnCardFromDiscard}
+                onScoreAdjust={handleScoreAdjust}
+                onFlipToggle={handleFlipToggle}
+                canTameCard={() => false}  // Cannot tame during resolution
+                resolutionMode={true}
+                onFinishResolution={async () => {
+                  if (!gameId || !playerId) return
+                  try {
+                    await multiplayerGameService.finishResolution(gameId, playerId)
+                  } catch (err: any) {
+                    setError(err.message || 'Failed to finish resolution')
+                  }
+                }}
+              />
             )}
           </>
         }

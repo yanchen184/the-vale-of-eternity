@@ -1,15 +1,15 @@
 /**
  * RightSidebar Component
  * Right sidebar for multiplayer game - displays bank coins, player coins, and deck info
- * @version 1.1.0 - Bank shows infinite coins, improved UI
+ * @version 1.2.0 - Added market discard pile button
  */
-console.log('[components/game/RightSidebar.tsx] v1.1.0 loaded')
+console.log('[components/game/RightSidebar.tsx] v1.2.0 loaded')
 
 import { memo } from 'react'
 import { cn } from '@/lib/utils'
 import { GlassCard } from '@/components/ui/GlassCard'
 import type { StonePool } from '@/types/game'
-import { calculateStonePoolValue } from '@/types/game'
+import { calculateStonePoolValue } from '@/types/game'  // Used for MyCoinsSection
 import { StoneType } from '@/types/cards'
 
 // ============================================
@@ -17,14 +17,16 @@ import { StoneType } from '@/types/cards'
 // ============================================
 
 export interface RightSidebarProps {
-  /** Bank's coin pool */
-  bankCoins: StonePool
+  /** Bank's coin pool (optional - bank is infinite) */
+  bankCoins?: StonePool
   /** Current player's coin pool */
   playerCoins: StonePool
   /** Current player's name */
   playerName: string
-  /** Number of cards in discard pile */
+  /** Number of cards in player's discard pile */
   discardCount: number
+  /** Number of cards in market discard pile */
+  marketDiscardCount: number
   /** Number of cards remaining in deck */
   deckCount: number
   /** Whether it's the current player's turn */
@@ -33,8 +35,10 @@ export interface RightSidebarProps {
   onTakeCoin?: (coinType: StoneType) => void
   /** Callback when returning a coin to bank */
   onReturnCoin?: (coinType: StoneType) => void
-  /** Callback when clicking discard pile */
+  /** Callback when clicking player's discard pile */
   onDiscardClick?: () => void
+  /** Callback when clicking market discard pile */
+  onMarketDiscardClick?: () => void
   /** Additional CSS classes */
   className?: string
 }
@@ -85,6 +89,8 @@ interface CoinDisplayProps {
   interactive?: boolean
   onClick?: () => void
   size?: 'sm' | 'md'
+  /** Whether this is a bank coin (always available, shows infinity symbol) */
+  isBank?: boolean
 }
 
 const CoinDisplay = memo(function CoinDisplay({
@@ -93,8 +99,10 @@ const CoinDisplay = memo(function CoinDisplay({
   interactive = false,
   onClick,
   size = 'md',
+  isBank = false,
 }: CoinDisplayProps) {
-  const isEmpty = count === 0
+  // Bank coins are never empty
+  const isEmpty = !isBank && count === 0
 
   return (
     <button
@@ -120,16 +128,28 @@ const CoinDisplay = memo(function CoinDisplay({
         />
       </div>
 
-      {/* Count Badge */}
-      <div
-        className={cn(
-          'font-bold rounded-full',
-          size === 'md' ? 'text-sm px-2 py-0.5' : 'text-xs px-1.5 py-0.5',
-          'bg-slate-800/80 border border-slate-600'
-        )}
-      >
-        <span className="text-amber-400">x{count}</span>
-      </div>
+      {/* Count Badge - show infinity for bank */}
+      {isBank ? (
+        <div
+          className={cn(
+            'font-bold rounded-full',
+            size === 'md' ? 'text-lg px-2 py-0.5' : 'text-sm px-1.5 py-0.5',
+            'text-blue-400'
+          )}
+        >
+          ∞
+        </div>
+      ) : (
+        <div
+          className={cn(
+            'font-bold rounded-full',
+            size === 'md' ? 'text-sm px-2 py-0.5' : 'text-xs px-1.5 py-0.5',
+            'bg-slate-800/80 border border-slate-600'
+          )}
+        >
+          <span className="text-amber-400">x{count}</span>
+        </div>
+      )}
 
       {/* Interactive Indicator */}
       {interactive && !isEmpty && (
@@ -199,13 +219,11 @@ const MyCoinsSection = memo(function MyCoinsSection({
 // ============================================
 
 interface BankSectionProps {
-  coins: StonePool
   isYourTurn: boolean
   onTakeCoin?: (coinType: StoneType) => void
 }
 
 const BankSection = memo(function BankSection({
-  coins,
   isYourTurn,
   onTakeCoin,
 }: BankSectionProps) {
@@ -225,18 +243,26 @@ const BankSection = memo(function BankSection({
             </svg>
             <span>銀行</span>
           </h4>
+          {/* Infinite symbol */}
+          <span className="text-xl font-bold text-blue-400">∞</span>
         </div>
 
-        {/* Coin Grid */}
+        {/* Subtitle */}
+        <p className="text-[10px] text-slate-500 text-center">
+          無限供應
+        </p>
+
+        {/* Coin Grid - Bank coins are always available */}
         <div className="grid grid-cols-3 gap-1">
           {VALUE_COINS.map((config) => (
             <CoinDisplay
               key={config.type}
               config={config}
-              count={coins[config.type] || 0}
-              interactive={isYourTurn && (coins[config.type] || 0) > 0}
+              count={999}
+              interactive={isYourTurn}
               onClick={() => onTakeCoin?.(config.type)}
               size="sm"
+              isBank={true}
             />
           ))}
         </div>
@@ -265,27 +291,53 @@ const BankSection = memo(function BankSection({
 interface DeckInfoSectionProps {
   deckCount: number
   discardCount: number
+  marketDiscardCount: number
   onDiscardClick?: () => void
+  onMarketDiscardClick?: () => void
 }
 
 const DeckInfoSection = memo(function DeckInfoSection({
   deckCount,
   discardCount,
+  marketDiscardCount,
   onDiscardClick,
+  onMarketDiscardClick,
 }: DeckInfoSectionProps) {
   return (
-    <div className="grid grid-cols-2 gap-2">
-      {/* Deck */}
-      <GlassCard variant="default" padding="sm" className="text-center">
-        <div className="space-y-1">
-          <div className="w-10 h-14 mx-auto bg-gradient-to-br from-blue-900 to-blue-950 rounded border-2 border-blue-700 flex items-center justify-center shadow-lg">
-            <span className="text-blue-300 text-lg font-bold">{deckCount}</span>
+    <div className="space-y-2">
+      {/* Top Row: Deck and Market Discard */}
+      <div className="grid grid-cols-2 gap-2">
+        {/* Deck */}
+        <GlassCard variant="default" padding="sm" className="text-center">
+          <div className="space-y-1">
+            <div className="w-10 h-14 mx-auto bg-gradient-to-br from-blue-900 to-blue-950 rounded border-2 border-blue-700 flex items-center justify-center shadow-lg">
+              <span className="text-blue-300 text-lg font-bold">{deckCount}</span>
+            </div>
+            <div className="text-[10px] text-slate-400">牌庫</div>
           </div>
-          <div className="text-[10px] text-slate-400">牌庫</div>
-        </div>
-      </GlassCard>
+        </GlassCard>
 
-      {/* Discard Pile */}
+        {/* Market Discard Pile */}
+        <GlassCard
+          variant="default"
+          padding="sm"
+          className="text-center cursor-pointer hover:bg-white/10 transition-colors"
+          onClick={onMarketDiscardClick}
+          hoverable
+        >
+          <div className="space-y-1">
+            <div className="w-10 h-14 mx-auto bg-gradient-to-br from-purple-700 to-purple-800 rounded border-2 border-purple-600 flex items-center justify-center shadow-lg relative">
+              <span className="text-purple-200 text-lg font-bold">{marketDiscardCount}</span>
+              {marketDiscardCount > 0 && (
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-400 rounded-full animate-pulse" />
+              )}
+            </div>
+            <div className="text-[10px] text-slate-400">市場棄牌</div>
+          </div>
+        </GlassCard>
+      </div>
+
+      {/* Bottom Row: Player Discard */}
       <GlassCard
         variant="default"
         padding="sm"
@@ -297,10 +349,10 @@ const DeckInfoSection = memo(function DeckInfoSection({
           <div className="w-10 h-14 mx-auto bg-gradient-to-br from-slate-700 to-slate-800 rounded border-2 border-slate-600 flex items-center justify-center shadow-lg relative">
             <span className="text-slate-300 text-lg font-bold">{discardCount}</span>
             {discardCount > 0 && (
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-500 rounded-full animate-pulse" />
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse" />
             )}
           </div>
-          <div className="text-[10px] text-slate-400">棄牌堆</div>
+          <div className="text-[10px] text-slate-400">我的棄牌</div>
         </div>
       </GlassCard>
     </div>
@@ -312,18 +364,21 @@ const DeckInfoSection = memo(function DeckInfoSection({
 // ============================================
 
 export const RightSidebar = memo(function RightSidebar({
-  bankCoins,
+  bankCoins: _bankCoins,
   playerCoins,
   playerName: _playerName,
   discardCount,
+  marketDiscardCount,
   deckCount,
   isYourTurn,
   onTakeCoin,
   onReturnCoin,
   onDiscardClick,
+  onMarketDiscardClick,
   className,
 }: RightSidebarProps) {
   void _playerName // Reserved for future use
+  void _bankCoins // Bank is infinite, no need to track
   return (
     <aside
       className={cn(
@@ -362,9 +417,8 @@ export const RightSidebar = memo(function RightSidebar({
           <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-600/50 to-transparent" />
         </div>
 
-        {/* Bank */}
+        {/* Bank - Infinite supply */}
         <BankSection
-          coins={bankCoins}
           isYourTurn={isYourTurn}
           onTakeCoin={onTakeCoin}
         />
@@ -378,7 +432,9 @@ export const RightSidebar = memo(function RightSidebar({
         <DeckInfoSection
           deckCount={deckCount}
           discardCount={discardCount}
+          marketDiscardCount={marketDiscardCount}
           onDiscardClick={onDiscardClick}
+          onMarketDiscardClick={onMarketDiscardClick}
         />
       </div>
 

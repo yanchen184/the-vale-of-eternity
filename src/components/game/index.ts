@@ -1,9 +1,9 @@
 /**
  * Game components exports
  * Core UI components for The Vale of Eternity game
- * @version 4.0.0 - Added symmetric layout components (LeftSidebar, RightSidebar, MainGameArea, GameLayout)
+ * @version 4.1.0 - Added ScoreBar component for bottom score display
  */
-console.log('[components/game/index.ts] v4.0.0 loaded')
+console.log('[components/game/index.ts] v4.1.0 loaded')
 
 // Card components
 export { Card, CardBack } from './Card'
@@ -75,3 +75,7 @@ export { MainGameArea } from './MainGameArea'
 export type { MainGameAreaProps } from './MainGameArea'
 export { GameLayout, GameHeader } from './GameLayout'
 export type { GameLayoutProps, GameHeaderProps } from './GameLayout'
+
+// Score Bar component (v4.1.0)
+export { ScoreBar } from './ScoreBar'
+export type { ScoreBarProps, ScoreBarPlayerData } from './ScoreBar'
