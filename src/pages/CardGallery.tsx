@@ -1,9 +1,9 @@
 /**
  * Card Gallery Page - Display all cards and artifacts
  * Supports Base Game (70 cards), DLC (28 cards), and Artifacts (11)
- * @version 4.0.0 - Added Artifacts Expansion gallery support
+ * @version 4.0.1 - Increased card grid gap from 3 to 6 to prevent overlap
  */
-console.log('[pages/CardGallery.tsx] v4.0.0 loaded')
+console.log('[pages/CardGallery.tsx] v4.0.1 loaded')
 
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -1076,7 +1076,7 @@ export function CardGallery() {
                   )}
                 </div>
               ) : viewMode === 'grid' ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-6">
                   {cardInstances.map((card, index) => (
                     <div
                       key={card.instanceId}

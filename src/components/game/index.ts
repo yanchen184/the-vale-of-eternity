@@ -83,3 +83,9 @@ export type { ScoreBarProps, ScoreBarPlayerData } from './ScoreBar'
 // Draggable Hand Window component (v4.2.0)
 export { DraggableHandWindow } from './DraggableHandWindow'
 export type { DraggableHandWindowProps } from './DraggableHandWindow'
+
+// Artifact Selection components (v4.3.0)
+export { ArtifactSelector } from './ArtifactSelector'
+export { CompactArtifactSelector } from './CompactArtifactSelector'
+export type { ArtifactSelectorProps } from './ArtifactSelector'
+export type { CompactArtifactSelectorProps } from './CompactArtifactSelector'

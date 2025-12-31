@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 5.10.0 - Integrated artifact selection into HUNTING phase for expansion mode
+ * @version 5.11.0 - Integrated CompactArtifactSelector at bottom of card selection UI (Expansion Mode)
  */
-console.log('[pages/MultiplayerGame.tsx] v5.10.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v5.11.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -27,6 +27,8 @@ import {
   ScoreBar,
 } from '@/components/game'
 import { DraggableHandWindow } from '@/components/game/DraggableHandWindow'
+import { ArtifactSelector } from '@/components/game/ArtifactSelector'
+import { CompactArtifactSelector } from '@/components/game/CompactArtifactSelector'
 import type { PlayerScoreInfo, PlayerFieldData, PlayerSidebarData, ScoreBarPlayerData } from '@/components/game'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
@@ -67,6 +69,12 @@ interface HuntingPhaseProps {
   cardSelectionMap: Map<string, { color: PlayerColor; playerName: string; isConfirmed: boolean }>
   mySelectedCardId: string | null
   hasSelectedCard: boolean
+  // Artifact selection props (v5.11.0 - Expansion mode)
+  isExpansionMode?: boolean
+  availableArtifacts?: string[]
+  usedArtifacts?: string[]
+  onSelectArtifact?: (artifactId: string) => void
+  playerName?: string
 }
 
 // ============================================
@@ -200,6 +208,11 @@ function HuntingPhaseUI({
   cardSelectionMap,
   mySelectedCardId,
   hasSelectedCard,
+  isExpansionMode,
+  availableArtifacts,
+  usedArtifacts,
+  onSelectArtifact,
+  playerName,
 }: HuntingPhaseProps) {
   void _currentPlayerId
   void _onConfirmSelection // Reserved for future use
@@ -264,6 +277,20 @@ function HuntingPhaseUI({
           })}
         </div>
       </div>
+
+      {/* Artifact Selection at Bottom (Expansion Mode Only) */}
+      {isExpansionMode && availableArtifacts && onSelectArtifact && (
+        <div className="flex-shrink-0 mt-4 border-t border-purple-500/30 pt-4">
+          <CompactArtifactSelector
+            availableArtifacts={availableArtifacts}
+            usedArtifacts={usedArtifacts || []}
+            round={currentRound || 1}
+            playerName={playerName || '玩家'}
+            onSelectArtifact={onSelectArtifact}
+            isActive={true}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -899,6 +926,61 @@ export function MultiplayerGame() {
     [gameId, playerId]
   )
 
+  // Artifact selection handler (Expansion Mode)
+  const handleArtifactSelect = useCallback(
+    async (artifactId: string) => {
+      if (!gameId || !playerId || !gameRoom) return
+
+      try {
+        await multiplayerGameService.selectArtifact(
+          gameId,
+          playerId,
+          artifactId,
+          gameRoom.currentRound
+        )
+      } catch (err: any) {
+        setError(err.message || 'Failed to select artifact')
+      }
+    },
+    [gameId, playerId, gameRoom]
+  )
+
+  // Calculate used artifacts for current player (previous rounds only)
+  const usedArtifacts = useMemo(() => {
+    if (!gameRoom?.artifactSelections || !playerId) return []
+    const playerSelections = gameRoom.artifactSelections[playerId] || {}
+    const used: string[] = []
+    for (const [roundStr, artifactId] of Object.entries(playerSelections)) {
+      const selectionRound = parseInt(roundStr, 10)
+      // Include all previous round selections (current round's selection is already used)
+      if (selectionRound < gameRoom.currentRound) {
+        used.push(artifactId)
+      }
+    }
+    return used
+  }, [gameRoom?.artifactSelections, gameRoom?.currentRound, playerId])
+
+  // Determine if artifact selection is needed
+  const isArtifactSelectionActive = useMemo(() => {
+    if (!gameRoom?.isExpansionMode) return false
+    if (gameRoom.status !== 'HUNTING') return false
+    if (!gameRoom.artifactSelectionPhase) return false
+    return !gameRoom.artifactSelectionPhase.isComplete
+  }, [gameRoom?.isExpansionMode, gameRoom?.status, gameRoom?.artifactSelectionPhase])
+
+  // Get current artifact selector player
+  const artifactSelectorPlayerId = useMemo(() => {
+    if (!isArtifactSelectionActive || !gameRoom?.artifactSelectionPhase) return ''
+    const playerIndex = gameRoom.artifactSelectionPhase.currentPlayerIndex
+    return gameRoom.playerIds[playerIndex] ?? ''
+  }, [isArtifactSelectionActive, gameRoom?.artifactSelectionPhase, gameRoom?.playerIds])
+
+  const artifactSelectorPlayer = useMemo(() => {
+    return players.find((p) => p.playerId === artifactSelectorPlayerId)
+  }, [players, artifactSelectorPlayerId])
+
+  const isYourArtifactTurn = playerId === artifactSelectorPlayerId
+
   // Clear error after timeout
   useEffect(() => {
     if (error) {
@@ -1010,7 +1092,7 @@ export function MultiplayerGame() {
         }
         mainContent={
           <>
-            {/* Hunting Phase */}
+            {/* Hunting Phase - Card Selection with Artifact Selection at Bottom (v5.11.0) */}
             {gameRoom.status === 'HUNTING' && (
               <HuntingPhaseUI
                 marketCards={marketCards}
@@ -1023,6 +1105,11 @@ export function MultiplayerGame() {
                 cardSelectionMap={cardSelectionMap}
                 mySelectedCardId={mySelectedCardId}
                 hasSelectedCard={hasSelectedCard}
+                isExpansionMode={gameRoom.isExpansionMode}
+                availableArtifacts={gameRoom.availableArtifacts}
+                usedArtifacts={usedArtifacts}
+                onSelectArtifact={handleArtifactSelect}
+                playerName={currentPlayer?.name ?? playerName ?? 'Unknown'}
               />
             )}
 
@@ -1118,9 +1205,6 @@ export function MultiplayerGame() {
             players={playersFieldData}
             currentPlayerId={playerId ?? ''}
             currentRound={gameRoom.currentRound}
-            onCardReturn={handleCardReturn}
-            onCardDiscard={handleCardDiscard}
-            showCardActions={false}
           />
         </div>
       </Modal>

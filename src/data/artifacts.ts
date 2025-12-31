@@ -24,7 +24,7 @@ export const INCENSE_BURNER: Artifact = {
   description:
     'Action: Buy 1 card from the buy area for 3 stones of any color, OR shelter the top 2 cards from your deck.',
   descriptionTw: '行動：支付3顆任意顏色的石頭購買買入區的1張卡，或是將牌庫頂的2張卡庇護。',
-  image: '/the-vale-of-eternity/assets/artifacts/Incense_Burner.jpg',
+  image: '/the-vale-of-eternity/assets/artifacts/2 Player Artifacts/Snipaste_2025-12-31_18-39-33.png',
   implemented: true,
   effectDetails: {
     affectsCardSelection: true,
@@ -42,7 +42,7 @@ export const MONKEY_KING_STAFF: Artifact = {
   category: ArtifactCategory.CORE,
   description: 'Action: Discard 2 cards from your hand to gain 1 red, 1 blue, and 1 green stone.',
   descriptionTw: '行動：棄掉手上的2張卡以獲得1顆紅石、1顆藍石和1顆綠石。',
-  image: '/the-vale-of-eternity/assets/artifacts/Monkey_Kings_Staff.jpg',
+  image: '/the-vale-of-eternity/assets/artifacts/2 Player Artifacts/Snipaste_2025-12-31_18-39-44.png',
   implemented: true,
   effectDetails: {
     affectsStones: true,
@@ -59,7 +59,7 @@ export const PIED_PIPER_PIPE: Artifact = {
   category: ArtifactCategory.CORE,
   description: 'Instant: Draw 1 card from your deck, OR recall all your cards (from play area and shelter).',
   descriptionTw: '立即：從牌庫抽1張卡，或是召回你所有的卡牌（場上和庇護區）。',
-  image: '/the-vale-of-eternity/assets/artifacts/Pied_Pipers_Pipe.jpg',
+  image: '/the-vale-of-eternity/assets/artifacts/2 Player Artifacts/Snipaste_2025-12-31_18-39-55.png',
   implemented: true,
   effectDetails: {
     affectsCardSelection: true,
@@ -129,7 +129,7 @@ export const BOOK_OF_THOTH: Artifact = {
     'Action: Upgrade up to 2 of your stones by one level (Red → Blue → Green → Purple). You can upgrade the same stone twice.',
   descriptionTw:
     '行動：將你的石頭提升一級，最多2次（紅→藍→綠→紫）。你可以將同一顆石頭升級兩次。',
-  image: '/the-vale-of-eternity/assets/artifacts/Book_of_Thoth.jpg',
+  image: '/the-vale-of-eternity/assets/artifacts/Random Artifacts/Snipaste_2025-12-31_18-40-27.png',
   implemented: true,
   effectDetails: {
     affectsStones: true,
@@ -183,7 +183,7 @@ export const IMPERIAL_SEAL: Artifact = {
   description:
     'Action: Discard 1 card from your play area. If it is a blue (water) card, gain 1 green stone.',
   descriptionTw: '行動：從場上棄掉1張卡。如果是藍色（水）卡，獲得1顆綠石。',
-  image: '/the-vale-of-eternity/assets/artifacts/Imperial_Seal.jpg',
+  image: '/the-vale-of-eternity/assets/artifacts/Random Artifacts/Snipaste_2025-12-31_18-40-35.png',
   implemented: true,
   effectDetails: {
     affectsStones: true,
@@ -201,7 +201,7 @@ export const PHILOSOPHER_STONE: Artifact = {
   description:
     'Instant: Recall 1 card from your play area AND/OR discard 1 card from your shelter to gain 1 purple stone.',
   descriptionTw: '立即：從場上召回1張卡，以及/或是從庇護區棄掉1張卡以獲得1顆紫石。',
-  image: '/the-vale-of-eternity/assets/artifacts/Philosopher_Stone.jpg',
+  image: '/the-vale-of-eternity/assets/artifacts/Random Artifacts/Snipaste_2025-12-31_18-40-45.png',
   implemented: true,
   effectDetails: {
     affectsStones: true,

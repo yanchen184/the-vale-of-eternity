@@ -1,9 +1,9 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 4.1.0 - Integrated artifact selection into HUNTING phase
+ * @version 4.2.0 - Fixed artifact selection order (sequential, not Snake Draft)
  */
-console.log('[services/multiplayer-game.ts] v4.1.0 loaded')
+console.log('[services/multiplayer-game.ts] v4.2.0 loaded')
 
 import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -2411,6 +2411,10 @@ export class MultiplayerGameService {
   /**
    * Select an artifact during the artifact selection phase (Expansion Mode)
    * Called at the start of each HUNTING phase before card selection
+   * Each player selects ONE artifact per round
+   * Players cannot select the same artifact they used in a previous round
+   * Selection order follows the same starting player as hunting phase
+   *
    * @param gameId - Game room ID
    * @param playerId - Player making the selection
    * @param artifactId - Artifact to select
@@ -2431,7 +2435,7 @@ export class MultiplayerGameService {
 
     const game: GameRoom = snapshot.val()
 
-    // Validate expansion mode
+    // Validate expansion mode (基礎版不應該有神器選擇)
     if (!game.isExpansionMode) {
       throw new Error('Artifact selection is only available in expansion mode')
     }
@@ -2446,11 +2450,16 @@ export class MultiplayerGameService {
       throw new Error('Artifact selection phase is not active')
     }
 
-    // Validate it's the player's turn
+    // Validate it's the player's turn (順序跟選卡一樣)
     const currentPlayerIndex = game.artifactSelectionPhase.currentPlayerIndex
     const expectedPlayerId = game.playerIds[currentPlayerIndex]
     if (playerId !== expectedPlayerId) {
       throw new Error('Not your turn to select artifact')
+    }
+
+    // Check if player has already selected an artifact this round
+    if (game.artifactSelectionPhase.selections[playerId]) {
+      throw new Error('You have already selected an artifact this round')
     }
 
     // Validate artifact is available for this game
@@ -2458,14 +2467,15 @@ export class MultiplayerGameService {
       throw new Error('Selected artifact is not available in this game')
     }
 
-    // Check if player has already used this artifact in a previous round
+    // Check if player has already used this artifact in ANY previous round
+    // (下回合不能跟這回合選的是一樣的)
     const playerPreviousSelections = game.artifactSelections?.[playerId] || {}
     const usedArtifacts = Object.values(playerPreviousSelections)
     if (usedArtifacts.includes(artifactId)) {
       throw new Error('You have already used this artifact in a previous round')
     }
 
-    // Record the selection
+    // Record the selection to permanent storage
     const updatedArtifactSelections = game.artifactSelections || {}
     if (!updatedArtifactSelections[playerId]) {
       updatedArtifactSelections[playerId] = {}
@@ -2478,16 +2488,21 @@ export class MultiplayerGameService {
       [playerId]: artifactId,
     }
 
-    // Calculate next player index
+    // Calculate next player index (simple sequential order, starting from startingPlayerIndex)
     const playerCount = game.playerIds.length
-    const nextPlayerIndex = (currentPlayerIndex + 1) % playerCount
+    const startingPlayerIndex = game.artifactSelectionPhase.startingPlayerIndex
 
-    // Check if all players have selected (selections length = player count)
-    const selectionsCount = Object.keys(updatedPhaseSelections).length
-    const allPlayersSelected = selectionsCount >= playerCount
+    // Get the selection order (same as hunting phase starting order)
+    const selectionOrder: number[] = []
+    for (let i = 0; i < playerCount; i++) {
+      selectionOrder.push((startingPlayerIndex + i) % playerCount)
+    }
 
-    if (allPlayersSelected) {
-      // Artifact selection complete - clear the phase and allow card selection
+    const currentPositionInOrder = selectionOrder.indexOf(currentPlayerIndex)
+    const isLastPlayer = currentPositionInOrder === selectionOrder.length - 1
+
+    if (isLastPlayer) {
+      // All players have selected - artifact selection complete
       await update(gameRef, {
         artifactSelections: updatedArtifactSelections,
         'artifactSelectionPhase/isComplete': true,
@@ -2499,7 +2514,9 @@ export class MultiplayerGameService {
         `[MultiplayerGame] All players selected artifacts for round ${round}, proceeding to card selection`
       )
     } else {
-      // Move to next player
+      // Move to next player in selection order
+      const nextPlayerIndex = selectionOrder[currentPositionInOrder + 1]
+
       await update(gameRef, {
         artifactSelections: updatedArtifactSelections,
         'artifactSelectionPhase/currentPlayerIndex': nextPlayerIndex,
@@ -2508,7 +2525,7 @@ export class MultiplayerGameService {
       })
 
       console.log(
-        `[MultiplayerGame] Player ${playerId} selected artifact ${artifactId}, next player index: ${nextPlayerIndex}`
+        `[MultiplayerGame] Player ${playerId} (index ${currentPlayerIndex}) selected artifact ${artifactId}, next player index: ${nextPlayerIndex}`
       )
     }
   }

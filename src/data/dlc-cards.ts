@@ -1,9 +1,9 @@
 /**
  * DLC Card Templates for Artifacts Expansion
- * Contains all 28 expansion creature cards
- * @version 1.0.0
+ * Contains all 28 expansion creature cards (Note: YETI missing image)
+ * @version 1.1.0 - Fixed image paths to match actual filenames
  */
-console.log('[data/dlc-cards.ts] v1.0.0 loaded')
+console.log('[data/dlc-cards.ts] v1.1.0 loaded')
 
 import {
   CardTemplate,
@@ -51,7 +51,7 @@ export const FIRE_RAT: CardTemplate = {
       descriptionTw: '馴服時：你的場上每有1張火卡，獲得1顆石頭。',
     },
   ],
-  imageUrl: '/the-vale-of-eternity/assets/dlc/Fire_Rat.jpg',
+  imageUrl: '/the-vale-of-eternity/assets/dlc/Firerat.jpg',
 }
 
 export const BUL_GAE: CardTemplate = {
@@ -399,7 +399,7 @@ export const TOTEM_POLE: CardTemplate = {
       descriptionTw: '馴服時：你的場上每有1張地卡，獲得1分。',
     },
   ],
-  imageUrl: '/the-vale-of-eternity/assets/dlc/Totem_Pole.jpg',
+  imageUrl: '/the-vale-of-eternity/assets/dlc/Totempole.jpg',
 }
 
 export const WENDIGO: CardTemplate = {
@@ -436,7 +436,7 @@ export const DUDURI_KING: CardTemplate = {
       descriptionTw: '計分時：如果你有至少1張其他豆豆里卡，獲得10分。',
     },
   ],
-  imageUrl: '/the-vale-of-eternity/assets/dlc/Duduri_King.jpg',
+  imageUrl: '/the-vale-of-eternity/assets/dlc/Duduriking.jpg',
 }
 
 export const YETI: CardTemplate = {
