@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 5.8.2 - Removed title from score modal
+ * @version 5.8.3 - Fixed canTameCard logic to allow taming during player's turn
  */
-console.log('[pages/MultiplayerGame.tsx] v5.8.2 loaded')
+console.log('[pages/MultiplayerGame.tsx] v5.8.3 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -1226,16 +1226,13 @@ export function MultiplayerGame() {
           console.log('Hand card clicked:', card)
         }}
         onTameCard={(cardId) => {
-          const card = handCards.find(c => c.instanceId === cardId)
-          if (card) handleTameCard(card)
+          handleTameCard(cardId)
         }}
         onSellCard={(cardId) => {
-          const card = handCards.find(c => c.instanceId === cardId)
-          if (card) handleSellCard(card)
+          handleSellCard(cardId)
         }}
         onDiscardCard={(cardId) => {
-          const card = handCards.find(c => c.instanceId === cardId)
-          if (card) handleDiscardCard(card)
+          handleDiscardCard(cardId)
         }}
         showCardActions={isYourTurn}
         canTameCard={(cardId) => {
