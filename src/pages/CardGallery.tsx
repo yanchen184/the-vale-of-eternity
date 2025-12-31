@@ -1,9 +1,9 @@
 /**
  * Card Gallery Page - Display all 70 cards
  * Redesigned with improved UX and image preview
- * @version 3.2.0 - Enhanced card detail panel and larger preview
+ * @version 3.3.0 - Fixed layout overflow and card spacing
  */
-console.log('[pages/CardGallery.tsx] v3.2.0 loaded')
+console.log('[pages/CardGallery.tsx] v3.3.0 loaded')
 
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -217,17 +217,15 @@ function CardDetailPanel({ card, onImageClick }: CardDetailPanelProps) {
         </div>
       </div>
 
-      {/* Large Card Preview with Click to Enlarge */}
+      {/* Card Preview with Click to Enlarge */}
       <div className="flex justify-center mb-5">
         <div
           className="cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl relative group"
           onClick={onImageClick}
           data-testid="card-preview-clickable"
         >
-          {/* Larger card display using scale */}
-          <div className="transform scale-125 origin-center">
-            <Card card={cardInstance} index={0} />
-          </div>
+          {/* Normal size card display with compact mode */}
+          <Card card={cardInstance} index={0} compact />
           <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
             <div className="flex items-center gap-2 text-white text-sm bg-slate-900/90 px-4 py-2 rounded-full border border-slate-600/50 shadow-lg">
               <ZoomIn className="w-5 h-5" />
@@ -514,7 +512,7 @@ export function CardGallery() {
                 )}
               </div>
             ) : viewMode === 'grid' ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-8">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
                 {cardInstances.map((card, index) => (
                   <div
                     key={card.instanceId}
@@ -530,8 +528,8 @@ export function CardGallery() {
                     }}
                     data-testid={`card-grid-item-${index}`}
                   >
-                    <Card card={card} index={index} isSelected={selectedCard?.id === card.cardId} />
-                    <span className="mt-1 text-xs text-slate-500 truncate max-w-full">
+                    <Card card={card} index={index} compact isSelected={selectedCard?.id === card.cardId} />
+                    <span className="mt-1 text-xs text-slate-500 truncate max-w-full text-center px-1">
                       {card.nameTw}
                     </span>
                   </div>
