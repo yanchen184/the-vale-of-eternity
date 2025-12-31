@@ -207,6 +207,37 @@
     animation-delay: 1000ms;
   }
 
+  .animate-delay-150 {
+    animation-delay: 150ms;
+  }
+
+  /* Stone pool animations */
+  .animate-pulse-slow {
+    animation: pulseSlow 3s ease-in-out infinite;
+  }
+
+  @keyframes pulseSlow {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.8;
+    }
+  }
+
+  .animate-bounce-subtle {
+    animation: bounceSubtle 1s ease-in-out infinite;
+  }
+
+  @keyframes bounceSubtle {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-2px);
+    }
+  }
+
   /* Card flip animation */
   .card-flip-inner {
     transform-style: preserve-3d;

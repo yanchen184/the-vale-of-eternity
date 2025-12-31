@@ -1,13 +1,17 @@
 /**
  * Game components exports
  * Core UI components for The Vale of Eternity game
- * @version 3.0.0
+ * @version 3.4.0 - Added Player Marker components for multiplayer
  */
-console.log('[components/game/index.ts] v3.0.0 loaded')
+console.log('[components/game/index.ts] v3.4.0 loaded')
 
 // Card components
 export { Card, CardBack } from './Card'
 export type { CardProps, CardBackProps } from './Card'
+
+// Player marker components (for multiplayer card selection)
+export { PlayerMarker, ColorPicker } from './PlayerMarker'
+export type { PlayerMarkerProps, ColorPickerProps } from './PlayerMarker'
 
 // Player hand component
 export { PlayerHand } from './PlayerHand'
@@ -24,3 +28,24 @@ export type { MarketAreaProps } from './MarketArea'
 // Stone pool component
 export { StonePool } from './StonePool'
 export type { StonePoolProps } from './StonePool'
+
+// Game mode toggle component (v3.1.0)
+export { GameModeToggle } from './GameModeToggle'
+export type { GameModeToggleProps } from './GameModeToggle'
+
+// Manual control components (v3.2.0)
+export { ManualControlPanel } from './ManualControlPanel'
+export { StoneManualControl } from './StoneManualControl'
+export { ScoreManualControl } from './ScoreManualControl'
+export { OperationHistory } from './OperationHistory'
+
+// Mahjong-style layout components (v3.3.0)
+export { MahjongLayout, MahjongGameBoard } from './MahjongLayout'
+export type {
+  MahjongLayoutProps,
+  MahjongGameBoardProps,
+  PlayerSeatData,
+  PlayerData,
+  SeatPosition,
+  StoneBankData,
+} from './MahjongLayout'

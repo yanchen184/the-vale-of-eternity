@@ -1,13 +1,14 @@
 /**
  * Main App component
- * Single Player Mode v3.2.0
- * @version 3.2.0
+ * Single Player Mode v3.3.0 - Added Mahjong Layout Demo
+ * @version 3.3.0
  */
-console.log('[App.tsx] v3.2.0 loaded')
+console.log('[App.tsx] v3.3.0 loaded')
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Home, Lobby, SinglePlayerGame, Tutorial, CardGallery, GameBoard, MultiplayerGame } from '@/pages'
 import { MultiplayerLobby } from '@/pages/MultiplayerLobby'
+import { MahjongLayoutDemo } from '@/pages/MahjongLayoutDemo'
 import { ToastContainer } from '@/components/ui'
 import { useToastStore } from '@/stores'
 import { APP_VERSION } from '@/data/constants'
@@ -37,6 +38,8 @@ function App() {
           {/* Tutorial and Card Gallery */}
           <Route path="/tutorial" element={<Tutorial />} />
           <Route path="/cards" element={<CardGallery />} />
+          {/* Mahjong Layout Demo */}
+          <Route path="/mahjong-demo" element={<MahjongLayoutDemo />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
 

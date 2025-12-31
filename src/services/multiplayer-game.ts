@@ -1,9 +1,9 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 3.1.0
+ * @version 3.2.0 - Added player color system and card selection markers
  */
-console.log('[services/multiplayer-game.ts] v3.1.0 loaded')
+console.log('[services/multiplayer-game.ts] v3.2.0 loaded')
 
 import { ref, set, get, update, onValue, off, remove, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -12,6 +12,7 @@ import type { CardInstance, CardTemplate } from '@/types/cards'
 import { CardLocation, StoneType } from '@/types/cards'
 import { effectProcessor } from './effect-processor'
 import { scoreCalculator, type ScoreBreakdown } from './score-calculator'
+import { type PlayerColor, getColorByIndex } from '@/types/player-color'
 
 // ============================================
 // TYPES
@@ -31,6 +32,7 @@ export interface PlayerState {
   playerId: string
   name: string
   index: number  // 0-3 (determines turn order)
+  color: PlayerColor  // Player marker color (green, red, purple, black)
   hand: string[]  // card instance IDs
   field: string[]  // card instance IDs
   stones: StonePool
@@ -84,6 +86,8 @@ export interface CardInstanceData extends Omit<CardInstance, 'effects'> {
   instanceId: string
   location: CardLocation
   ownerId: string | null
+  /** Player ID who selected this card during hunting phase (for marker display) */
+  selectedBy?: string | null
 }
 
 // ============================================
@@ -185,6 +189,7 @@ export class MultiplayerGameService {
       playerId: hostId,
       name: hostName,
       index: 0,
+      color: getColorByIndex(0), // First player gets green
       hand: [],
       field: [],
       stones: { ONE: 0, THREE: 0, SIX: 0, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 },
@@ -267,6 +272,7 @@ export class MultiplayerGameService {
       playerId,
       name: playerName,
       index: playerIndex,
+      color: getColorByIndex(playerIndex), // Assign color based on player index
       hand: [],
       field: [],
       stones: { ONE: 0, THREE: 0, SIX: 0, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 },
@@ -333,6 +339,14 @@ export class MultiplayerGameService {
       })
     }
 
+    // Initialize all players' hand and field arrays
+    for (const playerId of game.playerIds) {
+      await update(ref(database, `games/${gameId}/players/${playerId}`), {
+        hand: [],
+        field: [],
+      })
+    }
+
     // Initialize hunting phase
     const huntingPhase: HuntingState = {
       round: 1,
@@ -356,12 +370,18 @@ export class MultiplayerGameService {
 
   /**
    * Select a card during hunting phase (Snake Draft)
+   * Cards are marked with selectedBy but remain in market until hunting phase ends
    */
   async selectCardInHunting(
     gameId: string,
     playerId: string,
     cardInstanceId: string
   ): Promise<void> {
+    // First, mark the card as selected by this player
+    await update(ref(database, `games/${gameId}/cards/${cardInstanceId}`), {
+      selectedBy: playerId,
+    })
+
     await runTransaction(ref(database, `games/${gameId}`), (game: GameRoom | null) => {
       if (!game) return game
 
@@ -376,8 +396,18 @@ export class MultiplayerGameService {
         throw new Error('Not your turn')
       }
 
+      // Ensure marketIds is initialized
+      if (!game.marketIds || !Array.isArray(game.marketIds)) {
+        throw new Error('Market is not initialized')
+      }
+
       if (!game.marketIds.includes(cardInstanceId)) {
         throw new Error('Card not in market')
+      }
+
+      // Ensure huntingPhase and selections are initialized
+      if (!game.huntingPhase.selections) {
+        game.huntingPhase.selections = {}
       }
 
       // Record selection
@@ -386,8 +416,8 @@ export class MultiplayerGameService {
       }
       game.huntingPhase.selections[playerId].push(cardInstanceId)
 
-      // Remove from market
-      game.marketIds = game.marketIds.filter(id => id !== cardInstanceId)
+      // DO NOT remove from market - keep card visible with marker
+      // game.marketIds = game.marketIds.filter(id => id !== cardInstanceId)
 
       // Get next player
       const { nextIndex, nextRound, isComplete } = getNextHuntingPlayer(
@@ -411,11 +441,69 @@ export class MultiplayerGameService {
       return game
     })
 
-    // Move card to player's hand
-    await update(ref(database, `games/${gameId}/cards/${cardInstanceId}`), {
-      location: CardLocation.HAND,
-      ownerId: playerId,
-    })
+    // Check if hunting phase is complete
+    const gameSnapshot = await get(ref(database, `games/${gameId}`))
+    if (gameSnapshot.exists()) {
+      const game: GameRoom = gameSnapshot.val()
+
+      if (game.status === 'ACTION' && game.huntingPhase?.isComplete) {
+        // Hunting phase just completed - move all selected cards to players' hands
+        await this.distributeSelectedCards(gameId, game.huntingPhase.selections)
+      }
+    }
+  }
+
+  /**
+   * Distribute selected cards to players after hunting phase ends
+   * @private
+   */
+  private async distributeSelectedCards(
+    gameId: string,
+    selections: { [playerId: string]: string[] }
+  ): Promise<void> {
+    console.log('[MultiplayerGame] Distributing selected cards to players:', selections)
+
+    // Process each player's selections
+    for (const [playerId, cardIds] of Object.entries(selections)) {
+      if (!cardIds || !Array.isArray(cardIds)) continue
+
+      // Get current player state
+      const playerSnapshot = await get(ref(database, `games/${gameId}/players/${playerId}`))
+      if (!playerSnapshot.exists()) continue
+
+      const player: PlayerState = playerSnapshot.val()
+      const currentHand = Array.isArray(player.hand) ? player.hand : []
+      const updatedHand = [...currentHand, ...cardIds]
+
+      // Update player's hand
+      await update(ref(database, `games/${gameId}/players/${playerId}`), {
+        hand: updatedHand,
+      })
+
+      // Update each card's location and clear selectedBy marker
+      for (const cardId of cardIds) {
+        await update(ref(database, `games/${gameId}/cards/${cardId}`), {
+          location: CardLocation.HAND,
+          ownerId: playerId,
+          selectedBy: null, // Clear the marker
+        })
+      }
+    }
+
+    // Remove selected cards from market
+    const gameSnapshot = await get(ref(database, `games/${gameId}`))
+    if (gameSnapshot.exists()) {
+      const game: GameRoom = gameSnapshot.val()
+      const allSelectedIds = Object.values(selections).flat()
+      const updatedMarketIds = (game.marketIds || []).filter(
+        (id: string) => !allSelectedIds.includes(id)
+      )
+      await update(ref(database, `games/${gameId}`), {
+        marketIds: updatedMarketIds,
+      })
+    }
+
+    console.log('[MultiplayerGame] Card distribution complete')
   }
 
   /**
@@ -453,6 +541,11 @@ export class MultiplayerGameService {
     }
 
     const player: PlayerState = playerSnapshot.val()
+
+    // Ensure hand array exists
+    if (!player.hand || !Array.isArray(player.hand)) {
+      throw new Error('Player hand is not initialized')
+    }
 
     if (!player.hand.includes(cardInstanceId)) {
       throw new Error('Card not in hand')
@@ -505,8 +598,11 @@ export class MultiplayerGameService {
     }
 
     // Move card from hand to field
-    const updatedHand = player.hand.filter(id => id !== cardInstanceId)
-    const updatedField = [...player.field, cardInstanceId]
+    // Ensure arrays exist
+    const currentHand = Array.isArray(player.hand) ? player.hand : []
+    const currentField = Array.isArray(player.field) ? player.field : []
+    const updatedHand = currentHand.filter(id => id !== cardInstanceId)
+    const updatedField = [...currentField, cardInstanceId]
 
     // Update player state
     await update(ref(database, `games/${gameId}/players/${playerId}`), {
@@ -583,6 +679,11 @@ export class MultiplayerGameService {
 
     const player: PlayerState = playerSnapshot.val()
 
+    // Ensure field array exists
+    if (!player.field || !Array.isArray(player.field)) {
+      throw new Error('Player field is not initialized')
+    }
+
     if (!player.field.includes(cardInstanceId)) {
       throw new Error('Card not in field')
     }
@@ -598,10 +699,12 @@ export class MultiplayerGameService {
     // Selling gives baseScore stones (as 1-point stones)
     const stonesGained = card.baseScore
     const updatedStones = { ...player.stones }
-    updatedStones.ONE += stonesGained
+    updatedStones.ONE = (updatedStones.ONE || 0) + stonesGained
 
     // Move card from field to discard
-    const updatedField = player.field.filter(id => id !== cardInstanceId)
+    // Ensure field is an array
+    const currentField = Array.isArray(player.field) ? player.field : []
+    const updatedField = currentField.filter(id => id !== cardInstanceId)
 
     // Update player state
     await update(ref(database, `games/${gameId}/players/${playerId}`), {
@@ -777,6 +880,58 @@ export class MultiplayerGameService {
     console.log(`[MultiplayerGame] Final scores calculated for game ${gameId}:`, scores)
 
     return scores
+  }
+
+  /**
+   * Change player's color
+   * Players can only change to colors not already used by other players
+   */
+  async changePlayerColor(
+    gameId: string,
+    playerId: string,
+    newColor: PlayerColor
+  ): Promise<void> {
+    // Get all players to check if color is available
+    const playersSnapshot = await get(ref(database, `games/${gameId}/players`))
+    if (!playersSnapshot.exists()) {
+      throw new Error('No players found')
+    }
+
+    const players = playersSnapshot.val() as Record<string, PlayerState>
+
+    // Check if the color is already taken by another player
+    const colorTaken = Object.values(players).some(
+      (p) => p.playerId !== playerId && p.color === newColor
+    )
+
+    if (colorTaken) {
+      throw new Error(`Color ${newColor} is already taken by another player`)
+    }
+
+    // Update player's color
+    await update(ref(database, `games/${gameId}/players/${playerId}`), {
+      color: newColor,
+    })
+
+    console.log(`[MultiplayerGame] Player ${playerId} changed color to ${newColor}`)
+  }
+
+  /**
+   * Get available colors (colors not used by other players in the game)
+   */
+  async getAvailableColors(gameId: string, currentPlayerId: string): Promise<PlayerColor[]> {
+    const playersSnapshot = await get(ref(database, `games/${gameId}/players`))
+    if (!playersSnapshot.exists()) {
+      return ['green', 'red', 'purple', 'black'] // All colors available
+    }
+
+    const players = playersSnapshot.val() as Record<string, PlayerState>
+    const takenColors = Object.values(players)
+      .filter((p) => p.playerId !== currentPlayerId)
+      .map((p) => p.color)
+
+    const allColors: PlayerColor[] = ['green', 'red', 'purple', 'black']
+    return allColors.filter((c) => !takenColors.includes(c))
   }
 }
 

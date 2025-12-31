@@ -1,14 +1,16 @@
 /**
  * PlayerHand Component
- * Displays player's hand cards with fan layout and drag-drop support
- * @version 1.0.0
+ * Displays player's hand cards with enhanced fan layout, animations, and drag-drop support
+ * @version 2.1.0 - Optimized fan animation and visual effects
  */
-console.log('[components/game/PlayerHand.tsx] v1.0.0 loaded')
+console.log('[components/game/PlayerHand.tsx] v2.1.0 loaded')
 
-import { useState, useCallback, useMemo, memo } from 'react'
+import { useState, useCallback, useMemo, memo, useRef, useEffect } from 'react'
+import gsap from 'gsap'
 import type { CardInstance } from '@/types/cards'
 import { Card } from './Card'
 import { cn } from '@/lib/utils'
+import { ANIMATION_DURATION, ANIMATION_EASE, prefersReducedMotion } from '@/lib/animations'
 
 // ============================================
 // TYPES
@@ -44,40 +46,129 @@ export interface PlayerHandProps {
 // ============================================
 
 const MAX_VISIBLE_CARDS = 7
-const CARD_OVERLAP_RATIO = 0.6 // How much cards overlap
-const HOVER_LIFT = 20 // Pixels to lift on hover
-const FAN_ANGLE = 3 // Degrees rotation per card from center
+const CARD_OVERLAP_RATIO = 0.6 // Increased for tighter fan
+const HOVER_LIFT = 35 // Increased for more dramatic hover
+const FAN_ANGLE = 5 // Slightly increased angle
+const MAX_FAN_ANGLE = 18 // Increased max angle for wider spread
 
 // ============================================
 // HELPER FUNCTIONS
 // ============================================
 
-/**
- * Calculate card position for fan layout
- */
 function getCardTransform(
   index: number,
   totalCards: number,
   hoveredIndex: number | null,
-  isSelected: boolean
+  isSelected: boolean,
+  isDragging: boolean
 ): React.CSSProperties {
   const centerIndex = (totalCards - 1) / 2
   const offset = index - centerIndex
-  const rotation = offset * FAN_ANGLE
 
-  // Base translation for fan effect
-  const baseY = Math.abs(offset) * 5
-  const translateY = hoveredIndex === index ? -HOVER_LIFT : baseY
+  // Calculate rotation with max limit and smooth curve
+  const baseRotation = offset * FAN_ANGLE
+  const rotation = Math.max(-MAX_FAN_ANGLE, Math.min(MAX_FAN_ANGLE, baseRotation))
 
-  // Selected card lifts up
-  const selectedY = isSelected ? -HOVER_LIFT - 10 : translateY
+  // Calculate Y position for arc effect with enhanced curve
+  const arcDepth = Math.abs(offset) * Math.abs(offset) * 4
+  const baseY = arcDepth
+
+  // Hover and selection states
+  let translateY = baseY
+  let scale = 1
+  let zIndex = 10 + index
+
+  if (hoveredIndex === index && !isDragging) {
+    translateY = -HOVER_LIFT
+    scale = 1.12 // Increased hover scale
+    zIndex = 100
+  } else if (isSelected) {
+    translateY = -HOVER_LIFT - 8
+    scale = 1.08 // Increased selection scale
+    zIndex = 99
+  }
 
   return {
-    transform: `rotate(${rotation}deg) translateY(${selectedY}px)`,
-    zIndex: hoveredIndex === index ? 100 : 10 + index,
-    transition: 'transform 0.2s ease-out, z-index 0.1s',
+    transform: `rotate(${rotation}deg) translateY(${translateY}px) scale(${scale})`,
+    zIndex,
+    transition: prefersReducedMotion()
+      ? 'none'
+      : 'transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), z-index 0.1s',
   }
 }
+
+// ============================================
+// DECORATIVE RUNE COMPONENT
+// ============================================
+
+const HandRunes = memo(function HandRunes() {
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      {/* Left rune */}
+      <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-20">
+        <svg width="40" height="80" viewBox="0 0 40 80" className="text-purple-400">
+          <path
+            d="M20 0 L40 20 L40 60 L20 80 L0 60 L0 20 Z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+          />
+          <circle cx="20" cy="40" r="8" fill="none" stroke="currentColor" strokeWidth="1" />
+          <path d="M20 20 L20 60" stroke="currentColor" strokeWidth="1" />
+        </svg>
+      </div>
+      {/* Right rune */}
+      <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-20">
+        <svg width="40" height="80" viewBox="0 0 40 80" className="text-purple-400">
+          <path
+            d="M20 0 L40 20 L40 60 L20 80 L0 60 L0 20 Z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+          />
+          <circle cx="20" cy="40" r="8" fill="none" stroke="currentColor" strokeWidth="1" />
+          <path d="M20 20 L20 60" stroke="currentColor" strokeWidth="1" />
+        </svg>
+      </div>
+      {/* Bottom decorative line */}
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-3/4 h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent" />
+    </div>
+  )
+})
+
+// ============================================
+// HAND LIMIT WARNING
+// ============================================
+
+interface HandLimitWarningProps {
+  currentCount: number
+  maxCount: number
+}
+
+const HandLimitWarning = memo(function HandLimitWarning({
+  currentCount,
+  maxCount,
+}: HandLimitWarningProps) {
+  const isNearLimit = currentCount >= maxCount - 1
+  const isAtLimit = currentCount >= maxCount
+
+  if (!isNearLimit) return null
+
+  return (
+    <div
+      className={cn(
+        'absolute top-2 right-2 px-3 py-1 rounded-full text-xs font-medium',
+        'animate-pulse transition-colors',
+        isAtLimit
+          ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+          : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+      )}
+      data-testid="hand-limit-warning"
+    >
+      {isAtLimit ? 'Hand Full!' : 'Almost Full'}
+    </div>
+  )
+})
 
 // ============================================
 // CARD ITEM COMPONENT
@@ -89,6 +180,7 @@ interface HandCardItemProps {
   totalCards: number
   isSelected: boolean
   isHovered: boolean
+  isDragging: boolean
   showActions: boolean
   enableDrag: boolean
   canTame: boolean
@@ -107,6 +199,7 @@ const HandCardItem = memo(function HandCardItem({
   totalCards,
   isSelected,
   isHovered,
+  isDragging,
   showActions,
   enableDrag,
   canTame,
@@ -118,14 +211,86 @@ const HandCardItem = memo(function HandCardItem({
   onDragStart,
   onDragEnd,
 }: HandCardItemProps) {
-  const cardStyle = getCardTransform(index, totalCards, isHovered ? index : null, isSelected)
+  const cardRef = useRef<HTMLDivElement>(null)
+  const cardStyle = getCardTransform(index, totalCards, isHovered ? index : null, isSelected, isDragging)
+
+  // Card entrance animation
+  useEffect(() => {
+    if (prefersReducedMotion()) return
+
+    const element = cardRef.current
+    if (!element) return
+
+    // Enhanced entrance animation with multiple stages
+    const tl = gsap.timeline()
+
+    tl.fromTo(
+      element,
+      {
+        y: -120,
+        opacity: 0,
+        rotateY: 180,
+        rotateZ: -15,
+        scale: 0.3,
+      },
+      {
+        y: 0,
+        opacity: 1,
+        rotateY: 0,
+        rotateZ: 0,
+        scale: 1,
+        duration: ANIMATION_DURATION.SLOW * 1.2,
+        delay: index * 0.1,
+        ease: ANIMATION_EASE.BOUNCE_OUT,
+      }
+    )
+
+    // Add a subtle bounce at the end
+    tl.to(element, {
+      y: -5,
+      duration: 0.15,
+      ease: 'power1.out',
+    }).to(element, {
+      y: 0,
+      duration: 0.15,
+      ease: 'power1.in',
+    })
+  }, [index])
+
+  // Hover glow effect
+  useEffect(() => {
+    if (prefersReducedMotion()) return
+
+    const element = cardRef.current
+    if (!element) return
+
+    if (isHovered && !isDragging) {
+      gsap.to(element, {
+        boxShadow: '0 25px 50px rgba(139, 92, 246, 0.5), 0 0 40px rgba(139, 92, 246, 0.3), 0 0 60px rgba(139, 92, 246, 0.15)',
+        filter: 'brightness(1.15) saturate(1.2)',
+        duration: ANIMATION_DURATION.FAST,
+        ease: ANIMATION_EASE.POWER_OUT,
+      })
+    } else {
+      gsap.to(element, {
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+        filter: 'brightness(1) saturate(1)',
+        duration: ANIMATION_DURATION.FAST,
+        ease: ANIMATION_EASE.POWER_OUT,
+      })
+    }
+  }, [isHovered, isDragging])
 
   return (
     <div
-      className="relative flex-shrink-0 cursor-pointer"
+      ref={cardRef}
+      className={cn(
+        'relative flex-shrink-0 cursor-pointer',
+        isDragging && 'opacity-50'
+      )}
       style={{
         ...cardStyle,
-        marginLeft: index === 0 ? 0 : `-${CARD_OVERLAP_RATIO * 40}px`,
+        marginLeft: index === 0 ? 0 : `-${CARD_OVERLAP_RATIO * 50}px`,
       }}
       onMouseEnter={onHover}
       onMouseLeave={onHoverEnd}
@@ -144,11 +309,18 @@ const HandCardItem = memo(function HandCardItem({
         onClick={onSelect}
         canTame={canTame}
         className={cn(
-          'transition-shadow duration-200',
+          'transition-all duration-200',
           isSelected && 'ring-2 ring-vale-400 shadow-lg shadow-vale-500/30',
-          isHovered && 'shadow-xl'
+          canTame && 'ring-2 ring-emerald-400/50'
         )}
       />
+
+      {/* Tameable indicator */}
+      {canTame && !isHovered && (
+        <div className="absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-bold shadow-lg animate-bounce-in">
+          Playable
+        </div>
+      )}
     </div>
   )
 })
@@ -170,10 +342,10 @@ export const PlayerHand = memo(function PlayerHand({
   canTameCard,
   className,
 }: PlayerHandProps) {
-  // onDragToField available for future drag-to-field functionality
   void _onDragToField
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const [draggedCardId, setDraggedCardId] = useState<string | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   // Limit visible cards
   const visibleCards = useMemo(() => {
@@ -200,6 +372,16 @@ export const PlayerHand = memo(function PlayerHand({
     e.dataTransfer.setData('cardId', cardId)
     e.dataTransfer.setData('source', 'hand')
     e.dataTransfer.effectAllowed = 'move'
+
+    // Create custom drag image
+    if (e.currentTarget instanceof HTMLElement) {
+      const ghost = e.currentTarget.cloneNode(true) as HTMLElement
+      ghost.style.transform = 'rotate(5deg) scale(1.1)'
+      ghost.style.opacity = '0.9'
+      document.body.appendChild(ghost)
+      e.dataTransfer.setDragImage(ghost, 70, 100)
+      requestAnimationFrame(() => ghost.remove())
+    }
   }, [])
 
   const handleDragEnd = useCallback(() => {
@@ -219,19 +401,26 @@ export const PlayerHand = memo(function PlayerHand({
     return (
       <section
         className={cn(
-          'relative bg-slate-800/30 rounded-xl border border-slate-700 p-6',
+          'relative overflow-hidden',
+          'bg-gradient-to-b from-slate-800/40 to-slate-900/60',
+          'rounded-2xl border-2 border-slate-700/50 p-6',
+          'shadow-inner shadow-slate-950/50',
           className
         )}
         data-testid="player-hand"
       >
+        <HandRunes />
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold text-slate-200 font-game">
+          <h3 className="text-lg font-semibold text-slate-200 font-game tracking-wide">
             Hand
           </h3>
           <span className="text-sm text-slate-500">0 / {maxHandSize}</span>
         </div>
         <div className="flex items-center justify-center h-52 text-slate-500">
-          <span>No cards in hand</span>
+          <div className="text-center">
+            <div className="text-4xl mb-2 opacity-30">-</div>
+            <span>No cards in hand</span>
+          </div>
         </div>
       </section>
     )
@@ -239,22 +428,38 @@ export const PlayerHand = memo(function PlayerHand({
 
   return (
     <section
+      ref={containerRef}
       className={cn(
-        'relative bg-slate-800/30 rounded-xl border border-slate-700 p-6',
+        'relative overflow-hidden',
+        'bg-gradient-to-b from-slate-800/40 to-slate-900/60',
+        'rounded-2xl border-2 border-purple-900/30 p-6',
+        'shadow-xl shadow-purple-950/20',
         className
       )}
       data-testid="player-hand"
     >
+      <HandRunes />
+      <HandLimitWarning currentCount={cards.length} maxCount={maxHandSize} />
+
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-lg font-semibold text-slate-200 font-game">
+      <div className="flex items-center justify-between mb-3 relative z-10">
+        <h3 className="text-lg font-semibold text-slate-200 font-game tracking-wide flex items-center gap-2">
+          <span className="text-purple-400">-</span>
           Hand
+          <span className="text-purple-400">-</span>
         </h3>
         <div className="flex items-center gap-2">
           {hiddenCount > 0 && (
-            <span className="text-xs text-amber-400">+{hiddenCount} more</span>
+            <span className="text-xs text-amber-400 bg-amber-500/10 px-2 py-1 rounded-full border border-amber-500/20">
+              +{hiddenCount} more
+            </span>
           )}
-          <span className="text-sm text-slate-400">
+          <span className={cn(
+            'text-sm px-2 py-1 rounded-lg',
+            cards.length >= maxHandSize
+              ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+              : 'bg-slate-700/50 text-slate-400 border border-slate-600/30'
+          )}>
             {cards.length} / {maxHandSize}
           </span>
         </div>
@@ -262,7 +467,7 @@ export const PlayerHand = memo(function PlayerHand({
 
       {/* Cards Fan Layout */}
       <div
-        className="flex items-end justify-center min-h-[220px] py-4 px-8"
+        className="flex items-end justify-center min-h-[240px] py-6 px-12"
         data-testid="hand-cards-container"
       >
         {visibleCards.map((card, index) => (
@@ -273,6 +478,7 @@ export const PlayerHand = memo(function PlayerHand({
             totalCards={visibleCards.length}
             isSelected={selectedCardId === card.instanceId}
             isHovered={hoveredIndex === index}
+            isDragging={draggedCardId === card.instanceId}
             showActions={showActions}
             enableDrag={enableDrag && draggedCardId !== card.instanceId}
             canTame={canTameCard?.(card.instanceId) ?? false}
@@ -289,8 +495,9 @@ export const PlayerHand = memo(function PlayerHand({
 
       {/* Drag hint */}
       {enableDrag && cards.length > 0 && (
-        <p className="text-center text-xs text-slate-500 mt-2">
-          Drag cards to field to play them
+        <p className="text-center text-xs text-slate-500 mt-2 relative z-10">
+          <span className="text-purple-400">Drag</span> cards to field to play them, or{' '}
+          <span className="text-purple-400">click</span> for actions
         </p>
       )}
     </section>

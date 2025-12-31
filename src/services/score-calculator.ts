@@ -270,6 +270,12 @@ export class ScoreCalculator {
     const scores: ScoreBreakdown[] = []
 
     for (const [playerId, playerState] of Object.entries(allPlayers)) {
+      // Skip if player state is undefined or null
+      if (!playerState) {
+        console.warn(`[ScoreCalculator] Player state is undefined for playerId: ${playerId}`)
+        continue
+      }
+
       const score = this.calculatePlayerScore(playerState, gameCards)
       scores.push(score)
     }

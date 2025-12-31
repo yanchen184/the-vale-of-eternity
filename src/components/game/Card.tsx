@@ -1,15 +1,17 @@
 /**
  * Card Component with Image Display
  * Renders a game card with its image and stats
- * @version 2.3.0 - Enhanced cost label and larger element icons
+ * @version 2.4.0 - Added player selection marker support
  */
-console.log('[components/game/Card.tsx] v2.3.0 loaded')
+console.log('[components/game/Card.tsx] v2.4.0 loaded')
 
 import { useState, useCallback, memo } from 'react'
 import { Flame, Droplets, TreePine, Wind, Crown, Gem } from 'lucide-react'
 import { getCardImagePath } from '@/lib/card-images'
 import type { CardInstance } from '@/types/cards'
 import { Element } from '@/types/cards'
+import { PlayerMarker } from './PlayerMarker'
+import type { PlayerColor } from '@/types/player-color'
 
 // ============================================
 // ELEMENT ICON COMPONENTS
@@ -84,6 +86,10 @@ export interface CardProps {
   onClick?: () => void
   /** Whether the card can be tamed */
   canTame?: boolean
+  /** Player color for selection marker (shown when card is selected during hunting) */
+  selectedByColor?: PlayerColor | null
+  /** Player name for marker tooltip */
+  selectedByName?: string
   /** Additional CSS classes */
   className?: string
 }
@@ -228,6 +234,8 @@ export const Card = memo(function Card({
   onSell,
   onClick,
   canTame = false,
+  selectedByColor,
+  selectedByName,
   className = '',
 }: CardProps) {
   const [imageError, setImageError] = useState(false)
@@ -322,6 +330,7 @@ export const Card = memo(function Card({
         w-52 h-72 flex-shrink-0 cursor-pointer
         transition-all duration-200 hover:scale-105 hover:shadow-lg
         ${isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900' : ''}
+        ${selectedByColor ? 'opacity-80' : ''}
         ${className}
       `}
       onClick={handleClick}
@@ -369,6 +378,21 @@ export const Card = memo(function Card({
           )}
         </div>
       </div>
+
+      {/* Player Selection Marker - shown when card is selected during hunting phase */}
+      {selectedByColor && (
+        <div
+          className="absolute -top-1 -right-1 z-10"
+          data-testid={`card-marker-${index}`}
+        >
+          <PlayerMarker
+            color={selectedByColor}
+            size="md"
+            showGlow={true}
+            playerName={selectedByName}
+          />
+        </div>
+      )}
 
       {/* Action buttons */}
       {showActions && (onTake || onTame || onSell) && (

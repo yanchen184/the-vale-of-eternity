@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 3.1.0
+ * @version 3.2.0
  */
-console.log('[pages/MultiplayerGame.tsx] v3.1.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v3.2.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -83,11 +83,11 @@ function GameHeader({
   onLeave,
 }: GameHeaderProps) {
   const phaseLabels: Record<GamePhase, string> = {
-    WAITING: 'Waiting',
-    HUNTING: 'Hunting Phase',
-    ACTION: 'Action Phase',
-    RESOLUTION: 'Resolution',
-    ENDED: 'Game Over',
+    WAITING: '等待中',
+    HUNTING: '選卡階段',
+    ACTION: '行動階段',
+    RESOLUTION: '結算中',
+    ENDED: '遊戲結束',
   }
 
   const phaseColors: Record<GamePhase, string> = {
@@ -112,11 +112,11 @@ function GameHeader({
             </h1>
             <div className="flex items-center gap-4 text-sm">
               <span className="text-slate-400">
-                Room: <span className="text-amber-400 font-mono font-bold">{roomCode}</span>
+                房間代碼: <span className="text-amber-400 font-mono font-bold">{roomCode}</span>
               </span>
               {phase !== 'WAITING' && (
                 <span className="text-slate-400">
-                  Round: <span className="text-slate-200 font-medium">{round}</span>
+                  回合: <span className="text-slate-200 font-medium">{round}</span>
                 </span>
               )}
             </div>
@@ -137,7 +137,7 @@ function GameHeader({
                   : 'bg-slate-700/50 border-slate-600 text-slate-400'
               )}
             >
-              {isYourTurn ? 'Your Turn!' : `${currentPlayerName}'s Turn`}
+              {isYourTurn ? '輪到你了！' : `${currentPlayerName} 的回合`}
             </div>
           )}
         </div>
@@ -149,7 +149,7 @@ function GameHeader({
           onClick={onLeave}
           data-testid="leave-game-btn"
         >
-          Leave Game
+          離開遊戲
         </Button>
       </div>
     </header>
@@ -165,7 +165,7 @@ function PlayerList({ players, currentPlayerId, currentTurnPlayerId, phase }: Pl
       className="w-64 bg-slate-800/50 rounded-xl border border-slate-700 p-4"
       data-testid="player-list"
     >
-      <h3 className="text-lg font-semibold text-slate-200 mb-4">Players</h3>
+      <h3 className="text-lg font-semibold text-slate-200 mb-4">玩家列表</h3>
       <div className="space-y-3">
         {players.map((player) => {
           const isCurrentTurn = player.playerId === currentTurnPlayerId
@@ -191,17 +191,17 @@ function PlayerList({ players, currentPlayerId, currentTurnPlayerId, phase }: Pl
                 </span>
                 {player.hasPassed && (
                   <span className="text-xs text-slate-500 px-2 py-0.5 rounded bg-slate-700">
-                    Passed
+                    已跳過
                   </span>
                 )}
               </div>
               <div className="flex items-center gap-3 text-xs text-slate-400">
-                <span>Hand: {player.hand?.length ?? 0}</span>
-                <span>Field: {player.field?.length ?? 0}</span>
-                <span>Stones: {totalStoneValue}</span>
+                <span>手牌: {player.hand?.length ?? 0}</span>
+                <span>場上: {player.field?.length ?? 0}</span>
+                <span>石頭: {totalStoneValue}</span>
               </div>
               {player.isReady && phase === 'WAITING' && (
-                <div className="mt-2 text-xs text-emerald-400">Ready</div>
+                <div className="mt-2 text-xs text-emerald-400">準備完成</div>
               )}
             </div>
           )
@@ -225,14 +225,14 @@ function WaitingRoom({ roomCode, players, isHost, maxPlayers, onStartGame, onLea
       <div className="max-w-lg w-full bg-white/10 backdrop-blur-md rounded-2xl p-8 shadow-2xl">
         {/* Room Code Display */}
         <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-white mb-2">Game Room</h2>
+          <h2 className="text-2xl font-bold text-white mb-2">遊戲房間</h2>
           <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-600">
-            <span className="text-sm text-slate-400">Room Code</span>
+            <span className="text-sm text-slate-400">房間代碼</span>
             <div className="text-4xl font-mono font-bold text-amber-400 tracking-wider">
               {roomCode}
             </div>
             <span className="text-xs text-slate-500">
-              Share this code with friends to join
+              分享此代碼給朋友加入遊戲
             </span>
           </div>
         </div>
@@ -240,7 +240,7 @@ function WaitingRoom({ roomCode, players, isHost, maxPlayers, onStartGame, onLea
         {/* Player List */}
         <div className="mb-8">
           <h3 className="text-lg font-semibold text-slate-200 mb-4">
-            Players ({players.length}/{maxPlayers})
+            玩家 ({players.length}/{maxPlayers})
           </h3>
           <div className="space-y-2">
             {players.map((player, index) => (
@@ -255,7 +255,7 @@ function WaitingRoom({ roomCode, players, isHost, maxPlayers, onStartGame, onLea
                 <span className="flex-1 text-slate-200">{player.name}</span>
                 {index === 0 && (
                   <span className="text-xs text-amber-400 px-2 py-1 rounded bg-amber-900/30">
-                    Host
+                    房主
                   </span>
                 )}
               </div>
@@ -270,7 +270,7 @@ function WaitingRoom({ roomCode, players, isHost, maxPlayers, onStartGame, onLea
                 <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-500">
                   {players.length + i + 1}
                 </div>
-                <span className="text-slate-500">Waiting for player...</span>
+                <span className="text-slate-500">等待玩家加入...</span>
               </div>
             ))}
           </div>
@@ -284,7 +284,7 @@ function WaitingRoom({ roomCode, players, isHost, maxPlayers, onStartGame, onLea
             className="flex-1"
             data-testid="leave-waiting-btn"
           >
-            Leave
+            離開
           </Button>
           {isHost && (
             <Button
@@ -294,14 +294,14 @@ function WaitingRoom({ roomCode, players, isHost, maxPlayers, onStartGame, onLea
               className="flex-1"
               data-testid="start-game-btn"
             >
-              {canStart ? 'Start Game' : `Need ${2 - players.length} more`}
+              {canStart ? '開始遊戲' : `還需要 ${2 - players.length} 位玩家`}
             </Button>
           )}
         </div>
 
         {!isHost && (
           <p className="text-center text-sm text-slate-400 mt-4">
-            Waiting for host to start the game...
+            等待房主開始遊戲...
           </p>
         )}
       </div>
@@ -319,11 +319,11 @@ function HuntingPhaseUI({ marketCards, isYourTurn, currentPlayerName, onSelectCa
       data-testid="hunting-phase"
     >
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-blue-400 mb-2">Hunting Phase</h2>
+        <h2 className="text-2xl font-bold text-blue-400 mb-2">選卡階段</h2>
         <p className="text-slate-400">
           {isYourTurn
-            ? 'Select a card from the market to add to your hand'
-            : `Waiting for ${currentPlayerName} to select a card...`}
+            ? '從市場選擇一張卡片加入你的手牌'
+            : `等待 ${currentPlayerName} 選擇卡片...`}
         </p>
       </div>
 
@@ -441,7 +441,15 @@ export function MultiplayerGame() {
 
     const handleCardsUpdate = (snapshot: any) => {
       if (snapshot.exists()) {
-        setCards(snapshot.val())
+        const cardsData = snapshot.val()
+        if (cardsData && typeof cardsData === 'object') {
+          setCards(cardsData)
+        } else {
+          console.warn('[MultiplayerGame] Invalid cards data:', cardsData)
+          setCards({})
+        }
+      } else {
+        setCards({})
       }
     }
 
@@ -482,8 +490,16 @@ export function MultiplayerGame() {
   // Convert card data to CardInstance format
   const convertToCardInstance = useCallback(
     (instanceId: string): CardInstance | null => {
+      if (!cards || typeof cards !== 'object') {
+        console.warn('[MultiplayerGame] cards is not available:', cards)
+        return null
+      }
+
       const cardData = cards[instanceId]
-      if (!cardData) return null
+      if (!cardData) {
+        console.warn('[MultiplayerGame] Card not found:', instanceId)
+        return null
+      }
 
       return {
         instanceId: cardData.instanceId,
@@ -661,7 +677,7 @@ export function MultiplayerGame() {
         data-testid="multiplayer-loading"
       >
         <div className="text-center">
-          <div className="text-slate-400 text-lg mb-4">Connecting to game...</div>
+          <div className="text-slate-400 text-lg mb-4">連接遊戲中...</div>
           <div className="w-12 h-12 border-4 border-vale-500 border-t-transparent rounded-full animate-spin mx-auto" />
         </div>
       </div>
@@ -676,8 +692,8 @@ export function MultiplayerGame() {
         data-testid="multiplayer-error"
       >
         <div className="text-center">
-          <div className="text-red-400 text-lg mb-4">{error || 'Game not found'}</div>
-          <Button onClick={() => navigate('/multiplayer')}>Back to Lobby</Button>
+          <div className="text-red-400 text-lg mb-4">{error || '找不到遊戲'}</div>
+          <Button onClick={() => navigate('/multiplayer')}>返回大廳</Button>
         </div>
       </div>
     )
@@ -780,7 +796,7 @@ export function MultiplayerGame() {
                     onClick={handlePassTurn}
                     data-testid="pass-turn-btn"
                   >
-                    Pass Turn
+                    跳過回合
                   </Button>
                 </div>
               )}
@@ -803,7 +819,7 @@ export function MultiplayerGame() {
             <div className="text-center py-4">
               <div className="inline-block px-6 py-3 rounded-lg bg-slate-700/50 border border-slate-600">
                 <span className="text-slate-300">
-                  Waiting for <span className="text-vale-400 font-semibold">{currentTurnPlayer?.name}</span> to finish their turn...
+                  等待 <span className="text-vale-400 font-semibold">{currentTurnPlayer?.name}</span> 完成回合...
                 </span>
               </div>
             </div>
@@ -815,19 +831,19 @@ export function MultiplayerGame() {
       <Modal
         isOpen={showLeaveModal}
         onClose={() => setShowLeaveModal(false)}
-        title="Leave Game?"
+        title="離開遊戲？"
         size="sm"
       >
         <div className="text-center">
           <p className="text-slate-400 mb-6">
-            Are you sure you want to leave the game? You won't be able to rejoin.
+            確定要離開遊戲嗎？離開後將無法重新加入。
           </p>
           <div className="flex gap-4 justify-center">
             <Button variant="secondary" onClick={() => setShowLeaveModal(false)}>
-              Cancel
+              取消
             </Button>
             <Button variant="primary" onClick={confirmLeaveGame} data-testid="confirm-leave-btn">
-              Leave Game
+              離開遊戲
             </Button>
           </div>
         </div>
@@ -837,12 +853,12 @@ export function MultiplayerGame() {
       <Modal
         isOpen={showGameOverModal}
         onClose={() => {}}
-        title="Game Over"
+        title="遊戲結束"
         size="md"
         showCloseButton={false}
       >
         <div className="text-center py-4">
-          <h3 className="text-2xl font-bold text-vale-400 mb-6">Final Scores</h3>
+          <h3 className="text-2xl font-bold text-vale-400 mb-6">最終分數</h3>
           <div className="space-y-3 mb-6">
             {scores.map((player, index) => (
               <div
@@ -879,7 +895,7 @@ export function MultiplayerGame() {
           </div>
 
           <Button onClick={confirmLeaveGame} data-testid="back-to-lobby-btn">
-            Back to Lobby
+            返回大廳
           </Button>
         </div>
       </Modal>

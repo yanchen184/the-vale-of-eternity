@@ -1,9 +1,9 @@
 /**
- * Stores barrel export v3.0.0
- * Single Player Mode
- * @version 3.0.0
+ * Stores barrel export v3.1.0
+ * Single Player Mode with Manual Mode support
+ * @version 3.1.0
  */
-console.log('[stores/index.ts] v3.0.0 loaded')
+console.log('[stores/index.ts] v3.1.0 loaded')
 
 // Single Player Game Store
 export {

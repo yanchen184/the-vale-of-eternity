@@ -1,9 +1,9 @@
 /**
  * StonePool Component
- * Displays player's stone resources with element colors
- * @version 1.0.0
+ * Displays player's stone resources with element colors and animations
+ * @version 2.1.0 - Using real stone coin images
  */
-console.log('[components/game/StonePool.tsx] v1.0.0 loaded')
+console.log('[components/game/StonePool.tsx] v2.1.0 loaded')
 
 import { useState, useCallback, memo, useMemo } from 'react'
 import type { StonePool as StonePoolType } from '@/types/game'
@@ -44,6 +44,17 @@ interface StoneTypeConfig {
   bgColor: string
   borderColor: string
   glowColor: string
+  imagePath?: string
+}
+
+// Helper function to get stone image path
+function getStoneImage(stoneType: StoneType): string | null {
+  const imageMap: Record<string, string> = {
+    [StoneType.ONE]: '/assets/stones/stone-1.png',
+    [StoneType.THREE]: '/assets/stones/stone-3.png',
+    [StoneType.SIX]: '/assets/stones/stone-6.png',
+  }
+  return imageMap[stoneType] || null
 }
 
 const STONE_CONFIGS: StoneTypeConfig[] = [
@@ -156,6 +167,7 @@ const StoneItem = memo(function StoneItem({
   isSelected = false,
 }: StoneItemProps) {
   const hasStones = count > 0
+  const stoneImage = getStoneImage(config.type)
 
   if (compact) {
     return (
@@ -168,7 +180,11 @@ const StoneItem = memo(function StoneItem({
         )}
         data-testid={`stone-${config.key}-compact`}
       >
-        <span className="text-sm">{STONE_ICONS[config.type]}</span>
+        {stoneImage ? (
+          <img src={stoneImage} alt={config.labelTw} className="w-5 h-5" />
+        ) : (
+          <span className="text-sm">{STONE_ICONS[config.type]}</span>
+        )}
         <span className={cn('text-sm font-bold', config.color)}>{count}</span>
       </div>
     )
@@ -179,36 +195,72 @@ const StoneItem = memo(function StoneItem({
       onClick={onSelect}
       disabled={!hasStones}
       className={cn(
-        'relative flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all duration-200',
+        'group relative flex flex-col items-center gap-1 p-4 rounded-xl border-2 transition-all duration-300',
         config.bgColor,
         config.borderColor,
-        hasStones && 'hover:scale-105 hover:shadow-lg cursor-pointer',
-        !hasStones && 'opacity-40 cursor-not-allowed',
-        isSelected && 'ring-2 ring-white ring-offset-2 ring-offset-slate-900'
+        hasStones && 'hover:scale-110 hover:shadow-2xl cursor-pointer animate-pulse-slow',
+        !hasStones && 'opacity-30 cursor-not-allowed grayscale',
+        isSelected && 'ring-4 ring-white ring-offset-4 ring-offset-slate-900 scale-105'
       )}
       style={{
-        boxShadow: hasStones ? `0 0 15px ${config.glowColor}` : 'none',
+        boxShadow: hasStones
+          ? `0 0 20px ${config.glowColor}, 0 0 40px ${config.glowColor}`
+          : 'none',
       }}
       data-testid={`stone-${config.key}`}
     >
-      {/* Icon */}
-      <span className="text-2xl">{STONE_ICONS[config.type]}</span>
+      {/* Glow effect background */}
+      {hasStones && (
+        <div
+          className="absolute inset-0 rounded-xl blur-md opacity-50 group-hover:opacity-75 transition-opacity"
+          style={{ background: `radial-gradient(circle, ${config.glowColor} 0%, transparent 70%)` }}
+        />
+      )}
 
-      {/* Count */}
-      <span className={cn('text-xl font-bold', config.color)}>
+      {/* Icon with scale animation */}
+      <div className={cn(
+        "relative z-10 transition-transform duration-300",
+        hasStones && "group-hover:scale-125 group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]"
+      )}>
+        {stoneImage ? (
+          <img
+            src={stoneImage}
+            alt={config.labelTw}
+            className="w-16 h-16 object-contain"
+            style={{ filter: hasStones ? 'none' : 'grayscale(100%)' }}
+          />
+        ) : (
+          <span className="text-3xl">{STONE_ICONS[config.type]}</span>
+        )}
+      </div>
+
+      {/* Count with number change animation */}
+      <span className={cn(
+        'text-2xl font-bold relative z-10 transition-all duration-300',
+        config.color,
+        hasStones && 'group-hover:scale-110'
+      )}>
         {count}
       </span>
 
       {/* Label */}
-      <span className="text-xs text-slate-400">
+      <span className="text-xs text-slate-400 relative z-10 font-medium">
         {config.labelTw}
       </span>
 
-      {/* Value indicator */}
+      {/* Value indicator with enhanced styling */}
       {hasStones && config.value > 1 && (
-        <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-slate-800 text-xs text-slate-300 border border-slate-600">
-          x{config.value}
+        <span className="absolute -top-2 -right-2 px-2 py-1 rounded-full bg-gradient-to-br from-amber-600 to-amber-800 text-xs font-bold text-white border-2 border-amber-400 shadow-lg animate-bounce-subtle z-20">
+          ×{config.value}
         </span>
+      )}
+
+      {/* Sparkle effect on hover */}
+      {hasStones && (
+        <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none overflow-hidden">
+          <div className="absolute top-1 right-1 w-1 h-1 bg-white rounded-full animate-ping" />
+          <div className="absolute bottom-2 left-2 w-1 h-1 bg-white rounded-full animate-ping animation-delay-150" />
+        </div>
       )}
     </button>
   )

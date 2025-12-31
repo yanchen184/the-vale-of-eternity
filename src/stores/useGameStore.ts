@@ -1,10 +1,10 @@
 /**
- * Game State Store for Single Player Mode v3.0.0
+ * Game State Store for Single Player Mode v3.1.0
  * Using Zustand for state management
  * Supports single-player game with Stone Economy System
- * @version 3.0.0
+ * @version 3.1.0 - Added manual mode support
  */
-console.log('[stores/useGameStore.ts] v3.0.0 loaded')
+console.log('[stores/useGameStore.ts] v3.1.0 loaded')
 
 import { create } from 'zustand'
 import { devtools, subscribeWithSelector } from 'zustand/middleware'
@@ -17,6 +17,12 @@ import {
   SinglePlayerActionType,
   calculateStonePoolValue,
 } from '@/types/game'
+import {
+  GameMode,
+  ManualOperationType,
+  type ManualOperation,
+  createManualOperation,
+} from '@/types/manual'
 import {
   SinglePlayerEngine,
   SinglePlayerError,
@@ -80,6 +86,20 @@ interface GameStore {
   setError: (error: string | null) => void
   /** Sync state from engine */
   syncState: () => void
+
+  // === Manual Mode (v3.1.0) ===
+  /** Set game mode */
+  setGameMode: (mode: GameMode) => void
+  /** Add stones (manual mode) */
+  addStones: (type: StoneType, amount: number) => void
+  /** Remove stones (manual mode) */
+  removeStones: (type: StoneType, amount: number) => void
+  /** Adjust score (manual mode) */
+  adjustScore: (amount: number, reason?: string) => void
+  /** Undo last manual operation */
+  undoOperation: () => void
+  /** Clear manual operation history */
+  clearHistory: () => void
 }
 
 // ============================================
@@ -246,6 +266,187 @@ export const useGameStore = create<GameStore>()(
           if (state) {
             set({ gameState: state })
           }
+        },
+
+        // === Manual Mode (v3.1.0) ===
+        setGameMode: (mode: GameMode) => {
+          const { gameState } = get()
+          if (!gameState) return
+
+          set({
+            gameState: {
+              ...gameState,
+              gameMode: mode,
+            },
+          })
+        },
+
+        addStones: (type: StoneType, amount: number) => {
+          const { gameState } = get()
+          if (!gameState || gameState.gameMode !== GameMode.MANUAL) return
+
+          // Validate amount
+          if (amount <= 0) {
+            set({ error: '石頭數量必須大於 0' })
+            return
+          }
+
+          const stateBefore = { stones: { ...gameState.player.stones } }
+          const newStones = { ...gameState.player.stones }
+          newStones[type] = (newStones[type] || 0) + amount
+          const stateAfter = { stones: newStones }
+
+          // Create operation record
+          const operation = createManualOperation(
+            ManualOperationType.ADD_STONES,
+            `增加 ${amount} 個 ${type} 石頭`,
+            { type: 'ADD_STONES', stoneType: type, amount },
+            stateBefore,
+            stateAfter
+          )
+
+          set({
+            gameState: {
+              ...gameState,
+              player: {
+                ...gameState.player,
+                stones: newStones,
+              },
+              manualOperations: [...gameState.manualOperations, operation],
+              updatedAt: Date.now(),
+            },
+          })
+        },
+
+        removeStones: (type: StoneType, amount: number) => {
+          const { gameState } = get()
+          if (!gameState || gameState.gameMode !== GameMode.MANUAL) return
+
+          // Validate amount
+          if (amount <= 0) {
+            set({ error: '石頭數量必須大於 0' })
+            return
+          }
+
+          const currentAmount = gameState.player.stones[type] || 0
+          if (currentAmount < amount) {
+            set({ error: `${type} 石頭不足（當前: ${currentAmount}）` })
+            return
+          }
+
+          const stateBefore = { stones: { ...gameState.player.stones } }
+          const newStones = { ...gameState.player.stones }
+          newStones[type] = currentAmount - amount
+          const stateAfter = { stones: newStones }
+
+          // Create operation record
+          const operation = createManualOperation(
+            ManualOperationType.REMOVE_STONES,
+            `減少 ${amount} 個 ${type} 石頭`,
+            { type: 'REMOVE_STONES', stoneType: type, amount },
+            stateBefore,
+            stateAfter
+          )
+
+          set({
+            gameState: {
+              ...gameState,
+              player: {
+                ...gameState.player,
+                stones: newStones,
+              },
+              manualOperations: [...gameState.manualOperations, operation],
+              updatedAt: Date.now(),
+            },
+          })
+        },
+
+        adjustScore: (amount: number, reason: string = '') => {
+          const { gameState } = get()
+          if (!gameState || gameState.gameMode !== GameMode.MANUAL) return
+
+          if (amount === 0) {
+            set({ error: '分數調整不能為 0' })
+            return
+          }
+
+          const currentScore = gameState.finalScore || 0
+          const newScore = currentScore + amount
+          const description = reason
+            ? `調整分數 ${amount > 0 ? '+' : ''}${amount}（${reason}）`
+            : `調整分數 ${amount > 0 ? '+' : ''}${amount}`
+
+          const stateBefore = { finalScore: currentScore }
+          const stateAfter = { finalScore: newScore }
+
+          // Create operation record
+          const operation = createManualOperation(
+            ManualOperationType.ADJUST_SCORE,
+            description,
+            { type: 'ADJUST_SCORE', amount, reason },
+            stateBefore,
+            stateAfter
+          )
+
+          set({
+            gameState: {
+              ...gameState,
+              finalScore: newScore,
+              manualOperations: [...gameState.manualOperations, operation],
+              updatedAt: Date.now(),
+            },
+          })
+        },
+
+        undoOperation: () => {
+          const { gameState } = get()
+          if (!gameState || gameState.gameMode !== GameMode.MANUAL) return
+
+          const { manualOperations } = gameState
+          if (manualOperations.length === 0) {
+            set({ error: '沒有可撤銷的操作' })
+            return
+          }
+
+          // Get last operation
+          const lastOperation = manualOperations[manualOperations.length - 1]
+          if (!lastOperation.canUndo) {
+            set({ error: '此操作不可撤銷' })
+            return
+          }
+
+          // Restore state before operation
+          const restoredState = { ...gameState }
+
+          if (lastOperation.stateBefore.stones) {
+            restoredState.player = {
+              ...restoredState.player,
+              stones: lastOperation.stateBefore.stones as StonePool,
+            }
+          }
+
+          if (lastOperation.stateBefore.finalScore !== undefined) {
+            restoredState.finalScore = lastOperation.stateBefore.finalScore
+          }
+
+          // Remove last operation
+          restoredState.manualOperations = manualOperations.slice(0, -1)
+          restoredState.updatedAt = Date.now()
+
+          set({ gameState: restoredState })
+        },
+
+        clearHistory: () => {
+          const { gameState } = get()
+          if (!gameState) return
+
+          set({
+            gameState: {
+              ...gameState,
+              manualOperations: [],
+              updatedAt: Date.now(),
+            },
+          })
         },
       }
     }),

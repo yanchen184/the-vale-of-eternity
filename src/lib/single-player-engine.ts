@@ -242,7 +242,7 @@ export class SinglePlayerEngine {
     // Create game state
     this.state = {
       gameId: generateGameId(),
-      version: '3.0.0',
+      version: '3.1.0',
       player,
       deck,
       market,
@@ -256,10 +256,12 @@ export class SinglePlayerEngine {
       scoreBreakdown: null,
       createdAt: Date.now(),
       updatedAt: Date.now(),
-    }
+      gameMode: 'AUTOMATIC',
+      manualOperations: [],
+    } as SinglePlayerGameState
 
     this.notifyStateChange()
-    return this.state
+    return this.state!
   }
 
   /**

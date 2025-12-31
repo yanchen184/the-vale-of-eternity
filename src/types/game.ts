@@ -1,12 +1,13 @@
 /**
  * Game core type definitions
  * Supports both multiplayer and single-player modes
- * @version 3.0.0
+ * @version 3.1.0 - Added manual mode support
  */
-console.log('[types/game.ts] v3.0.0 loaded')
+console.log('[types/game.ts] v3.1.0 loaded')
 
 import type { CardInstance, StoneType } from './cards'
 import type { Player } from './player'
+import type { GameMode, ManualOperation } from './manual'
 
 // ============================================
 // ENUMS
@@ -151,6 +152,12 @@ export interface SinglePlayerGameState {
   createdAt: number
   /** Last update timestamp */
   updatedAt: number
+
+  // === Manual Mode (v3.1.0) ===
+  /** Current game mode (automatic or manual) */
+  gameMode: GameMode
+  /** Manual operation history */
+  manualOperations: ManualOperation[]
 }
 
 /**
