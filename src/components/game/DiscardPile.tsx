@@ -132,19 +132,19 @@ const DiscardModal = memo(function DiscardModal({
       isOpen={isOpen}
       onClose={onClose}
       title="棄置牌堆"
-      size="lg"
+      size="xl"
     >
-      <div className="p-4">
+      <div className="p-6">
         {cards.length === 0 ? (
           <div className="text-center text-slate-500 py-8">
             尚無棄置的卡片
           </div>
         ) : (
           <>
-            <p className="text-sm text-slate-400 mb-4">
+            <p className="text-sm text-slate-400 mb-6">
               共 {cards.length} 張卡片已棄置{allowReturn ? '（點擊取回按鈕反悔賣出）' : ''}
             </p>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 max-h-[60vh] overflow-y-auto">
+            <div className="flex flex-wrap gap-4 max-h-[70vh] overflow-y-auto justify-center">
               {cards.map((card, index) => {
                 console.log(`[DiscardModal] Rendering card ${index}:`, card.name, card.instanceId)
 
@@ -161,23 +161,27 @@ const DiscardModal = memo(function DiscardModal({
                 return (
                   <div
                     key={card.instanceId}
-                    className="animate-fade-in relative"
-                    style={{ animationDelay: `${index * 50}ms` }}
+                    className="animate-fade-in relative transform transition-transform hover:scale-105"
+                    style={{ animationDelay: `${index * 30}ms` }}
                   >
                     <Card
                       card={card}
                       index={index}
-                      compact
+                      compact={false}
                     />
                     {/* Return button */}
                     {allowReturn && onReturnCard && (
                       <button
-                        onClick={() => onReturnCard(card.instanceId)}
-                        className="absolute bottom-0 left-0 right-0 bg-green-600 hover:bg-green-500 text-white text-[10px] py-1 px-2 rounded-b transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          console.log('[DiscardModal] Return button clicked for card:', card.instanceId)
+                          onReturnCard(card.instanceId)
+                        }}
+                        className="absolute bottom-2 left-2 right-2 bg-green-600 hover:bg-green-500 text-white text-sm font-bold py-3 px-4 rounded-lg transition-all shadow-lg hover:shadow-green-500/50"
                         type="button"
-                        title={`取回（歸還 ${coinText}）`}
+                        title={`取回此卡（歸還 ${coinText}）`}
                       >
-                        取回
+                        取回卡片
                       </button>
                     )}
                   </div>

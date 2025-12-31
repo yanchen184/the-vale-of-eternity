@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 5.7.0 - Added hand card discard functionality for ACTION and RESOLUTION phases
+ * @version 5.7.1 - Disabled card selling in RESOLUTION phase
  */
-console.log('[pages/MultiplayerGame.tsx] v5.7.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v5.7.1 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -331,7 +331,7 @@ function ActionPhaseUI({
             showActions={isYourTurn}
             enableDrag={isYourTurn && !resolutionMode}
             onCardPlay={onCardPlay}
-            onCardSell={onCardSell}
+            onCardSell={resolutionMode ? undefined : onCardSell}
             onCardDiscard={onHandCardDiscard}
             canTameCard={canTameCard}
             currentRound={currentRound}
@@ -1046,7 +1046,7 @@ export function MultiplayerGame() {
                 currentRound={gameRoom.currentRound}
                 isYourTurn={isYourTurn}
                 onCardPlay={handleTameCard}
-                onCardSell={handleSellCard}
+                onCardSell={() => {}} // Disabled in resolution phase
                 onHandCardDiscard={handleDiscardCard}
                 onCardReturn={handleReturnCard}
                 onCardDiscard={handleDiscardFieldCard}
@@ -1105,35 +1105,38 @@ export function MultiplayerGame() {
         isOpen={showMarketDiscardModal}
         onClose={() => setShowMarketDiscardModal(false)}
         title="市場棄置牌堆"
-        size="lg"
+        size="xl"
       >
-        <div className="p-4">
+        <div className="p-6">
           {discardedCards.length === 0 ? (
             <div className="text-center text-slate-500 py-8">
               市場尚無棄置的卡片
             </div>
           ) : (
             <>
-              <p className="text-sm text-slate-400 mb-4">
-                共 {discardedCards.length} 張卡片已棄置{isYourTurn ? '（點擊卡片拿回到手上）' : ''}
+              <p className="text-sm text-slate-400 mb-6">
+                共 {discardedCards.length} 張卡片已棄置{isYourTurn ? '（點擊拿取按鈕拿回到手上）' : ''}
               </p>
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 max-h-[60vh] overflow-y-auto">
+              <div className="flex flex-wrap gap-4 max-h-[70vh] overflow-y-auto justify-center">
                 {discardedCards.map((card, index) => (
                   <div
                     key={card.instanceId}
-                    className="animate-fade-in relative"
-                    style={{ animationDelay: `${index * 50}ms` }}
+                    className="animate-fade-in relative transform transition-transform hover:scale-105"
+                    style={{ animationDelay: `${index * 30}ms` }}
                   >
-                    <Card card={card} index={index} compact />
-                    {/* Take button */}
+                    <Card card={card} index={index} compact={false} />
+                    {/* Take button - larger and more prominent */}
                     {isYourTurn && (
                       <button
-                        onClick={() => handleTakeCardFromMarketDiscard(card.instanceId)}
-                        className="absolute bottom-0 left-0 right-0 bg-blue-600 hover:bg-blue-500 text-white text-[10px] py-1 px-2 rounded-b transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleTakeCardFromMarketDiscard(card.instanceId)
+                        }}
+                        className="absolute bottom-2 left-2 right-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold py-3 px-4 rounded-lg transition-all shadow-lg hover:shadow-blue-500/50"
                         type="button"
                         title="拿到手上"
                       >
-                        拿取
+                        拿取卡片
                       </button>
                     )}
                   </div>

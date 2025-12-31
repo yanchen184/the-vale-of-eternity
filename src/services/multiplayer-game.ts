@@ -1,9 +1,9 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 3.9.3 - Rotate starting player each round (Round N starts with Player N-1)
+ * @version 3.10.0 - Auto-assign last card to first player and skip to ACTION phase
  */
-console.log('[services/multiplayer-game.ts] v3.9.3 loaded')
+console.log('[services/multiplayer-game.ts] v3.10.0 loaded')
 
 import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -811,16 +811,60 @@ export class MultiplayerGameService {
       finalIsComplete = nextResult.isComplete
     }
 
-    // Check if ALL players have confirmed their selections
-    // Each player should have 2 cards in total (1 from Round 1 + 1 from Round 2, or 2 from transition)
-    const allPlayersConfirmed = game.playerIds.every(pid => {
-      const playerSelections = confirmedSelections[pid] || []
-      return playerSelections.length >= 2
-    })
+    // Check if hunting phase is complete (all rounds finished)
+    // finalIsComplete is true when getNextHuntingPlayer returns isComplete=true
+    const huntingComplete = finalIsComplete
+
+    // Count remaining unconfirmed cards in market
+    const unconfirmedMarketCards = Object.values(allCards).filter(
+      card => card.location === CardLocation.MARKET && !card.confirmedBy
+    )
+
+    // Special case: If only 1 card remains, auto-assign to first player and skip to ACTION
+    if (unconfirmedMarketCards.length === 1 && !huntingComplete) {
+      const lastCard = unconfirmedMarketCards[0]
+      const firstPlayerId = game.playerIds[0]
+
+      // Mark last card as confirmed by first player
+      await update(ref(database, `games/${gameId}/cards/${lastCard.instanceId}`), {
+        confirmedBy: firstPlayerId,
+        selectedBy: null,
+      })
+
+      // Add to first player's confirmed selections
+      if (!confirmedSelections[firstPlayerId]) {
+        confirmedSelections[firstPlayerId] = []
+      }
+      const firstPlayerSelections = Array.isArray(confirmedSelections[firstPlayerId])
+        ? confirmedSelections[firstPlayerId]
+        : [confirmedSelections[firstPlayerId]]
+      confirmedSelections[firstPlayerId] = [...firstPlayerSelections, lastCard.instanceId]
+
+      // Also update selections
+      if (!selections[firstPlayerId]) {
+        selections[firstPlayerId] = []
+      }
+      selections[firstPlayerId].push(lastCard.instanceId)
+
+      // Move to ACTION phase immediately
+      await update(gameRef, {
+        'huntingPhase/confirmedSelections': confirmedSelections,
+        'huntingPhase/selections': selections,
+        'huntingPhase/isComplete': true,
+        status: 'ACTION',
+        currentPlayerIndex: 0,
+        passedPlayerIds: [],
+        updatedAt: Date.now(),
+      })
+
+      await this.distributeConfirmedCards(gameId)
+      console.log(`[MultiplayerGame] Last card auto-assigned to first player, moving to ACTION phase`)
+      return
+    }
 
     // Update game state
-    if (allPlayersConfirmed) {
-      // All players have confirmed 2 cards → Hunting phase complete
+    if (huntingComplete) {
+      // Hunting phase complete (all rounds finished)
       await update(gameRef, {
         'huntingPhase/confirmedSelections': confirmedSelections,
         'huntingPhase/selections': selections,
