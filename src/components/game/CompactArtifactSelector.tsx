@@ -1,9 +1,9 @@
 /**
  * CompactArtifactSelector Component
  * Compact version of artifact selector for inline display with card selection
- * @version 1.1.0 - Fixed useState import and removed internal confirm button
+ * @version 1.3.0 - Added extensive debug logging for click events
  */
-console.log('[components/game/CompactArtifactSelector.tsx] v1.1.0 loaded')
+console.log('[components/game/CompactArtifactSelector.tsx] v1.3.0 loaded')
 
 import { memo, useState } from 'react'
 import { cn } from '@/lib/utils'
@@ -109,12 +109,30 @@ const CompactArtifactCard = memo(function CompactArtifactCard({
   const [isHovered, setIsHovered] = useState(false)
   const canSelect = !isUsed && !disabled && artifact.implemented
 
+  console.log('[CompactArtifactCard] Render:', {
+    artifactId: artifact.id,
+    artifactName: artifact.nameTw,
+    isUsed,
+    disabled,
+    implemented: artifact.implemented,
+    canSelect,
+  })
+
   return (
     <div className="relative group">
       {/* Artifact Card (like game cards) */}
       <button
         type="button"
-        onClick={canSelect ? onSelect : undefined}
+        onClick={(e) => {
+          console.log('[CompactArtifactCard] Button clicked:', {
+            artifactId: artifact.id,
+            canSelect,
+            hasOnSelect: !!onSelect,
+          })
+          if (canSelect && onSelect) {
+            onSelect()
+          }
+        }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         disabled={!canSelect}
@@ -243,8 +261,18 @@ export const CompactArtifactSelector = memo(function CompactArtifactSelector({
     .filter((a): a is Artifact => !!a)
 
   const handleSelectArtifact = (artifactId: string) => {
-    if (!isActive) return
-    // Directly call onSelectArtifact - no need for local state
+    console.log('[CompactArtifactSelector] handleSelectArtifact called:', {
+      artifactId,
+      isActive,
+      hasCallback: !!onSelectArtifact,
+    })
+
+    if (!isActive) {
+      console.warn('[CompactArtifactSelector] Cannot select artifact - not active')
+      return
+    }
+
+    console.log('[CompactArtifactSelector] Calling onSelectArtifact callback')
     onSelectArtifact(artifactId)
   }
 

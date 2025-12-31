@@ -1,9 +1,9 @@
 /**
  * LeftSidebar Component
  * Left sidebar for multiplayer game - displays player list and my info
- * @version 1.4.0 - Deck button matches discard pile card size (aspect-[2/3])
+ * @version 1.5.0 - Added zone bonus indicator (field limit = round + bonus)
  */
-console.log('[components/game/LeftSidebar.tsx] v1.4.0 loaded')
+console.log('[components/game/LeftSidebar.tsx] v1.5.0 loaded')
 
 import { memo, useMemo } from 'react'
 import { cn } from '@/lib/utils'
@@ -31,6 +31,7 @@ export interface PlayerSidebarData {
   score: number
   hasPassed: boolean
   isReady?: boolean
+  zoneBonus?: 0 | 1 | 2  // Zone bonus indicator (+0/+1/+2 extra field slots)
 }
 
 export interface LeftSidebarProps {
@@ -52,6 +53,10 @@ export interface LeftSidebarProps {
   latestDiscardedCard?: CardInstance | null
   /** Callback when clicking discard pile */
   onDiscardClick?: () => void
+  /** Callback when toggling zone bonus */
+  onToggleZoneBonus?: () => void
+  /** Current game round (for zone bonus display) */
+  currentRound?: number
   /** Additional CSS classes */
   className?: string
 }
@@ -66,6 +71,9 @@ interface MyInfoCardProps {
   deckCount: number
   onDrawCard?: () => void
   canDrawCard: boolean
+  onToggleZoneBonus?: () => void
+  currentRound?: number
+  phase?: 'WAITING' | 'HUNTING' | 'ACTION' | 'RESOLUTION' | 'ENDED'
 }
 
 const MyInfoCard = memo(function MyInfoCard({
@@ -74,9 +82,15 @@ const MyInfoCard = memo(function MyInfoCard({
   deckCount,
   onDrawCard,
   canDrawCard,
+  onToggleZoneBonus,
+  currentRound = 1,
+  phase,
 }: MyInfoCardProps) {
   const totalStoneValue = calculateStonePoolValue(player.stones)
   const colorConfig = PLAYER_COLORS[player.color]
+  const zoneBonus = player.zoneBonus || 0
+  const maxFieldSize = currentRound + zoneBonus
+  const canToggleZone = isCurrentTurn && phase === 'ACTION' && onToggleZoneBonus
 
   return (
     <GlassCard
@@ -133,6 +147,49 @@ const MyInfoCard = memo(function MyInfoCard({
               {player.fieldCount}
             </div>
           </div>
+        </div>
+
+        {/* Zone Bonus Indicator */}
+        <div
+          className={cn(
+            'bg-slate-900/50 rounded-lg p-2 border-2 transition-all duration-200',
+            canToggleZone
+              ? 'border-cyan-500/50 cursor-pointer hover:bg-slate-800/70 hover:border-cyan-400 active:scale-95'
+              : 'border-slate-700/50 cursor-not-allowed opacity-60'
+          )}
+          onClick={canToggleZone ? onToggleZoneBonus : undefined}
+          title={canToggleZone ? '點擊切換區域指示物 (0→1→2→0)' : '只能在自己回合切換'}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <div className="text-xs text-slate-400 mb-1">場地上限</div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-cyan-300">
+                  回合 {currentRound}
+                </span>
+                <span className="text-slate-500">+</span>
+                <div className={cn(
+                  'px-2 py-0.5 rounded text-sm font-bold transition-colors',
+                  zoneBonus === 0 && 'bg-slate-700 text-slate-300',
+                  zoneBonus === 1 && 'bg-blue-600 text-white',
+                  zoneBonus === 2 && 'bg-purple-600 text-white'
+                )}>
+                  區域 +{zoneBonus}
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-slate-400 mb-1">最多</div>
+              <div className="text-2xl font-bold text-emerald-400">
+                {maxFieldSize}
+              </div>
+            </div>
+          </div>
+          {canToggleZone && (
+            <div className="text-xs text-cyan-400 mt-1 text-center animate-pulse">
+              點擊切換
+            </div>
+          )}
         </div>
 
         {/* Coins Breakdown */}

@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 5.12.0 - Added card scale controls (75%-150%) for monster area and sanctuary modals
+ * @version 5.13.0 - Enhanced card scale controls (50%-150%, 10% step) applied to main game area
  */
-console.log('[pages/MultiplayerGame.tsx] v5.12.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v5.13.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -435,7 +435,7 @@ export function MultiplayerGame() {
   const [showAllFieldsModal, setShowAllFieldsModal] = useState(false)
   const [showSanctuaryModal, setShowSanctuaryModal] = useState(false)
   const [scores, setScores] = useState<{ playerId: string; name: string; score: number }[]>([])
-  const [cardScale, setCardScale] = useState(100) // Card size: 75%, 100%, 125%, 150%
+  const [cardScale, setCardScale] = useState(100) // Card size: 50% to 150% (step 10%)
 
   // Extract state from location or redirect
   const playerId = state?.playerId
@@ -961,16 +961,34 @@ export function MultiplayerGame() {
   // Artifact selection handler (Expansion Mode)
   const handleArtifactSelect = useCallback(
     async (artifactId: string) => {
-      if (!gameId || !playerId || !gameRoom) return
+      console.log('[MultiplayerGame] handleArtifactSelect called:', {
+        artifactId,
+        gameId,
+        playerId,
+        hasGameRoom: !!gameRoom,
+        currentRound: gameRoom?.currentRound,
+      })
+
+      if (!gameId || !playerId || !gameRoom) {
+        console.warn('[MultiplayerGame] handleArtifactSelect: Missing required data', {
+          hasGameId: !!gameId,
+          hasPlayerId: !!playerId,
+          hasGameRoom: !!gameRoom,
+        })
+        return
+      }
 
       try {
+        console.log('[MultiplayerGame] Calling selectArtifact service...')
         await multiplayerGameService.selectArtifact(
           gameId,
           playerId,
           artifactId,
           gameRoom.currentRound
         )
+        console.log('[MultiplayerGame] selectArtifact service completed successfully')
       } catch (err: any) {
+        console.error('[MultiplayerGame] selectArtifact error:', err)
         setError(err.message || 'Failed to select artifact')
       }
     },
@@ -1091,10 +1109,10 @@ export function MultiplayerGame() {
             cardScaleControls={
               <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-700/50 border border-slate-600/50">
                 <button
-                  onClick={() => setCardScale(Math.max(75, cardScale - 25))}
+                  onClick={() => setCardScale(Math.max(50, cardScale - 10))}
                   className="p-1 rounded hover:bg-slate-600/50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                  disabled={cardScale <= 75}
-                  title="縮小"
+                  disabled={cardScale <= 50}
+                  title="縮小 (10%)"
                 >
                   <Minimize2 className="w-3.5 h-3.5 text-slate-300" />
                 </button>
@@ -1102,10 +1120,10 @@ export function MultiplayerGame() {
                   {cardScale}%
                 </span>
                 <button
-                  onClick={() => setCardScale(Math.min(150, cardScale + 25))}
+                  onClick={() => setCardScale(Math.min(150, cardScale + 10))}
                   className="p-1 rounded hover:bg-slate-600/50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   disabled={cardScale >= 150}
-                  title="放大"
+                  title="放大 (10%)"
                 >
                   <Maximize2 className="w-3.5 h-3.5 text-slate-300" />
                 </button>
@@ -1147,7 +1165,15 @@ export function MultiplayerGame() {
           />
         }
         mainContent={
-          <>
+          <div
+            className="w-full h-full overflow-auto custom-scrollbar"
+            style={{
+              transform: `scale(${cardScale / 100})`,
+              transformOrigin: 'top center',
+              minWidth: `${100 / (cardScale / 100)}%`,
+              minHeight: `${100 / (cardScale / 100)}%`,
+            }}
+          >
             {/* Hunting Phase - Card Selection with Artifact Selection at Bottom (v5.11.0) */}
             {gameRoom.status === 'HUNTING' && (
               <HuntingPhaseUI
@@ -1218,7 +1244,7 @@ export function MultiplayerGame() {
                 }}
               />
             )}
-          </>
+          </div>
         }
       />
 

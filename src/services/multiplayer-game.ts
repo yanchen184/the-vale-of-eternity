@@ -1,9 +1,9 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 4.3.0 - Added zone bonus system (field limit = round + zoneBonus)
+ * @version 4.4.0 - Implemented zone bonus toggle and field limit validation
  */
-console.log('[services/multiplayer-game.ts] v4.3.0 loaded')
+console.log('[services/multiplayer-game.ts] v4.4.0 loaded')
 
 import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -1092,6 +1092,17 @@ export class MultiplayerGameService {
       throw new Error('Card not in hand')
     }
 
+    // ============================================
+    // Zone Bonus Field Limit Check
+    // ============================================
+    const currentField = Array.isArray(player.field) ? player.field : []
+    const zoneBonus = player.zoneBonus || 0
+    const maxFieldSize = game.currentRound + zoneBonus
+
+    if (currentField.length >= maxFieldSize) {
+      throw new Error(`場地已滿！最多只能有 ${maxFieldSize} 隻怪獸（回合 ${game.currentRound} + 區域 +${zoneBonus}）`)
+    }
+
     // Get card data
     const cardSnapshot = await get(ref(database, `games/${gameId}/cards/${cardInstanceId}`))
     if (!cardSnapshot.exists()) {
@@ -1101,7 +1112,6 @@ export class MultiplayerGameService {
     // Move card from hand to field (NO automatic payment - player pays manually)
     // Ensure arrays exist
     const currentHand = Array.isArray(player.hand) ? player.hand : []
-    const currentField = Array.isArray(player.field) ? player.field : []
     const updatedHand = currentHand.filter(id => id !== cardInstanceId)
     const updatedField = [...currentField, cardInstanceId]
 
@@ -2364,6 +2374,53 @@ export class MultiplayerGameService {
   }
 
   /**
+   * Toggle zone bonus indicator (only during own turn)
+   * Cycles through: 0 → 1 → 2 → 0
+   * Zone bonus adds extra field slots: max monsters = currentRound + zoneBonus
+   */
+  async toggleZoneBonus(gameId: string, playerId: string): Promise<void> {
+    // Get game state to verify it's player's turn
+    const gameSnapshot = await get(ref(database, `games/${gameId}`))
+    if (!gameSnapshot.exists()) {
+      throw new Error('Game not found')
+    }
+
+    const game: GameRoom = gameSnapshot.val()
+
+    // Only allow toggling during ACTION phase
+    if (game.status !== 'ACTION') {
+      throw new Error('只能在行動階段切換區域指示物')
+    }
+
+    const currentPlayerIndex = game.currentPlayerIndex
+    const expectedPlayerId = game.playerIds[currentPlayerIndex]
+
+    if (playerId !== expectedPlayerId) {
+      throw new Error('只能在自己的回合切換區域指示物')
+    }
+
+    // Get player state
+    const playerSnapshot = await get(ref(database, `games/${gameId}/players/${playerId}`))
+    if (!playerSnapshot.exists()) {
+      throw new Error('Player not found')
+    }
+
+    const player: PlayerState = playerSnapshot.val()
+    const currentBonus = player.zoneBonus || 0
+
+    // Cycle: 0 → 1 → 2 → 0
+    const newBonus = ((currentBonus + 1) % 3) as 0 | 1 | 2
+
+    await update(ref(database, `games/${gameId}/players/${playerId}`), {
+      zoneBonus: newBonus,
+    })
+
+    console.log(
+      `[MultiplayerGame] Player ${playerId} toggled zone bonus: ${currentBonus} → ${newBonus}`
+    )
+  }
+
+  /**
    * Change player's color
    * Players can only change to colors not already used by other players
    */
@@ -2465,7 +2522,7 @@ export class MultiplayerGameService {
     }
 
     // Check if player has already selected an artifact this round
-    if (game.artifactSelectionPhase.selections[playerId]) {
+    if (game.artifactSelectionPhase.selections?.[playerId]) {
       throw new Error('You have already selected an artifact this round')
     }
 
@@ -2491,7 +2548,7 @@ export class MultiplayerGameService {
 
     // Update artifact selection phase state
     const updatedPhaseSelections = {
-      ...game.artifactSelectionPhase.selections,
+      ...(game.artifactSelectionPhase.selections || {}),
       [playerId]: artifactId,
     }
 
