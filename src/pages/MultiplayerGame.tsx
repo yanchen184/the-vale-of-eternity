@@ -1012,6 +1012,7 @@ export function MultiplayerGame() {
                 onCardPlay={handleTameCard}
                 onCardSell={handleSellCard}
                 onCardReturn={handleReturnCard}
+                onCardDiscard={handleDiscardFieldCard}
                 onScoreAdjust={handleScoreAdjust}
                 onFlipToggle={handleFlipToggle}
                 canTameCard={() => true}
@@ -1030,6 +1031,7 @@ export function MultiplayerGame() {
                 onCardPlay={handleTameCard}
                 onCardSell={handleSellCard}
                 onCardReturn={handleReturnCard}
+                onCardDiscard={handleDiscardFieldCard}
                 onScoreAdjust={handleScoreAdjust}
                 onFlipToggle={handleFlipToggle}
                 canTameCard={() => false}  // Cannot tame during resolution

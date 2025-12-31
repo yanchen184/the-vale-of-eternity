@@ -543,6 +543,11 @@ export class MultiplayerGameService {
   ): Promise<void> {
     console.log('[MultiplayerGame] Distributing selected cards to players:', selections)
 
+    // Get current round number
+    const gameSnapshot = await get(ref(database, `games/${gameId}`))
+    if (!gameSnapshot.exists()) return
+    const game: GameRoom = gameSnapshot.val()
+
     // Process each player's selections
     for (const [playerId, cardIds] of Object.entries(selections)) {
       if (!cardIds || !Array.isArray(cardIds)) continue
@@ -568,22 +573,19 @@ export class MultiplayerGameService {
           location: CardLocation.HAND,
           ownerId: playerId,
           selectedBy: null, // Clear the marker
+          acquiredInRound: game.currentRound, // Mark which round this card was acquired
         })
       }
     }
 
     // Remove selected cards from market
-    const gameSnapshot = await get(ref(database, `games/${gameId}`))
-    if (gameSnapshot.exists()) {
-      const game: GameRoom = gameSnapshot.val()
-      const allSelectedIds = Object.values(selections).flat()
-      const updatedMarketIds = (game.marketIds || []).filter(
-        (id: string) => !allSelectedIds.includes(id)
-      )
-      await update(ref(database, `games/${gameId}`), {
-        marketIds: updatedMarketIds,
-      })
-    }
+    const allSelectedIds = Object.values(selections).flat()
+    const updatedMarketIds = (game.marketIds || []).filter(
+      (id: string) => !allSelectedIds.includes(id)
+    )
+    await update(ref(database, `games/${gameId}`), {
+      marketIds: updatedMarketIds,
+    })
 
     console.log('[MultiplayerGame] Card distribution complete')
   }
@@ -1367,6 +1369,7 @@ export class MultiplayerGameService {
     await update(ref(database, `games/${gameId}/cards/${cardInstanceId}`), {
       location: CardLocation.HAND,
       ownerId: playerId, // Set owner to current player
+      acquiredInRound: game.currentRound, // Mark which round this card was acquired
     })
 
     // Update game market discard pile
