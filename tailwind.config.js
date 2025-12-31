@@ -6,6 +6,9 @@ export default {
   ],
   theme: {
     extend: {
+      gridTemplateColumns: {
+        '20': 'repeat(20, minmax(0, 1fr))',
+      },
       colors: {
         fire: '#FF4444',
         water: '#4444FF',

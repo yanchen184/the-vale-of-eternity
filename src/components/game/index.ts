@@ -1,9 +1,9 @@
 /**
  * Game components exports
  * Core UI components for The Vale of Eternity game
- * @version 3.5.0 - Added Score Track and Coin Management components
+ * @version 3.6.0 - Added PlayersInfoArea and PlayersFieldArea for ACTION phase
  */
-console.log('[components/game/index.ts] v3.5.0 loaded')
+console.log('[components/game/index.ts] v3.6.0 loaded')
 
 // Card components
 export { Card, CardBack } from './Card'
@@ -57,3 +57,9 @@ export { BankArea } from './BankArea'
 export type { BankAreaProps } from './BankArea'
 export { PlayerCoinArea } from './PlayerCoinArea'
 export type { PlayerCoinAreaProps } from './PlayerCoinArea'
+
+// Multiplayer ACTION phase components (v3.6.0)
+export { PlayersInfoArea } from './PlayersInfoArea'
+export type { PlayersInfoAreaProps, PlayerInfoData } from './PlayersInfoArea'
+export { PlayersFieldArea } from './PlayersFieldArea'
+export type { PlayersFieldAreaProps, PlayerFieldData } from './PlayersFieldArea'

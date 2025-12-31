@@ -1,20 +1,23 @@
 /**
  * StoneParticles Component
  * Particle effects for stone gain/spend animations
- * @version 1.1.0 - Using real stone coin images
+ * @version 1.1.1 - Fixed stone image paths for production build
  */
-console.log('[components/game/StoneParticles.tsx] v1.1.0 loaded')
+console.log('[components/game/StoneParticles.tsx] v1.1.1 loaded')
 
 import { useEffect, useState, memo } from 'react'
 import { cn } from '@/lib/utils'
 import { StoneType, STONE_ICONS } from '@/types/cards'
 
+// Base path for assets (matches vite.config.ts base)
+const BASE_PATH = import.meta.env.BASE_URL || '/'
+
 // Helper function to get stone image path
 function getStoneImage(stoneType: StoneType): string | null {
   const imageMap: Record<string, string> = {
-    [StoneType.ONE]: '/assets/stones/stone-1.png',
-    [StoneType.THREE]: '/assets/stones/stone-3.png',
-    [StoneType.SIX]: '/assets/stones/stone-6.png',
+    [StoneType.ONE]: `${BASE_PATH}assets/stones/stone-1.png`,
+    [StoneType.THREE]: `${BASE_PATH}assets/stones/stone-3.png`,
+    [StoneType.SIX]: `${BASE_PATH}assets/stones/stone-6.png`,
   }
   return imageMap[stoneType] || null
 }

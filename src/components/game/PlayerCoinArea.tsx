@@ -1,9 +1,9 @@
 /**
  * PlayerCoinArea Component
  * Displays the player's coin pool and allows returning coins to the bank
- * @version 1.0.0
+ * @version 1.1.0 - Using coin images, only 1/3/6 coins
  */
-console.log('[components/game/PlayerCoinArea.tsx] v1.0.0 loaded')
+console.log('[components/game/PlayerCoinArea.tsx] v1.1.0 loaded')
 
 import { memo } from 'react'
 import { cn } from '@/lib/utils'
@@ -34,69 +34,29 @@ export interface PlayerCoinAreaProps {
 
 interface CoinConfig {
   type: StoneType
-  label: string
   value: number
-  bgColor: string
-  borderColor: string
-  textColor: string
+  image: string
+  displayName: string
 }
 
 const COIN_CONFIGS: CoinConfig[] = [
   {
     type: StoneType.ONE,
-    label: '1',
     value: 1,
-    bgColor: 'bg-amber-600',
-    borderColor: 'border-amber-500',
-    textColor: 'text-amber-100',
+    image: '/the-vale-of-eternity/assets/stones/stone-1.png',
+    displayName: '1 元錢幣',
   },
   {
     type: StoneType.THREE,
-    label: '3',
     value: 3,
-    bgColor: 'bg-amber-500',
-    borderColor: 'border-amber-400',
-    textColor: 'text-amber-50',
+    image: '/the-vale-of-eternity/assets/stones/stone-3.png',
+    displayName: '3 元錢幣',
   },
   {
     type: StoneType.SIX,
-    label: '6',
     value: 6,
-    bgColor: 'bg-amber-400',
-    borderColor: 'border-amber-300',
-    textColor: 'text-amber-900',
-  },
-  {
-    type: StoneType.FIRE,
-    label: '火',
-    value: 1,
-    bgColor: 'bg-red-600',
-    borderColor: 'border-red-500',
-    textColor: 'text-red-100',
-  },
-  {
-    type: StoneType.WATER,
-    label: '水',
-    value: 1,
-    bgColor: 'bg-blue-600',
-    borderColor: 'border-blue-500',
-    textColor: 'text-blue-100',
-  },
-  {
-    type: StoneType.EARTH,
-    label: '土',
-    value: 1,
-    bgColor: 'bg-yellow-700',
-    borderColor: 'border-yellow-600',
-    textColor: 'text-yellow-100',
-  },
-  {
-    type: StoneType.WIND,
-    label: '風',
-    value: 1,
-    bgColor: 'bg-teal-600',
-    borderColor: 'border-teal-500',
-    textColor: 'text-teal-100',
+    image: '/the-vale-of-eternity/assets/stones/stone-6.png',
+    displayName: '6 元錢幣',
   },
 ]
 
@@ -155,7 +115,7 @@ export const PlayerCoinArea = memo(function PlayerCoinArea({
       </div>
 
       {/* Coin Grid */}
-      <div className="grid grid-cols-7 gap-3">
+      <div className="grid grid-cols-3 gap-6">
         {COIN_CONFIGS.map((config) => {
           const count = playerCoins[config.type] || 0
           const canReturn = allowInteraction && count > 0
@@ -167,41 +127,31 @@ export const PlayerCoinArea = memo(function PlayerCoinArea({
               disabled={!canReturn}
               onClick={() => canReturn && onReturnCoin?.(config.type)}
               className={cn(
-                'flex flex-col items-center justify-center p-3 rounded-lg',
-                'border-2 transition-all duration-200',
-                config.bgColor,
-                config.borderColor,
+                'flex flex-col items-center justify-center p-4 rounded-xl',
+                'border-2 border-slate-600 bg-slate-700/50',
+                'transition-all duration-200',
                 count > 0 ? 'opacity-100' : 'opacity-30',
                 canReturn
-                  ? 'hover:scale-105 hover:shadow-lg cursor-pointer'
+                  ? 'hover:scale-105 hover:shadow-lg hover:border-vale-500 cursor-pointer'
                   : 'cursor-default'
               )}
               data-testid={`player-coin-${config.type}`}
-              title={`${config.label} (價值 ${config.value})`}
+              title={config.displayName}
             >
-              {/* Coin Label */}
-              <div className={cn(
-                'text-xl font-bold mb-1',
-                config.textColor
-              )}>
-                {config.label}
+              {/* Coin Image */}
+              <div className="relative w-24 h-24 mb-3">
+                <img
+                  src={config.image}
+                  alt={config.displayName}
+                  className="w-full h-full object-contain drop-shadow-lg"
+                />
               </div>
 
-              {/* Coin Count */}
-              <div className={cn(
-                'text-xs font-medium px-2 py-0.5 rounded-full',
-                'bg-black/20',
-                config.textColor
-              )}>
-                ×{count}
+              {/* Coin Count Badge */}
+              <div className="flex items-center gap-2 px-4 py-2 bg-slate-800 rounded-full border border-slate-600">
+                <span className="text-sm text-slate-400">數量:</span>
+                <span className="text-xl font-bold text-vale-400">{count}</span>
               </div>
-
-              {/* Value indicator for numbered coins */}
-              {config.value > 1 && (
-                <div className="text-[10px] text-white/70 mt-1">
-                  值 {config.value}
-                </div>
-              )}
             </button>
           )
         })}

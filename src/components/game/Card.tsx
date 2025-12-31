@@ -1,9 +1,9 @@
 /**
  * Card Component with Image Display
  * Renders a game card with its image and stats
- * @version 2.4.0 - Added player selection marker support
+ * @version 2.5.0 - Added isConfirmed state for locked selection marker
  */
-console.log('[components/game/Card.tsx] v2.4.0 loaded')
+console.log('[components/game/Card.tsx] v2.5.0 loaded')
 
 import { useState, useCallback, memo } from 'react'
 import { Flame, Droplets, TreePine, Wind, Crown, Gem } from 'lucide-react'
@@ -90,6 +90,8 @@ export interface CardProps {
   selectedByColor?: PlayerColor | null
   /** Player name for marker tooltip */
   selectedByName?: string
+  /** Whether the selection is confirmed (locked) - shows lock icon on marker */
+  isConfirmed?: boolean
   /** Additional CSS classes */
   className?: string
 }
@@ -236,6 +238,7 @@ export const Card = memo(function Card({
   canTame = false,
   selectedByColor,
   selectedByName,
+  isConfirmed = false,
   className = '',
 }: CardProps) {
   const [imageError, setImageError] = useState(false)
@@ -388,8 +391,9 @@ export const Card = memo(function Card({
           <PlayerMarker
             color={selectedByColor}
             size="md"
-            showGlow={true}
+            showGlow={!isConfirmed}
             playerName={selectedByName}
+            isConfirmed={isConfirmed}
           />
         </div>
       )}

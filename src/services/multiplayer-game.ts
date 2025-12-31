@@ -1,9 +1,9 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 3.3.0 - Added bank coin pool and score adjustment
+ * @version 3.5.1 - Fixed sellCard to work with hand instead of field
  */
-console.log('[services/multiplayer-game.ts] v3.3.0 loaded')
+console.log('[services/multiplayer-game.ts] v3.5.1 loaded')
 
 import { ref, set, get, update, onValue, off, remove, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -40,13 +40,18 @@ export interface PlayerState {
   isReady: boolean
   hasPassed: boolean
   isConnected: boolean
+  isFlipped: boolean  // Whether player has flipped their card for +60/-60
 }
 
 export interface HuntingState {
   round: 1 | 2  // Snake draft has 2 rounds
   currentPlayerIndex: number
   selections: {
-    [playerId: string]: string[]  // selected card IDs
+    [playerId: string]: string[]  // selected card IDs (legacy, kept for compatibility)
+  }
+  /** Confirmed selections - cards locked in after player clicks confirm button */
+  confirmedSelections: {
+    [playerId: string]: string  // playerId -> single confirmed card ID
   }
   isComplete: boolean
 }
@@ -87,8 +92,10 @@ export interface CardInstanceData extends Omit<CardInstance, 'effects'> {
   instanceId: string
   location: CardLocation
   ownerId: string | null
-  /** Player ID who selected this card during hunting phase (for marker display) */
+  /** Player ID who temporarily selected this card during hunting phase (can be cancelled) */
   selectedBy?: string | null
+  /** Player ID who confirmed selection of this card (locked, cannot be cancelled) */
+  confirmedBy?: string | null
 }
 
 // ============================================
@@ -198,6 +205,7 @@ export class MultiplayerGameService {
       isReady: false,
       hasPassed: false,
       isConnected: true,
+      isFlipped: false,
     }
 
     const gameRoom: GameRoom = {
@@ -212,7 +220,7 @@ export class MultiplayerGameService {
       deckIds: [],
       marketIds: [],
       discardIds: [],
-      bankCoins: { ONE: 20, THREE: 15, SIX: 10, WATER: 10, FIRE: 10, EARTH: 10, WIND: 10 }, // Initial bank
+      bankCoins: { ONE: 999, THREE: 999, SIX: 999, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 }, // Bank has unlimited 1/3/6 coins
       currentPlayerIndex: 0,
       passedPlayerIds: [],
       createdAt: Date.now(),
@@ -282,6 +290,7 @@ export class MultiplayerGameService {
       isReady: false,
       hasPassed: false,
       isConnected: true,
+      isFlipped: false,
     }
 
     await update(ref(database, `games/${gameId}`), {
@@ -354,6 +363,7 @@ export class MultiplayerGameService {
       round: 1,
       currentPlayerIndex: 0,
       selections: {},
+      confirmedSelections: {},
       isComplete: false,
     }
 
@@ -508,6 +518,248 @@ export class MultiplayerGameService {
     }
 
     console.log('[MultiplayerGame] Card distribution complete')
+  }
+
+  /**
+   * Toggle card selection during hunting phase (can be cancelled)
+   * Click selected card to deselect, click another card to switch selection
+   * @param gameId - Game room ID
+   * @param playerId - Player making the selection
+   * @param cardInstanceId - Card to toggle selection
+   */
+  async toggleCardSelection(
+    gameId: string,
+    playerId: string,
+    cardInstanceId: string
+  ): Promise<void> {
+    const gameRef = ref(database, `games/${gameId}`)
+    const snapshot = await get(gameRef)
+
+    if (!snapshot.exists()) {
+      throw new Error('Game not found')
+    }
+
+    const game: GameRoom = snapshot.val()
+
+    if (game.status !== 'HUNTING' || !game.huntingPhase) {
+      throw new Error('Not in hunting phase')
+    }
+
+    const currentPlayerIndex = game.huntingPhase.currentPlayerIndex
+    const expectedPlayerId = game.playerIds[currentPlayerIndex]
+
+    if (playerId !== expectedPlayerId) {
+      throw new Error('Not your turn')
+    }
+
+    // Ensure marketIds is initialized
+    if (!game.marketIds || !Array.isArray(game.marketIds)) {
+      throw new Error('Market is not initialized')
+    }
+
+    if (!game.marketIds.includes(cardInstanceId)) {
+      throw new Error('Card not in market')
+    }
+
+    // Check if card is already confirmed by another player
+    const cardSnapshot = await get(ref(database, `games/${gameId}/cards/${cardInstanceId}`))
+    if (!cardSnapshot.exists()) {
+      throw new Error('Card not found')
+    }
+
+    const cardData: CardInstanceData = cardSnapshot.val()
+    if (cardData.confirmedBy) {
+      throw new Error('Card already confirmed by another player')
+    }
+
+    // Get all cards to check current player's selection
+    const allCardsSnapshot = await get(ref(database, `games/${gameId}/cards`))
+    const allCards = allCardsSnapshot.exists() ? allCardsSnapshot.val() : {}
+
+    // Check if clicking the same card (toggle off)
+    if (cardData.selectedBy === playerId) {
+      // Deselect this card
+      await update(ref(database, `games/${gameId}/cards/${cardInstanceId}`), {
+        selectedBy: null,
+      })
+      console.log(`[MultiplayerGame] Player ${playerId} deselected card ${cardInstanceId}`)
+    } else {
+      // Clear any previous selection by this player
+      for (const [instanceId, card] of Object.entries(allCards)) {
+        const c = card as CardInstanceData
+        if (c.selectedBy === playerId && !c.confirmedBy) {
+          await update(ref(database, `games/${gameId}/cards/${instanceId}`), {
+            selectedBy: null,
+          })
+        }
+      }
+
+      // Select the new card
+      await update(ref(database, `games/${gameId}/cards/${cardInstanceId}`), {
+        selectedBy: playerId,
+      })
+      console.log(`[MultiplayerGame] Player ${playerId} selected card ${cardInstanceId}`)
+    }
+
+    // Update game timestamp
+    await update(gameRef, {
+      updatedAt: Date.now(),
+    })
+  }
+
+  /**
+   * Confirm card selection and advance to next player
+   * Once confirmed, the selection cannot be cancelled
+   * @param gameId - Game room ID
+   * @param playerId - Player confirming selection
+   */
+  async confirmCardSelection(
+    gameId: string,
+    playerId: string
+  ): Promise<void> {
+    const gameRef = ref(database, `games/${gameId}`)
+    const snapshot = await get(gameRef)
+
+    if (!snapshot.exists()) {
+      throw new Error('Game not found')
+    }
+
+    const game: GameRoom = snapshot.val()
+
+    if (game.status !== 'HUNTING' || !game.huntingPhase) {
+      throw new Error('Not in hunting phase')
+    }
+
+    const currentPlayerIndex = game.huntingPhase.currentPlayerIndex
+    const expectedPlayerId = game.playerIds[currentPlayerIndex]
+
+    if (playerId !== expectedPlayerId) {
+      throw new Error('Not your turn')
+    }
+
+    // Find the card selected by this player
+    const allCardsSnapshot = await get(ref(database, `games/${gameId}/cards`))
+    if (!allCardsSnapshot.exists()) {
+      throw new Error('No cards found')
+    }
+
+    const allCards = allCardsSnapshot.val() as Record<string, CardInstanceData>
+    const selectedCard = Object.values(allCards).find(
+      card => card.selectedBy === playerId && !card.confirmedBy
+    )
+
+    if (!selectedCard) {
+      throw new Error('No card selected')
+    }
+
+    // Mark card as confirmed (locked)
+    await update(ref(database, `games/${gameId}/cards/${selectedCard.instanceId}`), {
+      confirmedBy: playerId,
+      selectedBy: null, // Clear selectedBy, now using confirmedBy
+    })
+
+    // Initialize confirmedSelections if it doesn't exist
+    const confirmedSelections = game.huntingPhase.confirmedSelections || {}
+    confirmedSelections[playerId] = selectedCard.instanceId
+
+    // Also update legacy selections for backward compatibility
+    const selections = game.huntingPhase.selections || {}
+    if (!selections[playerId]) {
+      selections[playerId] = []
+    }
+    selections[playerId].push(selectedCard.instanceId)
+
+    // Get next player in snake draft
+    const { nextIndex, nextRound, isComplete } = getNextHuntingPlayer(
+      currentPlayerIndex,
+      game.huntingPhase.round,
+      game.playerIds.length
+    )
+
+    // Update game state
+    if (isComplete) {
+      // Hunting phase complete
+      await update(gameRef, {
+        'huntingPhase/confirmedSelections': confirmedSelections,
+        'huntingPhase/selections': selections,
+        'huntingPhase/isComplete': true,
+        status: 'ACTION',
+        currentPlayerIndex: 0,
+        passedPlayerIds: [],
+        updatedAt: Date.now(),
+      })
+
+      // Distribute confirmed cards to players
+      await this.distributeConfirmedCards(gameId)
+    } else {
+      // Move to next player
+      await update(gameRef, {
+        'huntingPhase/confirmedSelections': confirmedSelections,
+        'huntingPhase/selections': selections,
+        'huntingPhase/currentPlayerIndex': nextIndex,
+        'huntingPhase/round': nextRound,
+        updatedAt: Date.now(),
+      })
+    }
+
+    console.log(`[MultiplayerGame] Player ${playerId} confirmed selection of card ${selectedCard.instanceId}`)
+  }
+
+  /**
+   * Distribute confirmed cards to players' hands after hunting phase ends
+   * @private
+   */
+  private async distributeConfirmedCards(gameId: string): Promise<void> {
+    const gameSnapshot = await get(ref(database, `games/${gameId}`))
+    if (!gameSnapshot.exists()) {
+      throw new Error('Game not found')
+    }
+
+    const game: GameRoom = gameSnapshot.val()
+    const confirmedSelections = game.huntingPhase?.confirmedSelections || {}
+
+    console.log('[MultiplayerGame] Distributing confirmed cards:', confirmedSelections)
+
+    const allConfirmedCardIds: string[] = []
+
+    for (const [playerId, cardId] of Object.entries(confirmedSelections)) {
+      if (!cardId) continue
+
+      allConfirmedCardIds.push(cardId)
+
+      // Get current player state
+      const playerSnapshot = await get(ref(database, `games/${gameId}/players/${playerId}`))
+      if (!playerSnapshot.exists()) continue
+
+      const player: PlayerState = playerSnapshot.val()
+      const currentHand = Array.isArray(player.hand) ? player.hand : []
+      const currentField = Array.isArray(player.field) ? player.field : []
+      const updatedHand = [...currentHand, cardId]
+
+      // Update player's hand
+      await update(ref(database, `games/${gameId}/players/${playerId}`), {
+        hand: updatedHand,
+        field: currentField,
+      })
+
+      // Update card location and clear markers
+      await update(ref(database, `games/${gameId}/cards/${cardId}`), {
+        location: CardLocation.HAND,
+        ownerId: playerId,
+        selectedBy: null,
+        confirmedBy: null,
+      })
+    }
+
+    // Remove confirmed cards from market
+    const updatedMarketIds = (game.marketIds || []).filter(
+      (id: string) => !allConfirmedCardIds.includes(id)
+    )
+    await update(ref(database, `games/${gameId}`), {
+      marketIds: updatedMarketIds,
+    })
+
+    console.log('[MultiplayerGame] Confirmed card distribution complete')
   }
 
   /**
@@ -683,13 +935,13 @@ export class MultiplayerGameService {
 
     const player: PlayerState = playerSnapshot.val()
 
-    // Ensure field array exists
-    if (!player.field || !Array.isArray(player.field)) {
-      throw new Error('Player field is not initialized')
+    // Ensure hand array exists
+    if (!player.hand || !Array.isArray(player.hand)) {
+      throw new Error('Player hand is not initialized')
     }
 
-    if (!player.field.includes(cardInstanceId)) {
-      throw new Error('Card not in field')
+    if (!player.hand.includes(cardInstanceId)) {
+      throw new Error('Card not in hand')
     }
 
     // Get card data
@@ -705,14 +957,14 @@ export class MultiplayerGameService {
     const updatedStones = { ...player.stones }
     updatedStones.ONE = (updatedStones.ONE || 0) + stonesGained
 
-    // Move card from field to discard
-    // Ensure field is an array
-    const currentField = Array.isArray(player.field) ? player.field : []
-    const updatedField = currentField.filter(id => id !== cardInstanceId)
+    // Move card from hand to discard
+    // Ensure hand is an array
+    const currentHand = Array.isArray(player.hand) ? player.hand : []
+    const updatedHand = currentHand.filter(id => id !== cardInstanceId)
 
     // Update player state
     await update(ref(database, `games/${gameId}/players/${playerId}`), {
-      field: updatedField,
+      hand: updatedHand,
       stones: updatedStones,
     })
 
@@ -722,8 +974,9 @@ export class MultiplayerGameService {
     })
 
     // Add to game discard pile
+    const currentDiscardIds = Array.isArray(game.discardIds) ? game.discardIds : []
     await update(ref(database, `games/${gameId}`), {
-      discardIds: [...game.discardIds, cardInstanceId],
+      discardIds: [...currentDiscardIds, cardInstanceId],
       updatedAt: Date.now(),
     })
 
@@ -948,6 +1201,7 @@ export class MultiplayerGameService {
 
   /**
    * Return a coin to the bank
+   * Bank has unlimited capacity, so we always accept coins back
    */
   async returnCoinToBank(
     gameId: string,
@@ -975,14 +1229,15 @@ export class MultiplayerGameService {
       stones: updatedStones,
     })
 
-    // Increase bank coins
+    // Increase bank coins (bank has unlimited capacity)
     await runTransaction(ref(database, `games/${gameId}`), (game: GameRoom | null) => {
       if (!game) return game
 
       if (!game.bankCoins) {
-        game.bankCoins = { ONE: 0, THREE: 0, SIX: 0, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 }
+        game.bankCoins = { ONE: 999, THREE: 999, SIX: 999, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 }
       }
 
+      // Bank has unlimited coins - just add it back
       game.bankCoins[coinType] = (game.bankCoins[coinType] || 0) + 1
       game.updatedAt = Date.now()
 
@@ -990,6 +1245,32 @@ export class MultiplayerGameService {
     })
 
     console.log(`[MultiplayerGame] Player ${playerId} returned ${coinType} coin to bank`)
+  }
+
+  /**
+   * Toggle player's flip state
+   * When flipped: adds +60 to score
+   * When unflipped: removes -60 from score
+   */
+  async togglePlayerFlip(gameId: string, playerId: string): Promise<void> {
+    // Get player state
+    const playerSnapshot = await get(ref(database, `games/${gameId}/players/${playerId}`))
+    if (!playerSnapshot.exists()) {
+      throw new Error('Player not found')
+    }
+
+    const player: PlayerState = playerSnapshot.val()
+    const newFlipState = !player.isFlipped
+    const scoreAdjustment = newFlipState ? 60 : -60
+
+    await update(ref(database, `games/${gameId}/players/${playerId}`), {
+      isFlipped: newFlipState,
+      score: player.score + scoreAdjustment,
+    })
+
+    console.log(
+      `[MultiplayerGame] Player ${playerId} ${newFlipState ? 'flipped' : 'unflipped'} - score adjusted by ${scoreAdjustment}`
+    )
   }
 
   /**

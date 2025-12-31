@@ -1,15 +1,18 @@
 /**
  * StonePool Component
  * Displays player's stone resources with element colors and animations
- * @version 2.1.0 - Using real stone coin images
+ * @version 2.1.1 - Fixed stone image paths for production build
  */
-console.log('[components/game/StonePool.tsx] v2.1.0 loaded')
+console.log('[components/game/StonePool.tsx] v2.1.1 loaded')
 
 import { useState, useCallback, memo, useMemo } from 'react'
 import type { StonePool as StonePoolType } from '@/types/game'
 import { StoneType, STONE_ICONS } from '@/types/cards'
 import { calculateStonePoolValue } from '@/types/game'
 import { cn } from '@/lib/utils'
+
+// Base path for assets (matches vite.config.ts base)
+const BASE_PATH = import.meta.env.BASE_URL || '/'
 
 // ============================================
 // TYPES
@@ -50,9 +53,9 @@ interface StoneTypeConfig {
 // Helper function to get stone image path
 function getStoneImage(stoneType: StoneType): string | null {
   const imageMap: Record<string, string> = {
-    [StoneType.ONE]: '/assets/stones/stone-1.png',
-    [StoneType.THREE]: '/assets/stones/stone-3.png',
-    [StoneType.SIX]: '/assets/stones/stone-6.png',
+    [StoneType.ONE]: `${BASE_PATH}assets/stones/stone-1.png`,
+    [StoneType.THREE]: `${BASE_PATH}assets/stones/stone-3.png`,
+    [StoneType.SIX]: `${BASE_PATH}assets/stones/stone-6.png`,
   }
   return imageMap[stoneType] || null
 }

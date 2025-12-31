@@ -1,9 +1,9 @@
 /**
  * ScoreTrack Component
  * Displays a snake-pattern score track with player markers
- * @version 1.0.0
+ * @version 1.3.0 - Fixed snake pattern (left-to-right, right-to-left alternating)
  */
-console.log('[components/game/ScoreTrack.tsx] v1.0.0 loaded')
+console.log('[components/game/ScoreTrack.tsx] v1.3.0 loaded')
 
 import { memo, useMemo } from 'react'
 import { PlayerMarker } from './PlayerMarker'
@@ -19,6 +19,7 @@ export interface PlayerScoreInfo {
   playerName: string
   color: PlayerColor
   score: number
+  isFlipped?: boolean // Whether the player has flipped their card (+60/-60)
 }
 
 export interface ScoreTrackProps {
@@ -32,14 +33,16 @@ export interface ScoreTrackProps {
   onScoreAdjust?: (playerId: string, newScore: number) => void
   /** Whether score adjustment is allowed */
   allowAdjustment?: boolean
+  /** Callback when a player's flip button is clicked */
+  onFlipToggle?: (playerId: string) => void
 }
 
 // ============================================
 // CONSTANTS
 // ============================================
 
-const TRACK_LENGTH = 50 // 0-50 points
-const CELLS_PER_ROW = 10 // Snake pattern: 10 cells per row
+const TRACK_LENGTH = 60 // 0-60 points
+const CELLS_PER_ROW = 20 // Snake pattern: 20 cells per row
 
 // ============================================
 // HELPER FUNCTIONS
@@ -47,11 +50,11 @@ const CELLS_PER_ROW = 10 // Snake pattern: 10 cells per row
 
 /**
  * Calculate grid position for a score value
- * Snake pattern:
- * Row 0: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
- * Row 1: [19, 18, 17, 16, 15, 14, 13, 12, 11, 10]
- * Row 2: [20, 21, 22, 23, 24, 25, 26, 27, 28, 29]
- * etc.
+ * Snake pattern (20 cells per row):
+ * Row 0: [0, 1, 2, 3, ..., 18, 19] (left to right)
+ * Row 1: [20, 21, 22, 23, ..., 38, 39] (right to left display)
+ * Row 2: [40, 41, 42, 43, ..., 58, 59] (left to right)
+ * Row 3: [60] (right to left display if needed)
  * (Currently unused but kept for future drag-and-drop positioning feature)
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -76,6 +79,7 @@ export const ScoreTrack = memo(function ScoreTrack({
   currentPlayerId,
   onScoreAdjust,
   allowAdjustment = false,
+  onFlipToggle,
 }: ScoreTrackProps) {
   const rows = Math.ceil((maxScore + 1) / CELLS_PER_ROW)
 
@@ -105,9 +109,10 @@ export const ScoreTrack = memo(function ScoreTrack({
         {Array.from({ length: rows }, (_, rowIndex) => {
           const isReversedRow = rowIndex % 2 === 1
           const startScore = rowIndex * CELLS_PER_ROW
+
+          // Build cells for this row with sequential scores
           const cells = Array.from({ length: CELLS_PER_ROW }, (_, colIndex) => {
-            const actualCol = isReversedRow ? CELLS_PER_ROW - 1 - colIndex : colIndex
-            const score = startScore + actualCol
+            const score = startScore + colIndex
             if (score > maxScore) return null
 
             const playersAtScore = playersByPosition.get(score) || []
@@ -118,22 +123,35 @@ export const ScoreTrack = memo(function ScoreTrack({
                 key={score}
                 className={cn(
                   'relative flex flex-col items-center justify-center',
-                  'border-2 rounded-lg transition-all duration-200',
-                  'min-h-[60px] p-2',
+                  'border rounded transition-all duration-200',
+                  'min-h-[48px] p-1',
                   isOccupied
                     ? 'bg-slate-700/50 border-slate-600'
                     : 'bg-slate-900/30 border-slate-700/50',
                   allowAdjustment && 'hover:bg-slate-700/70 cursor-pointer'
                 )}
-                onClick={() => {
-                  if (allowAdjustment && playersAtScore.length === 1) {
-                    onScoreAdjust?.(playersAtScore[0].playerId, score)
+                onClick={(e) => {
+                  if (!allowAdjustment || !currentPlayerId) return
+
+                  // Check if clicked on a specific player marker
+                  const marker = e.target as HTMLElement
+                  const playerMarker = marker.closest('[data-player-id]')
+
+                  if (playerMarker) {
+                    // Clicked on a specific player marker - adjust that player's score
+                    const playerId = playerMarker.getAttribute('data-player-id')
+                    if (playerId) {
+                      onScoreAdjust?.(playerId, score)
+                    }
+                  } else {
+                    // Clicked on empty space or score number - adjust current player's score
+                    onScoreAdjust?.(currentPlayerId, score)
                   }
                 }}
                 data-testid={`score-cell-${score}`}
               >
                 {/* Score Number */}
-                <div className="text-xs font-mono text-slate-500 mb-1">{score}</div>
+                <div className="text-[10px] font-mono text-slate-500 mb-0.5">{score}</div>
 
                 {/* Player Markers */}
                 {playersAtScore.length > 0 && (
@@ -142,7 +160,8 @@ export const ScoreTrack = memo(function ScoreTrack({
                       <div
                         key={player.playerId}
                         className="relative"
-                        title={`${player.playerName}: ${player.score}分`}
+                        data-player-id={player.playerId}
+                        title={`${player.playerName}: ${player.score}分${allowAdjustment ? ' (點擊調整)' : ''}`}
                       >
                         <PlayerMarker
                           color={player.color}
@@ -158,13 +177,17 @@ export const ScoreTrack = memo(function ScoreTrack({
             )
           })
 
+          // For odd rows (snake pattern), reverse the visual order
+          // Use [...cells] to create a copy before reversing
+          const displayCells = isReversedRow ? [...cells].reverse() : cells
+
           return (
             <div
               key={rowIndex}
-              className="grid grid-cols-10 gap-1"
+              className="grid grid-cols-20 gap-0.5"
               data-testid={`score-row-${rowIndex}`}
             >
-              {cells}
+              {displayCells}
             </div>
           )
         })}
@@ -190,6 +213,25 @@ export const ScoreTrack = memo(function ScoreTrack({
               <span className="text-slate-500">:</span>
               <span className="font-mono text-slate-200 font-semibold">{player.score}</span>
               <span className="text-slate-500">分</span>
+
+              {/* Flip Button */}
+              {onFlipToggle && (
+                <button
+                  type="button"
+                  onClick={() => onFlipToggle(player.playerId)}
+                  className={cn(
+                    'ml-2 px-3 py-1 rounded-lg text-xs font-semibold transition-all duration-200',
+                    'border-2',
+                    player.isFlipped
+                      ? 'bg-red-500/20 border-red-500 text-red-400 hover:bg-red-500/30'
+                      : 'bg-green-500/20 border-green-500 text-green-400 hover:bg-green-500/30'
+                  )}
+                  title={player.isFlipped ? '點擊取消 -60 分' : '點擊翻牌 +60 分'}
+                  data-testid={`flip-button-${player.playerId}`}
+                >
+                  {player.isFlipped ? '-60' : '+60'}
+                </button>
+              )}
             </div>
           ))}
         </div>
