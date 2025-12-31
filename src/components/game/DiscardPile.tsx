@@ -116,6 +116,8 @@ const DiscardModal = memo(function DiscardModal({
   cards,
   onClose,
 }: DiscardModalProps) {
+  console.log('[DiscardModal] Rendering with cards:', cards.length, cards)
+
   return (
     <Modal
       isOpen={isOpen}
@@ -134,19 +136,22 @@ const DiscardModal = memo(function DiscardModal({
               共 {cards.length} 張卡片已棄置
             </p>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 max-h-[60vh] overflow-y-auto">
-              {cards.map((card, index) => (
-                <div
-                  key={card.instanceId}
-                  className="animate-fade-in"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <Card
-                    card={card}
-                    index={index}
-                    compact
-                  />
-                </div>
-              ))}
+              {cards.map((card, index) => {
+                console.log(`[DiscardModal] Rendering card ${index}:`, card.name, card.instanceId)
+                return (
+                  <div
+                    key={card.instanceId}
+                    className="animate-fade-in"
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
+                    <Card
+                      card={card}
+                      index={index}
+                      compact
+                    />
+                  </div>
+                )
+              })}
             </div>
           </>
         )}

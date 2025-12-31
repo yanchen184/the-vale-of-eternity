@@ -1,9 +1,9 @@
 /**
  * ScoreTrack Component
  * Displays a snake-pattern score track with player markers
- * @version 1.3.0 - Fixed snake pattern (left-to-right, right-to-left alternating)
+ * @version 1.4.0 - Flip bonus: marker stays at base position with +60 badge
  */
-console.log('[components/game/ScoreTrack.tsx] v1.3.0 loaded')
+console.log('[components/game/ScoreTrack.tsx] v1.4.0 loaded')
 
 import { memo, useMemo } from 'react'
 import { PlayerMarker } from './PlayerMarker'
@@ -84,12 +84,15 @@ export const ScoreTrack = memo(function ScoreTrack({
   const rows = Math.ceil((maxScore + 1) / CELLS_PER_ROW)
 
   // Group players by score for positioning
+  // If player has flipped (+60), show marker at (score - 60) position
   const playersByPosition = useMemo(() => {
     const map = new Map<number, PlayerScoreInfo[]>()
     players.forEach(player => {
-      const score = Math.max(0, Math.min(maxScore, player.score))
-      const existing = map.get(score) || []
-      map.set(score, [...existing, player])
+      // Calculate display position: if flipped, subtract 60 from actual score
+      const displayScore = player.isFlipped ? player.score - 60 : player.score
+      const clampedScore = Math.max(0, Math.min(maxScore, displayScore))
+      const existing = map.get(clampedScore) || []
+      map.set(clampedScore, [...existing, player])
     })
     return map
   }, [players, maxScore])
@@ -161,7 +164,7 @@ export const ScoreTrack = memo(function ScoreTrack({
                         key={player.playerId}
                         className="relative"
                         data-player-id={player.playerId}
-                        title={`${player.playerName}: ${player.score}分${allowAdjustment ? ' (點擊調整)' : ''}`}
+                        title={`${player.playerName}: ${player.score}分${player.isFlipped ? ' (已翻牌 +60)' : ''}${allowAdjustment ? ' (點擊調整)' : ''}`}
                       >
                         <PlayerMarker
                           color={player.color}
@@ -169,6 +172,12 @@ export const ScoreTrack = memo(function ScoreTrack({
                           showGlow={player.playerId === currentPlayerId}
                           playerName={player.playerName}
                         />
+                        {/* Show +60 badge if player has flipped */}
+                        {player.isFlipped && (
+                          <div className="absolute -top-1 -right-1 bg-green-500 text-white text-[8px] font-bold px-1 rounded-full border border-white shadow-lg">
+                            +60
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -227,7 +236,7 @@ export const ScoreTrack = memo(function ScoreTrack({
                       ? 'bg-red-500/20 border-red-500 text-red-400 hover:bg-red-500/30'
                       : 'bg-green-500/20 border-green-500 text-green-400 hover:bg-green-500/30'
                   )}
-                  title={player.isFlipped ? '點擊取消 -60 分' : '點擊翻牌 +60 分'}
+                  title={player.isFlipped ? '已翻牌：點擊移除 -60 分加成' : '未翻牌：點擊增加 +60 分加成'}
                   data-testid={`flip-button-${player.playerId}`}
                 >
                   {player.isFlipped ? '-60' : '+60'}

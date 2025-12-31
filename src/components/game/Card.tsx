@@ -1,9 +1,9 @@
 /**
  * Card Component with Image Display
  * Renders a game card with its image and stats
- * @version 2.5.0 - Added isConfirmed state for locked selection marker
+ * @version 2.7.0 - Sell button shows coin breakdown (6/3/1 denomination)
  */
-console.log('[components/game/Card.tsx] v2.5.0 loaded')
+console.log('[components/game/Card.tsx] v2.7.0 loaded')
 
 import { useState, useCallback, memo } from 'react'
 import { Flame, Droplets, TreePine, Wind, Crown, Gem } from 'lucide-react'
@@ -92,6 +92,8 @@ export interface CardProps {
   selectedByName?: string
   /** Whether the selection is confirmed (locked) - shows lock icon on marker */
   isConfirmed?: boolean
+  /** Whether this is a newly placed marker (triggers drop animation) */
+  isNewMarker?: boolean
   /** Additional CSS classes */
   className?: string
 }
@@ -139,6 +141,20 @@ interface CardActionsProps {
   onTame?: () => void
   onSell?: () => void
   canTame: boolean
+  sellValue?: number  // Card's baseScore for calculating sell coins
+}
+
+/**
+ * Calculate optimal coin breakdown for a given value
+ */
+function calculateCoinBreakdown(value: number): { six: number; three: number; one: number } {
+  let remaining = value
+  const six = Math.floor(remaining / 6)
+  remaining -= six * 6
+  const three = Math.floor(remaining / 3)
+  remaining -= three * 3
+  const one = remaining
+  return { six, three, one }
 }
 
 const CardActions = memo(function CardActions({
@@ -146,7 +162,20 @@ const CardActions = memo(function CardActions({
   onTame,
   onSell,
   canTame,
+  sellValue = 0,
 }: CardActionsProps) {
+  // Calculate coins for sell button
+  const coins = sellValue > 0 ? calculateCoinBreakdown(sellValue) : null
+  const coinText = coins
+    ? [
+        coins.six > 0 ? `${coins.six}×6` : null,
+        coins.three > 0 ? `${coins.three}×3` : null,
+        coins.one > 0 ? `${coins.one}×1` : null,
+      ]
+        .filter(Boolean)
+        .join(' ')
+    : ''
+
   return (
     <div className="absolute bottom-0 left-0 right-0 p-1 bg-slate-900/80 flex gap-1">
       {onTake && (
@@ -186,8 +215,12 @@ const CardActions = memo(function CardActions({
           }}
           className="flex-1 text-xs bg-amber-600 hover:bg-amber-500 text-white py-1 px-2 rounded transition-colors"
           type="button"
+          title={`賣出獲得: ${coinText || sellValue}`}
         >
-          Sell
+          <div className="flex flex-col items-center">
+            <span>賣出</span>
+            {coinText && <span className="text-[10px] opacity-90">{coinText}</span>}
+          </div>
         </button>
       )}
     </div>
@@ -239,6 +272,7 @@ export const Card = memo(function Card({
   selectedByColor,
   selectedByName,
   isConfirmed = false,
+  isNewMarker = false,
   className = '',
 }: CardProps) {
   const [imageError, setImageError] = useState(false)
@@ -263,7 +297,7 @@ export const Card = memo(function Card({
         className={`
           relative rounded-lg overflow-hidden border-2 border-slate-600
           bg-gradient-to-b from-slate-700 to-slate-800
-          ${compact ? 'w-20 h-30' : 'w-36 h-52'}
+          ${compact ? 'w-24 h-32' : 'w-36 h-52'}
           ${className}
         `}
         data-testid={`card-back-${index}`}
@@ -282,7 +316,7 @@ export const Card = memo(function Card({
         className={`
           relative rounded-lg overflow-hidden border-2
           ${borderClass} ${bgClass}
-          w-20 h-30 flex-shrink-0 cursor-pointer
+          w-24 h-32 flex-shrink-0 cursor-pointer
           transition-all duration-200 hover:scale-105
           ${isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900' : ''}
           ${className}
@@ -394,6 +428,7 @@ export const Card = memo(function Card({
             showGlow={!isConfirmed}
             playerName={selectedByName}
             isConfirmed={isConfirmed}
+            isNew={isNewMarker}
           />
         </div>
       )}
@@ -405,6 +440,7 @@ export const Card = memo(function Card({
           onTame={onTame}
           onSell={onSell}
           canTame={canTame}
+          sellValue={card.baseScore}
         />
       )}
     </div>

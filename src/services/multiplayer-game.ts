@@ -1,11 +1,11 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 3.6.1 - Fixed passTurn: added passedPlayerIds initialization check
+ * @version 3.6.2 - Fixed confirmedSelections accumulation: now properly stores all cards across multiple confirmations
  */
-console.log('[services/multiplayer-game.ts] v3.6.1 loaded')
+console.log('[services/multiplayer-game.ts] v3.6.2 loaded')
 
-import { ref, set, get, update, onValue, off, remove, runTransaction } from 'firebase/database'
+import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
 import { getAllBaseCards } from '@/data/cards'
 import type { CardInstance, CardTemplate } from '@/types/cards'
@@ -548,7 +548,8 @@ export class MultiplayerGameService {
 
   /**
    * Toggle card selection during hunting phase (can be cancelled)
-   * Click selected card to deselect, click another card to switch selection
+   * Click selected card to deselect, click another card to add/switch selection
+   * Supports multi-card selection for last player in Round 1 (snake draft rule)
    * @param gameId - Game room ID
    * @param playerId - Player making the selection
    * @param cardInstanceId - Card to toggle selection
@@ -602,6 +603,19 @@ export class MultiplayerGameService {
     const allCardsSnapshot = await get(ref(database, `games/${gameId}/cards`))
     const allCards = allCardsSnapshot.exists() ? allCardsSnapshot.val() : {}
 
+    // Calculate selection limit for this player
+    const selectionLimit = getPlayerSelectionLimit(
+      currentPlayerIndex,
+      game.huntingPhase.round,
+      game.playerIds.length
+    )
+
+    // Count current selections by this player
+    const currentSelections = Object.values(allCards).filter(
+      (card) => (card as CardInstanceData).selectedBy === playerId && !(card as CardInstanceData).confirmedBy
+    )
+    const currentSelectionCount = currentSelections.length
+
     // Check if clicking the same card (toggle off)
     if (cardData.selectedBy === playerId) {
       // Deselect this card
@@ -610,13 +624,21 @@ export class MultiplayerGameService {
       })
       console.log(`[MultiplayerGame] Player ${playerId} deselected card ${cardInstanceId}`)
     } else {
-      // Clear any previous selection by this player
-      for (const [instanceId, card] of Object.entries(allCards)) {
-        const c = card as CardInstanceData
-        if (c.selectedBy === playerId && !c.confirmedBy) {
-          await update(ref(database, `games/${gameId}/cards/${instanceId}`), {
-            selectedBy: null,
-          })
+      // Check if at selection limit
+      if (currentSelectionCount >= selectionLimit) {
+        if (selectionLimit === 1) {
+          // Single selection mode: clear previous and select new
+          for (const [instanceId, card] of Object.entries(allCards)) {
+            const c = card as CardInstanceData
+            if (c.selectedBy === playerId && !c.confirmedBy) {
+              await update(ref(database, `games/${gameId}/cards/${instanceId}`), {
+                selectedBy: null,
+              })
+            }
+          }
+        } else {
+          // Multi-selection mode: already at limit, cannot add more
+          throw new Error(`最多只能選擇 ${selectionLimit} 張卡片`)
         }
       }
 
@@ -624,7 +646,7 @@ export class MultiplayerGameService {
       await update(ref(database, `games/${gameId}/cards/${cardInstanceId}`), {
         selectedBy: playerId,
       })
-      console.log(`[MultiplayerGame] Player ${playerId} selected card ${cardInstanceId}`)
+      console.log(`[MultiplayerGame] Player ${playerId} selected card ${cardInstanceId} (${currentSelectionCount + 1}/${selectionLimit})`)
     }
 
     // Update game timestamp
@@ -636,6 +658,7 @@ export class MultiplayerGameService {
   /**
    * Confirm card selection and advance to next player
    * Once confirmed, the selection cannot be cancelled
+   * Supports multi-card selection for last player in Round 1 (snake draft rule)
    * @param gameId - Game room ID
    * @param playerId - Player confirming selection
    */
@@ -663,47 +686,89 @@ export class MultiplayerGameService {
       throw new Error('Not your turn')
     }
 
-    // Find the card selected by this player
+    // Calculate how many cards this player should select
+    const selectionLimit = getPlayerSelectionLimit(
+      currentPlayerIndex,
+      game.huntingPhase.round,
+      game.playerIds.length
+    )
+
+    // Find ALL cards selected by this player (not yet confirmed)
     const allCardsSnapshot = await get(ref(database, `games/${gameId}/cards`))
     if (!allCardsSnapshot.exists()) {
       throw new Error('No cards found')
     }
 
     const allCards = allCardsSnapshot.val() as Record<string, CardInstanceData>
-    const selectedCard = Object.values(allCards).find(
+    const selectedCards = Object.values(allCards).filter(
       card => card.selectedBy === playerId && !card.confirmedBy
     )
 
-    if (!selectedCard) {
+    // Validate selection count
+    if (selectedCards.length === 0) {
       throw new Error('No card selected')
     }
 
-    // Mark card as confirmed (locked)
-    await update(ref(database, `games/${gameId}/cards/${selectedCard.instanceId}`), {
-      confirmedBy: playerId,
-      selectedBy: null, // Clear selectedBy, now using confirmedBy
-    })
+    if (selectedCards.length !== selectionLimit) {
+      throw new Error(`請選擇 ${selectionLimit} 張卡片 (目前已選 ${selectedCards.length} 張)`)
+    }
+
+    // Mark all selected cards as confirmed (locked)
+    const selectedCardIds = selectedCards.map(c => c.instanceId)
+    for (const card of selectedCards) {
+      await update(ref(database, `games/${gameId}/cards/${card.instanceId}`), {
+        confirmedBy: playerId,
+        selectedBy: null, // Clear selectedBy, now using confirmedBy
+      })
+    }
 
     // Initialize confirmedSelections if it doesn't exist
     const confirmedSelections = game.huntingPhase.confirmedSelections || {}
-    confirmedSelections[playerId] = selectedCard.instanceId
+
+    // Initialize player's selection array if needed
+    if (!confirmedSelections[playerId]) {
+      confirmedSelections[playerId] = []
+    }
+
+    // Always store as array and accumulate selections across multiple confirmations
+    // This handles the case where a player confirms multiple times (e.g., Round 1 + Round 2)
+    const existingSelections = Array.isArray(confirmedSelections[playerId])
+      ? confirmedSelections[playerId]
+      : [confirmedSelections[playerId]]
+
+    confirmedSelections[playerId] = [...existingSelections, ...selectedCardIds]
 
     // Also update legacy selections for backward compatibility
     const selections = game.huntingPhase.selections || {}
     if (!selections[playerId]) {
       selections[playerId] = []
     }
-    selections[playerId].push(selectedCard.instanceId)
+    selections[playerId].push(...selectedCardIds)
 
     // Get next player in snake draft
+    // For last player in Round 1 who picks 2 cards, skip Round 2's first turn
     const { nextIndex, nextRound, isComplete } = getNextHuntingPlayer(
       currentPlayerIndex,
       game.huntingPhase.round,
       game.playerIds.length
     )
 
+    // Special handling: if player selected 2 cards, they consumed both R1 last + R2 first turn
+    // So we need to advance to the next player in Round 2
+    let finalNextIndex = nextIndex
+    let finalNextRound = nextRound
+    let finalIsComplete = isComplete
+
+    if (selectionLimit === 2 && !isComplete) {
+      // Player picked 2 cards, skip their Round 2 first turn
+      const nextResult = getNextHuntingPlayer(nextIndex, nextRound, game.playerIds.length)
+      finalNextIndex = nextResult.nextIndex
+      finalNextRound = nextResult.nextRound
+      finalIsComplete = nextResult.isComplete
+    }
+
     // Update game state
-    if (isComplete) {
+    if (finalIsComplete) {
       // Hunting phase complete
       await update(gameRef, {
         'huntingPhase/confirmedSelections': confirmedSelections,
@@ -722,17 +787,18 @@ export class MultiplayerGameService {
       await update(gameRef, {
         'huntingPhase/confirmedSelections': confirmedSelections,
         'huntingPhase/selections': selections,
-        'huntingPhase/currentPlayerIndex': nextIndex,
-        'huntingPhase/round': nextRound,
+        'huntingPhase/currentPlayerIndex': finalNextIndex,
+        'huntingPhase/round': finalNextRound,
         updatedAt: Date.now(),
       })
     }
 
-    console.log(`[MultiplayerGame] Player ${playerId} confirmed selection of card ${selectedCard.instanceId}`)
+    console.log(`[MultiplayerGame] Player ${playerId} confirmed selection of ${selectedCardIds.length} card(s): ${selectedCardIds.join(', ')}`)
   }
 
   /**
    * Distribute confirmed cards to players' hands after hunting phase ends
+   * Supports both single card (string) and multiple cards (string[]) per player
    * @private
    */
   private async distributeConfirmedCards(gameId: string): Promise<void> {
@@ -748,10 +814,13 @@ export class MultiplayerGameService {
 
     const allConfirmedCardIds: string[] = []
 
-    for (const [playerId, cardId] of Object.entries(confirmedSelections)) {
-      if (!cardId) continue
+    for (const [playerId, cardData] of Object.entries(confirmedSelections)) {
+      if (!cardData) continue
 
-      allConfirmedCardIds.push(cardId)
+      // CardData should always be an array now (after fix in confirmCardSelection)
+      // But keep backward compatibility check just in case
+      const cardIds = Array.isArray(cardData) ? cardData : [cardData]
+      allConfirmedCardIds.push(...cardIds)
 
       // Get current player state
       const playerSnapshot = await get(ref(database, `games/${gameId}/players/${playerId}`))
@@ -760,7 +829,7 @@ export class MultiplayerGameService {
       const player: PlayerState = playerSnapshot.val()
       const currentHand = Array.isArray(player.hand) ? player.hand : []
       const currentField = Array.isArray(player.field) ? player.field : []
-      const updatedHand = [...currentHand, cardId]
+      const updatedHand = [...currentHand, ...cardIds]
 
       // Update player's hand
       await update(ref(database, `games/${gameId}/players/${playerId}`), {
@@ -768,13 +837,15 @@ export class MultiplayerGameService {
         field: currentField,
       })
 
-      // Update card location and clear markers
-      await update(ref(database, `games/${gameId}/cards/${cardId}`), {
-        location: CardLocation.HAND,
-        ownerId: playerId,
-        selectedBy: null,
-        confirmedBy: null,
-      })
+      // Update each card's location and clear markers
+      for (const cardId of cardIds) {
+        await update(ref(database, `games/${gameId}/cards/${cardId}`), {
+          location: CardLocation.HAND,
+          ownerId: playerId,
+          selectedBy: null,
+          confirmedBy: null,
+        })
+      }
     }
 
     // Remove confirmed cards from market
@@ -978,10 +1049,22 @@ export class MultiplayerGameService {
 
     const card: CardInstanceData = cardSnapshot.val()
 
-    // Selling gives baseScore stones (as 1-point stones)
-    const stonesGained = card.baseScore
+    // Selling gives baseScore value in coins (using optimal denomination: 6, 3, 1)
+    const totalValue = card.baseScore
     const updatedStones = { ...player.stones }
-    updatedStones.ONE = (updatedStones.ONE || 0) + stonesGained
+
+    // Calculate optimal coin breakdown
+    let remaining = totalValue
+    const sixCoins = Math.floor(remaining / 6)
+    remaining -= sixCoins * 6
+    const threeCoins = Math.floor(remaining / 3)
+    remaining -= threeCoins * 3
+    const oneCoins = remaining
+
+    // Add coins to player
+    updatedStones.SIX = (updatedStones.SIX || 0) + sixCoins
+    updatedStones.THREE = (updatedStones.THREE || 0) + threeCoins
+    updatedStones.ONE = (updatedStones.ONE || 0) + oneCoins
 
     // Move card from hand to discard
     // Ensure hand is an array
@@ -1006,7 +1089,14 @@ export class MultiplayerGameService {
       updatedAt: Date.now(),
     })
 
-    console.log(`[MultiplayerGame] Player ${playerId} sold card ${cardInstanceId} for ${stonesGained} stones`)
+    const coinsDescription = []
+    if (sixCoins > 0) coinsDescription.push(`${sixCoins}x6元`)
+    if (threeCoins > 0) coinsDescription.push(`${threeCoins}x3元`)
+    if (oneCoins > 0) coinsDescription.push(`${oneCoins}x1元`)
+
+    console.log(
+      `[MultiplayerGame] Player ${playerId} sold card ${cardInstanceId} (${card.name}) for ${totalValue} value: ${coinsDescription.join(', ')}`
+    )
   }
 
   /**
