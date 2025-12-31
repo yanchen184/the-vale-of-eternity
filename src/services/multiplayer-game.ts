@@ -1,9 +1,9 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 3.9.1 - finishResolution deals 4 new cards to market when starting next round
+ * @version 3.9.2 - finishResolution starts HUNTING phase instead of ACTION after resolution
  */
-console.log('[services/multiplayer-game.ts] v3.9.1 loaded')
+console.log('[services/multiplayer-game.ts] v3.9.2 loaded')
 
 import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -1449,9 +1449,9 @@ export class MultiplayerGameService {
 
       // Check if all players finished resolution
       if (game.passedPlayerIds.length === game.playerIds.length) {
-        // All players finished resolution → Start next round
+        // All players finished resolution → Start next round with HUNTING phase
         game.currentRound = (game.currentRound || 1) + 1
-        game.status = 'ACTION'
+        game.status = 'HUNTING'
         game.currentPlayerIndex = 0
         game.passedPlayerIds = []
 
@@ -1468,8 +1468,16 @@ export class MultiplayerGameService {
         game.marketIds.push(...newMarketCards)
         game.deckIds = game.deckIds.slice(cardsToDeal)
 
+        // Initialize hunting phase for new round
+        game.huntingPhase = {
+          currentPlayerIndex: 0,
+          currentRound: 1,
+          maxRounds: 2,
+          confirmedSelections: {},
+        }
+
         console.log(
-          `[MultiplayerGame] All players finished resolution, starting round ${game.currentRound}, dealt ${cardsToDeal} cards to market`
+          `[MultiplayerGame] All players finished resolution, starting round ${game.currentRound} with HUNTING phase, dealt ${cardsToDeal} cards to market`
         )
       } else {
         // Move to next player for resolution
