@@ -1,9 +1,9 @@
 /**
  * Game components exports
  * Core UI components for The Vale of Eternity game
- * @version 3.4.0 - Added Player Marker components for multiplayer
+ * @version 3.5.0 - Added Score Track and Coin Management components
  */
-console.log('[components/game/index.ts] v3.4.0 loaded')
+console.log('[components/game/index.ts] v3.5.0 loaded')
 
 // Card components
 export { Card, CardBack } from './Card'
@@ -49,3 +49,11 @@ export type {
   SeatPosition,
   StoneBankData,
 } from './MahjongLayout'
+
+// Score and Coin Management components (v3.5.0)
+export { ScoreTrack } from './ScoreTrack'
+export type { ScoreTrackProps, PlayerScoreInfo } from './ScoreTrack'
+export { BankArea } from './BankArea'
+export type { BankAreaProps } from './BankArea'
+export { PlayerCoinArea } from './PlayerCoinArea'
+export type { PlayerCoinAreaProps } from './PlayerCoinArea'

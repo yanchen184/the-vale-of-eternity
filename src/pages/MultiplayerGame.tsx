@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 3.2.0
+ * @version 3.4.0 - Added score track and bank coin management
  */
-console.log('[pages/MultiplayerGame.tsx] v3.2.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v3.4.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -16,13 +16,26 @@ import {
   type CardInstanceData,
   type GamePhase,
 } from '@/services/multiplayer-game'
-import { PlayerHand, PlayField, MarketArea, StonePool, Card } from '@/components/game'
+import {
+  PlayerHand,
+  PlayField,
+  MarketArea,
+  StonePool,
+  Card,
+  PlayerMarker,
+  ScoreTrack,
+  BankArea,
+  PlayerCoinArea,
+} from '@/components/game'
+import type { PlayerScoreInfo } from '@/components/game'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { cn } from '@/lib/utils'
 import type { CardInstance } from '@/types/cards'
 import type { StonePool as StonePoolType } from '@/types/game'
 import { calculateStonePoolValue } from '@/types/game'
+import { type PlayerColor, PLAYER_COLORS } from '@/types/player-color'
+import { StoneType } from '@/types/cards'
 
 // ============================================
 // TYPES
@@ -65,6 +78,10 @@ interface HuntingPhaseProps {
   isYourTurn: boolean
   currentPlayerName: string
   onSelectCard: (cardId: string) => void
+  /** Map of cardInstanceId -> PlayerColor for cards that have been selected */
+  cardSelectionMap: Map<string, { color: PlayerColor; playerName: string }>
+  /** Cards that are already selected and should be disabled */
+  selectedCardIds: string[]
 }
 
 // ============================================
@@ -171,6 +188,7 @@ function PlayerList({ players, currentPlayerId, currentTurnPlayerId, phase }: Pl
           const isCurrentTurn = player.playerId === currentTurnPlayerId
           const isYou = player.playerId === currentPlayerId
           const totalStoneValue = calculateStonePoolValue(player.stones)
+          const playerColor = player.color || 'green'
 
           return (
             <div
@@ -185,10 +203,19 @@ function PlayerList({ players, currentPlayerId, currentTurnPlayerId, phase }: Pl
               data-testid={`player-${player.index}`}
             >
               <div className="flex items-center justify-between mb-2">
-                <span className={cn('font-medium', isYou ? 'text-vale-400' : 'text-slate-200')}>
-                  {player.name}
-                  {isYou && ' (You)'}
-                </span>
+                <div className="flex items-center gap-2">
+                  {/* Player color marker */}
+                  <PlayerMarker
+                    color={playerColor}
+                    size="sm"
+                    showGlow={isCurrentTurn && phase !== 'WAITING'}
+                    playerName={player.name}
+                  />
+                  <span className={cn('font-medium', isYou ? 'text-vale-400' : 'text-slate-200')}>
+                    {player.name}
+                    {isYou && ' (你)'}
+                  </span>
+                </div>
                 {player.hasPassed && (
                   <span className="text-xs text-slate-500 px-2 py-0.5 rounded bg-slate-700">
                     已跳過
@@ -243,23 +270,41 @@ function WaitingRoom({ roomCode, players, isHost, maxPlayers, onStartGame, onLea
             玩家 ({players.length}/{maxPlayers})
           </h3>
           <div className="space-y-2">
-            {players.map((player, index) => (
-              <div
-                key={player.playerId}
-                className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700"
-                data-testid={`waiting-player-${index}`}
-              >
-                <div className="w-8 h-8 rounded-full bg-vale-600 flex items-center justify-center text-white font-bold">
-                  {index + 1}
-                </div>
-                <span className="flex-1 text-slate-200">{player.name}</span>
-                {index === 0 && (
-                  <span className="text-xs text-amber-400 px-2 py-1 rounded bg-amber-900/30">
-                    房主
+            {players.map((player, index) => {
+              const playerColor = player.color || 'green'
+              const colorConfig = PLAYER_COLORS[playerColor]
+
+              return (
+                <div
+                  key={player.playerId}
+                  className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700"
+                  data-testid={`waiting-player-${index}`}
+                >
+                  {/* Player color marker */}
+                  <PlayerMarker
+                    color={playerColor}
+                    size="md"
+                    showGlow={false}
+                    playerName={player.name}
+                  />
+                  <span className="flex-1 text-slate-200">{player.name}</span>
+                  <span
+                    className="text-xs px-2 py-1 rounded"
+                    style={{
+                      backgroundColor: `${colorConfig.hex}30`,
+                      color: colorConfig.hex,
+                    }}
+                  >
+                    {colorConfig.nameTw}
                   </span>
-                )}
-              </div>
-            ))}
+                  {index === 0 && (
+                    <span className="text-xs text-amber-400 px-2 py-1 rounded bg-amber-900/30">
+                      房主
+                    </span>
+                  )}
+                </div>
+              )
+            })}
 
             {/* Empty Slots */}
             {Array.from({ length: maxPlayers - players.length }).map((_, i) => (
@@ -312,7 +357,14 @@ function WaitingRoom({ roomCode, players, isHost, maxPlayers, onStartGame, onLea
 /**
  * Hunting Phase UI
  */
-function HuntingPhaseUI({ marketCards, isYourTurn, currentPlayerName, onSelectCard }: HuntingPhaseProps) {
+function HuntingPhaseUI({
+  marketCards,
+  isYourTurn,
+  currentPlayerName,
+  onSelectCard,
+  cardSelectionMap,
+  selectedCardIds,
+}: HuntingPhaseProps) {
   return (
     <div
       className="bg-slate-800/50 rounded-xl border border-blue-700/50 p-6 mb-6"
@@ -325,32 +377,51 @@ function HuntingPhaseUI({ marketCards, isYourTurn, currentPlayerName, onSelectCa
             ? '從市場選擇一張卡片加入你的手牌'
             : `等待 ${currentPlayerName} 選擇卡片...`}
         </p>
+        <p className="text-xs text-slate-500 mt-1">
+          選中的卡片會顯示玩家顏色標記，狩獵階段結束後才會分配
+        </p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 justify-items-center">
-        {marketCards.map((card, index) => (
-          <div
-            key={card.instanceId}
-            className={cn(
-              'transition-all',
-              isYourTurn
-                ? 'hover:scale-105 cursor-pointer'
-                : 'opacity-60 cursor-not-allowed'
-            )}
-            data-testid={`hunting-card-${index}`}
-          >
-            <Card
-              card={card}
-              index={index}
-              onClick={() => isYourTurn && onSelectCard(card.instanceId)}
+        {marketCards.map((card, index) => {
+          const isCardSelected = selectedCardIds.includes(card.instanceId)
+          const selectionInfo = cardSelectionMap.get(card.instanceId)
+          const canSelect = isYourTurn && !isCardSelected
+
+          return (
+            <div
+              key={card.instanceId}
               className={cn(
-                isYourTurn
-                  ? 'hover:border-blue-400 hover:shadow-blue-500/50'
-                  : ''
+                'transition-all relative',
+                canSelect
+                  ? 'hover:scale-105 cursor-pointer'
+                  : isCardSelected
+                    ? 'cursor-default'
+                    : 'opacity-60 cursor-not-allowed'
               )}
-            />
-          </div>
-        ))}
+              data-testid={`hunting-card-${index}`}
+            >
+              <Card
+                card={card}
+                index={index}
+                onClick={() => canSelect && onSelectCard(card.instanceId)}
+                selectedByColor={selectionInfo?.color}
+                selectedByName={selectionInfo?.playerName}
+                className={cn(
+                  canSelect
+                    ? 'hover:border-blue-400 hover:shadow-blue-500/50'
+                    : isCardSelected
+                      ? 'border-slate-500'
+                      : ''
+                )}
+              />
+              {/* Selection overlay for already selected cards */}
+              {isCardSelected && (
+                <div className="absolute inset-0 bg-black/30 rounded-lg pointer-events-none" />
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -576,6 +647,45 @@ export function MultiplayerGame() {
     return calculateStonePoolValue(stonePool)
   }, [stonePool])
 
+  // Build card selection map for hunting phase
+  // Maps cardInstanceId -> { color, playerName }
+  const cardSelectionMap = useMemo(() => {
+    const map = new Map<string, { color: PlayerColor; playerName: string }>()
+
+    if (!cards || typeof cards !== 'object') return map
+
+    // Look through all cards for ones with selectedBy set
+    Object.values(cards).forEach((cardData) => {
+      if (cardData.selectedBy) {
+        // Find the player who selected this card
+        const selectingPlayer = players.find((p) => p.playerId === cardData.selectedBy)
+        if (selectingPlayer) {
+          map.set(cardData.instanceId, {
+            color: selectingPlayer.color || 'green',
+            playerName: selectingPlayer.name,
+          })
+        }
+      }
+    })
+
+    return map
+  }, [cards, players])
+
+  // Get list of selected card IDs for hunting phase
+  const selectedCardIds = useMemo(() => {
+    return Array.from(cardSelectionMap.keys())
+  }, [cardSelectionMap])
+
+  // Player score data for score track
+  const playerScores = useMemo((): PlayerScoreInfo[] => {
+    return players.map(player => ({
+      playerId: player.playerId,
+      playerName: player.name,
+      color: player.color || 'green',
+      score: player.score,
+    }))
+  }, [players])
+
   // Handlers
   const handleStartGame = useCallback(async () => {
     if (!gameId || !playerId) return
@@ -643,6 +753,45 @@ export function MultiplayerGame() {
       setError(err.message || 'Failed to pass turn')
     }
   }, [gameId, playerId])
+
+  const handleScoreAdjust = useCallback(
+    async (targetPlayerId: string, newScore: number) => {
+      if (!gameId) return
+
+      try {
+        await multiplayerGameService.adjustPlayerScore(gameId, targetPlayerId, newScore)
+      } catch (err: any) {
+        setError(err.message || 'Failed to adjust score')
+      }
+    },
+    [gameId]
+  )
+
+  const handleTakeCoinFromBank = useCallback(
+    async (coinType: StoneType) => {
+      if (!gameId || !playerId) return
+
+      try {
+        await multiplayerGameService.takeCoinFromBank(gameId, playerId, coinType)
+      } catch (err: any) {
+        setError(err.message || 'Failed to take coin from bank')
+      }
+    },
+    [gameId, playerId]
+  )
+
+  const handleReturnCoinToBank = useCallback(
+    async (coinType: StoneType) => {
+      if (!gameId || !playerId) return
+
+      try {
+        await multiplayerGameService.returnCoinToBank(gameId, playerId, coinType)
+      } catch (err: any) {
+        setError(err.message || 'Failed to return coin to bank')
+      }
+    },
+    [gameId, playerId]
+  )
 
   const canTameCard = useCallback(
     (cardInstanceId: string): boolean => {
@@ -758,13 +907,42 @@ export function MultiplayerGame() {
               isYourTurn={isYourTurn}
               currentPlayerName={currentTurnPlayer?.name ?? 'Unknown'}
               onSelectCard={handleSelectCardInHunting}
+              cardSelectionMap={cardSelectionMap}
+              selectedCardIds={selectedCardIds}
             />
           )}
 
           {/* Action Phase UI */}
           {gameRoom.status === 'ACTION' && (
             <>
-              {/* Stone Pool */}
+              {/* Score Track */}
+              <ScoreTrack
+                players={playerScores}
+                maxScore={50}
+                currentPlayerId={playerId ?? ''}
+                onScoreAdjust={handleScoreAdjust}
+                allowAdjustment={isYourTurn}
+              />
+
+              {/* Coin Management Area */}
+              <div className="grid grid-cols-2 gap-6">
+                {/* Bank Coins */}
+                <BankArea
+                  bankCoins={gameRoom.bankCoins}
+                  allowInteraction={isYourTurn}
+                  onTakeCoin={handleTakeCoinFromBank}
+                />
+
+                {/* Player Coins */}
+                <PlayerCoinArea
+                  playerCoins={stonePool ?? { ONE: 0, THREE: 0, SIX: 0, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 }}
+                  playerName={currentPlayer?.name}
+                  allowInteraction={isYourTurn}
+                  onReturnCoin={handleReturnCoinToBank}
+                />
+              </div>
+
+              {/* Stone Pool (kept for compatibility) */}
               <StonePool stones={stonePool} showExchange={false} data-testid="player-stones" />
 
               {/* Play Field */}

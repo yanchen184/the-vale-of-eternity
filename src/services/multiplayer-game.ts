@@ -1,9 +1,9 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 3.2.0 - Added player color system and card selection markers
+ * @version 3.3.0 - Added bank coin pool and score adjustment
  */
-console.log('[services/multiplayer-game.ts] v3.2.0 loaded')
+console.log('[services/multiplayer-game.ts] v3.3.0 loaded')
 
 import { ref, set, get, update, onValue, off, remove, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -69,6 +69,7 @@ export interface GameRoom {
   deckIds: string[]  // remaining deck card IDs
   marketIds: string[]  // market card IDs (6 cards)
   discardIds: string[]  // discard pile
+  bankCoins: StonePool  // Bank's coin pool
 
   // Action phase
   currentPlayerIndex: number
@@ -211,6 +212,7 @@ export class MultiplayerGameService {
       deckIds: [],
       marketIds: [],
       discardIds: [],
+      bankCoins: { ONE: 20, THREE: 15, SIX: 10, WATER: 10, FIRE: 10, EARTH: 10, WIND: 10 }, // Initial bank
       currentPlayerIndex: 0,
       passedPlayerIds: [],
       createdAt: Date.now(),
@@ -473,11 +475,13 @@ export class MultiplayerGameService {
 
       const player: PlayerState = playerSnapshot.val()
       const currentHand = Array.isArray(player.hand) ? player.hand : []
+      const currentField = Array.isArray(player.field) ? player.field : []
       const updatedHand = [...currentHand, ...cardIds]
 
-      // Update player's hand
+      // Update player's hand and ensure field is initialized
       await update(ref(database, `games/${gameId}/players/${playerId}`), {
         hand: updatedHand,
+        field: currentField, // Ensure field array exists
       })
 
       // Update each card's location and clear selectedBy marker
@@ -880,6 +884,112 @@ export class MultiplayerGameService {
     console.log(`[MultiplayerGame] Final scores calculated for game ${gameId}:`, scores)
 
     return scores
+  }
+
+  /**
+   * Adjust player's score (manual adjustment)
+   */
+  async adjustPlayerScore(
+    gameId: string,
+    playerId: string,
+    newScore: number
+  ): Promise<void> {
+    if (newScore < 0) {
+      throw new Error('Score cannot be negative')
+    }
+
+    await update(ref(database, `games/${gameId}/players/${playerId}`), {
+      score: newScore,
+      updatedAt: Date.now(),
+    })
+
+    console.log(`[MultiplayerGame] Player ${playerId} score adjusted to ${newScore}`)
+  }
+
+  /**
+   * Take a coin from the bank
+   */
+  async takeCoinFromBank(
+    gameId: string,
+    playerId: string,
+    coinType: StoneType
+  ): Promise<void> {
+    await runTransaction(ref(database, `games/${gameId}`), (game: GameRoom | null) => {
+      if (!game) return game
+
+      // Check if bank has the coin
+      if (!game.bankCoins || game.bankCoins[coinType] <= 0) {
+        throw new Error(`Bank does not have ${coinType} coins`)
+      }
+
+      // Decrease bank coins
+      game.bankCoins[coinType] -= 1
+      game.updatedAt = Date.now()
+
+      return game
+    })
+
+    // Increase player coins
+    const playerSnapshot = await get(ref(database, `games/${gameId}/players/${playerId}`))
+    if (!playerSnapshot.exists()) {
+      throw new Error('Player not found')
+    }
+
+    const player: PlayerState = playerSnapshot.val()
+    const updatedStones = { ...player.stones }
+    updatedStones[coinType] = (updatedStones[coinType] || 0) + 1
+
+    await update(ref(database, `games/${gameId}/players/${playerId}`), {
+      stones: updatedStones,
+    })
+
+    console.log(`[MultiplayerGame] Player ${playerId} took ${coinType} coin from bank`)
+  }
+
+  /**
+   * Return a coin to the bank
+   */
+  async returnCoinToBank(
+    gameId: string,
+    playerId: string,
+    coinType: StoneType
+  ): Promise<void> {
+    // Get player state
+    const playerSnapshot = await get(ref(database, `games/${gameId}/players/${playerId}`))
+    if (!playerSnapshot.exists()) {
+      throw new Error('Player not found')
+    }
+
+    const player: PlayerState = playerSnapshot.val()
+
+    // Check if player has the coin
+    if (!player.stones || player.stones[coinType] <= 0) {
+      throw new Error(`Player does not have ${coinType} coins`)
+    }
+
+    // Decrease player coins
+    const updatedStones = { ...player.stones }
+    updatedStones[coinType] -= 1
+
+    await update(ref(database, `games/${gameId}/players/${playerId}`), {
+      stones: updatedStones,
+    })
+
+    // Increase bank coins
+    await runTransaction(ref(database, `games/${gameId}`), (game: GameRoom | null) => {
+      if (!game) return game
+
+      if (!game.bankCoins) {
+        game.bankCoins = { ONE: 0, THREE: 0, SIX: 0, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 }
+      }
+
+      game.bankCoins[coinType] = (game.bankCoins[coinType] || 0) + 1
+      game.updatedAt = Date.now()
+
+      return game
+    })
+
+    console.log(`[MultiplayerGame] Player ${playerId} returned ${coinType} coin to bank`)
   }
 
   /**
