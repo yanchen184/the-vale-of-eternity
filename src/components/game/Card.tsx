@@ -99,6 +99,8 @@ export interface CardProps {
   isConfirmed?: boolean
   /** Whether this is a newly placed marker (triggers drop animation) */
   isNewMarker?: boolean
+  /** Current round number (for showing "new this round" badge) */
+  currentRound?: number
   /** Additional CSS classes */
   className?: string
 }
@@ -423,6 +425,17 @@ export const Card = memo(function Card({
           )}
         </div>
       </div>
+
+      {/* "New This Round" Badge - shown when card was acquired in current round */}
+      {currentRound !== undefined &&
+       // @ts-expect-error - acquiredInRound is added at runtime from Firebase
+       card.acquiredInRound === currentRound && (
+        <div className="absolute top-2 left-2 z-20">
+          <div className="px-2 py-1 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white text-[10px] font-bold shadow-lg border-2 border-white/30 animate-pulse">
+            本回合
+          </div>
+        </div>
+      )}
 
       {/* Player Selection Marker - shown when card is selected during hunting phase */}
       {selectedByColor && (

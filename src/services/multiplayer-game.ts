@@ -1248,9 +1248,9 @@ export class MultiplayerGameService {
 
     const card: CardInstanceData = cardSnapshot.val()
 
-    // Check if card can be sold (only cards acquired via hunting phase in current round)
-    if (card.acquiredInRound !== game.currentRound || !card.acquiredViaHunting) {
-      throw new Error('只能賣出選卡階段獲得的卡片')
+    // Check if card can be sold (only cards acquired in current round)
+    if (card.acquiredInRound !== game.currentRound) {
+      throw new Error('只能賣出本回合獲得的卡片')
     }
 
     // Get card template to find element

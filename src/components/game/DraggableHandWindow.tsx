@@ -1,12 +1,12 @@
 /**
  * DraggableHandWindow Component
  * Floating, draggable, resizable window for displaying player's hand
- * @version 1.5.0 - Fixed canTameCard prop to accept function instead of boolean
+ * @version 1.6.0 - Removed minimize feature, added zoom controls to top-right
  */
-console.log('[components/game/DraggableHandWindow.tsx] v1.5.0 loaded')
+console.log('[components/game/DraggableHandWindow.tsx] v1.6.0 loaded')
 
 import { memo, useState, useRef, useCallback, useEffect } from 'react'
-import { Minimize2, Maximize2, GripHorizontal, Maximize } from 'lucide-react'
+import { ZoomIn, ZoomOut, GripHorizontal, Maximize } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PlayerHand } from './PlayerHand'
 import type { CardInstance } from '@/types/cards'
@@ -66,7 +66,6 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
     : 100
 
   // Window state
-  const [isMinimized, setIsMinimized] = useState(false)
   const [position, setPosition] = useState({ x: initialX, y: initialY })
   const [size, setSize] = useState({ width: initialWidth, height: initialHeight })
   const [isDragging, setIsDragging] = useState(false)
@@ -120,9 +119,13 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
     }
   }, [isDragging, dragOffset])
 
-  // Toggle minimize
-  const toggleMinimize = useCallback(() => {
-    setIsMinimized((prev) => !prev)
+  // Zoom in/out functions
+  const handleZoomIn = useCallback(() => {
+    setZoom((prev) => Math.min(2.5, prev + 0.1))
+  }, [])
+
+  const handleZoomOut = useCallback(() => {
+    setZoom((prev) => Math.max(0.5, prev - 0.1))
   }, [])
 
   // Handle resize start
@@ -251,14 +254,13 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
       className={cn(
         'fixed z-50 bg-slate-900/95 backdrop-blur-md rounded-lg border-2 border-purple-500/50 shadow-2xl',
         'transition-opacity duration-200',
-        (isDragging || isResizing) && 'cursor-grabbing shadow-purple-500/50',
-        isMinimized && 'w-80'
+        (isDragging || isResizing) && 'cursor-grabbing shadow-purple-500/50'
       )}
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
-        width: isMinimized ? undefined : `${size.width}px`,
-        height: isMinimized ? undefined : `${size.height}px`,
+        width: `${size.width}px`,
+        height: `${size.height}px`,
       }}
       onMouseDown={handleMouseDown}
     >
@@ -279,76 +281,74 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
           </h3>
         </div>
 
-        {/* Right: Minimize Button */}
-        <button
-          type="button"
-          onClick={toggleMinimize}
-          className="p-1.5 rounded hover:bg-purple-500/20 transition-colors"
-          title={isMinimized ? '展開' : '最小化'}
-        >
-          {isMinimized ? (
-            <Maximize2 className="w-4 h-4 text-purple-400" />
-          ) : (
-            <Minimize2 className="w-4 h-4 text-purple-400" />
-          )}
-        </button>
+        {/* Right: Zoom Controls */}
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={handleZoomOut}
+            className="p-1.5 rounded hover:bg-purple-500/20 transition-colors"
+            title="縮小 (Ctrl+滾輪向下)"
+          >
+            <ZoomOut className="w-4 h-4 text-purple-400" />
+          </button>
+          <span className="text-xs text-purple-300 min-w-[3rem] text-center">
+            {Math.round(zoom * 100)}%
+          </span>
+          <button
+            type="button"
+            onClick={handleZoomIn}
+            className="p-1.5 rounded hover:bg-purple-500/20 transition-colors"
+            title="放大 (Ctrl+滾輪向上)"
+          >
+            <ZoomIn className="w-4 h-4 text-purple-400" />
+          </button>
+        </div>
       </div>
 
       {/* Content */}
-      {!isMinimized && (
+      <div
+        ref={contentRef}
+        className="overflow-auto select-none"
+        style={{
+          height: 'calc(100% - 48px)', // Full height minus header
+          cursor: isPanning ? 'grabbing' : 'grab',
+        }}
+        onMouseDown={handleContentMouseDown}
+      >
         <div
-          ref={contentRef}
-          className="overflow-auto select-none"
           style={{
-            height: 'calc(100% - 48px)', // Full height minus header
-            cursor: isPanning ? 'grabbing' : 'grab',
+            transform: `scale(${zoom})`,
+            transformOrigin: 'top center',
+            padding: '80px 12px', // 上下增加更多padding讓卡片有空間移動和懸停
+            transition: 'transform 0.1s ease-out',
           }}
-          onMouseDown={handleContentMouseDown}
         >
-          <div
-            style={{
-              transform: `scale(${zoom})`,
-              transformOrigin: 'top center',
-              padding: '80px 12px', // 上下增加更多padding讓卡片有空間移動和懸停
-              transition: 'transform 0.1s ease-out',
+          <PlayerHand
+            cards={cards}
+            onCardSelect={(cardId) => {
+              const card = cards.find(c => c.instanceId === cardId)
+              if (card && onCardClick) onCardClick(card)
             }}
-          >
-            <PlayerHand
-              cards={cards}
-              onCardSelect={(cardId) => {
-                const card = cards.find(c => c.instanceId === cardId)
-                if (card && onCardClick) onCardClick(card)
-              }}
-              onCardPlay={onTameCard}
-              onCardSell={onSellCard}
-              onCardDiscard={onDiscardCard}
-              selectedCardId={selectedCardId}
-              showActions={showCardActions}
-              canTameCard={canTameCard}
-              currentRound={currentRound}
-              maxHandSize={999} // No limit in floating window
-            />
-          </div>
+            onCardPlay={onTameCard}
+            onCardSell={onSellCard}
+            onCardDiscard={onDiscardCard}
+            selectedCardId={selectedCardId}
+            showActions={showCardActions}
+            canTameCard={canTameCard}
+            currentRound={currentRound}
+            maxHandSize={999} // No limit in floating window
+          />
         </div>
-      )}
-
-      {/* Minimized state - show card count */}
-      {isMinimized && (
-        <div className="px-4 py-3 text-center text-sm text-purple-300">
-          點擊展開查看手牌
-        </div>
-      )}
+      </div>
 
       {/* Resize Handle - Bottom Right Corner */}
-      {!isMinimized && (
-        <div
-          className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize opacity-50 hover:opacity-100 transition-opacity"
-          onMouseDown={handleResizeStart}
-          title="拖動調整大小"
-        >
-          <Maximize className="w-4 h-4 text-purple-400" />
-        </div>
-      )}
+      <div
+        className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize opacity-50 hover:opacity-100 transition-opacity"
+        onMouseDown={handleResizeStart}
+        title="拖動調整大小"
+      >
+        <Maximize className="w-4 h-4 text-purple-400" />
+      </div>
     </div>
   )
 })
