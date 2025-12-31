@@ -1,9 +1,9 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 3.9.2 - finishResolution starts HUNTING phase instead of ACTION after resolution
+ * @version 3.9.3 - Rotate starting player each round (Round N starts with Player N-1)
  */
-console.log('[services/multiplayer-game.ts] v3.9.2 loaded')
+console.log('[services/multiplayer-game.ts] v3.9.3 loaded')
 
 import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -1371,8 +1371,8 @@ export class MultiplayerGameService {
     await runTransaction(ref(database, `games/${gameId}`), (game: GameRoom | null) => {
       if (!game) return game
 
-      if (game.status !== 'ACTION') {
-        throw new Error('Not in action phase')
+      if (game.status !== 'ACTION' && game.status !== 'RESOLUTION') {
+        throw new Error('Not in action or resolution phase')
       }
 
       const currentPlayerIndex = game.currentPlayerIndex
@@ -1394,11 +1394,41 @@ export class MultiplayerGameService {
 
       // Check if all players have passed
       if (game.passedPlayerIds.length === game.playerIds.length) {
-        // All players passed → Move to RESOLUTION phase
-        game.status = 'RESOLUTION'
-        game.currentPlayerIndex = 0  // Start resolution from first player
-        game.passedPlayerIds = []  // Reset for tracking who finished resolution
-        console.log(`[MultiplayerGame] All players passed, moving to RESOLUTION phase for game ${game.gameId}`)
+        if (game.status === 'ACTION') {
+          // All players passed in ACTION → Move to RESOLUTION phase
+          game.status = 'RESOLUTION'
+          game.currentPlayerIndex = 0  // Start resolution from first player
+          game.passedPlayerIds = []  // Reset for tracking who finished resolution
+          console.log(`[MultiplayerGame] All players passed, moving to RESOLUTION phase for game ${game.gameId}`)
+        } else if (game.status === 'RESOLUTION') {
+          // All players finished RESOLUTION → Start next round
+          game.currentRound += 1
+          game.status = 'HUNTING'
+
+          // Rotate starting player: Round 1 → Player 0, Round 2 → Player 1, etc.
+          const startingPlayerIndex = (game.currentRound - 1) % game.playerIds.length
+          game.currentPlayerIndex = startingPlayerIndex
+          game.passedPlayerIds = []
+
+          // Reset market cards (draw new cards)
+          const marketSize = game.playerIds.length + 2
+          const newMarketCards: string[] = []
+          for (let i = 0; i < marketSize && game.deckIds.length > 0; i++) {
+            const cardId = game.deckIds.shift()
+            if (cardId) newMarketCards.push(cardId)
+          }
+          game.marketIds = newMarketCards
+
+          // Initialize hunting phase with rotated starting player
+          game.huntingPhase = {
+            currentPlayerIndex: startingPlayerIndex,
+            currentRound: 1,
+            maxRounds: 2,
+            confirmedSelections: {},
+          }
+
+          console.log(`[MultiplayerGame] All players finished resolution, starting round ${game.currentRound} with player ${startingPlayerIndex}`)
+        }
       } else {
         // Move to next player
         const nextPlayerIndex = (currentPlayerIndex + 1) % game.playerIds.length
@@ -1452,10 +1482,13 @@ export class MultiplayerGameService {
         // All players finished resolution → Start next round with HUNTING phase
         game.currentRound = (game.currentRound || 1) + 1
         game.status = 'HUNTING'
-        game.currentPlayerIndex = 0
+
+        // Rotate starting player: Round 1 → Player 0, Round 2 → Player 1, etc.
+        const startingPlayerIndex = (game.currentRound - 1) % game.playerIds.length
+        game.currentPlayerIndex = startingPlayerIndex
         game.passedPlayerIds = []
 
-        // Deal 4 new cards to market
+        // Deal new cards to market (playerCount + 2)
         if (!Array.isArray(game.deckIds)) {
           game.deckIds = []
         }
@@ -1463,21 +1496,24 @@ export class MultiplayerGameService {
           game.marketIds = []
         }
 
-        const cardsToDeal = Math.min(4, game.deckIds.length)
-        const newMarketCards = game.deckIds.slice(0, cardsToDeal)
-        game.marketIds.push(...newMarketCards)
-        game.deckIds = game.deckIds.slice(cardsToDeal)
+        const marketSize = game.playerIds.length + 2
+        const newMarketCards: string[] = []
+        for (let i = 0; i < marketSize && game.deckIds.length > 0; i++) {
+          const cardId = game.deckIds.shift()
+          if (cardId) newMarketCards.push(cardId)
+        }
+        game.marketIds = newMarketCards
 
-        // Initialize hunting phase for new round
+        // Initialize hunting phase with rotated starting player
         game.huntingPhase = {
-          currentPlayerIndex: 0,
+          currentPlayerIndex: startingPlayerIndex,
           currentRound: 1,
           maxRounds: 2,
           confirmedSelections: {},
         }
 
         console.log(
-          `[MultiplayerGame] All players finished resolution, starting round ${game.currentRound} with HUNTING phase, dealt ${cardsToDeal} cards to market`
+          `[MultiplayerGame] All players finished resolution, starting round ${game.currentRound} with HUNTING phase (starting player: ${startingPlayerIndex}), dealt ${newMarketCards.length} cards to market`
         )
       } else {
         // Move to next player for resolution

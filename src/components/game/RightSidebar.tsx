@@ -31,6 +31,8 @@ export interface RightSidebarProps {
   deckCount: number
   /** Whether it's the current player's turn */
   isYourTurn: boolean
+  /** Current game phase */
+  phase?: 'WAITING' | 'HUNTING' | 'ACTION' | 'RESOLUTION' | 'ENDED'
   /** Callback when taking a coin from bank */
   onTakeCoin?: (coinType: StoneType) => void
   /** Callback when returning a coin to bank */
@@ -39,6 +41,10 @@ export interface RightSidebarProps {
   onDiscardClick?: () => void
   /** Callback when clicking market discard pile */
   onMarketDiscardClick?: () => void
+  /** Callback when confirming card selection (hunting phase) */
+  onConfirmSelection?: () => void
+  /** Callback when ending turn (action phase) */
+  onEndTurn?: () => void
   /** Additional CSS classes */
   className?: string
 }
@@ -334,14 +340,23 @@ export const RightSidebar = memo(function RightSidebar({
   marketDiscardCount,
   deckCount,
   isYourTurn,
+  phase,
   onTakeCoin,
   onReturnCoin,
   onDiscardClick,
   onMarketDiscardClick,
+  onConfirmSelection,
+  onEndTurn,
   className,
 }: RightSidebarProps) {
   void _playerName // Reserved for future use
   void _bankCoins // Bank is infinite, no need to track
+
+  // Show confirm selection button only during HUNTING phase and player's turn
+  const showConfirmSelection = isYourTurn && phase === 'HUNTING' && onConfirmSelection
+
+  // Show end turn button during ACTION or RESOLUTION phase and player's turn
+  const showEndTurn = isYourTurn && (phase === 'ACTION' || phase === 'RESOLUTION') && onEndTurn
   return (
     <aside
       className={cn(
@@ -399,6 +414,51 @@ export const RightSidebar = memo(function RightSidebar({
           onDiscardClick={onDiscardClick}
           onMarketDiscardClick={onMarketDiscardClick}
         />
+
+        {/* Confirm Selection Button - Only show during HUNTING phase */}
+        {showConfirmSelection && (
+          <button
+            type="button"
+            onClick={onConfirmSelection}
+            className={cn(
+              'w-full aspect-square',
+              'bg-gradient-to-br from-emerald-600 to-emerald-700',
+              'hover:from-emerald-500 hover:to-emerald-600',
+              'active:from-emerald-700 active:to-emerald-800',
+              'text-white font-bold text-2xl',
+              'rounded-xl border-2 border-emerald-400/50',
+              'shadow-lg shadow-emerald-900/50',
+              'transition-all duration-200',
+              'flex items-center justify-center',
+              'hover:scale-105 active:scale-95',
+              'animate-pulse'
+            )}
+          >
+            確認選擇
+          </button>
+        )}
+
+        {/* End Turn Button - Only show during ACTION or RESOLUTION phase */}
+        {showEndTurn && (
+          <button
+            type="button"
+            onClick={onEndTurn}
+            className={cn(
+              'w-full aspect-square',
+              'bg-gradient-to-br from-red-600 to-red-700',
+              'hover:from-red-500 hover:to-red-600',
+              'active:from-red-700 active:to-red-800',
+              'text-white font-bold text-2xl',
+              'rounded-xl border-2 border-red-400/50',
+              'shadow-lg shadow-red-900/50',
+              'transition-all duration-200',
+              'flex items-center justify-center',
+              'hover:scale-105 active:scale-95'
+            )}
+          >
+            回合結束
+          </button>
+        )}
       </div>
 
       {/* Footer - Turn Status */}

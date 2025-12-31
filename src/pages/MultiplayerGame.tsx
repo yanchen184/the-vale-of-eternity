@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 5.4.1 - Removed DiscardPile from hand area, keep only in RightSidebar
+ * @version 5.5.0 - Reordered layout: self field → hand → other players' fields
  */
-console.log('[pages/MultiplayerGame.tsx] v5.4.1 loaded')
+console.log('[pages/MultiplayerGame.tsx] v5.5.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -260,25 +260,6 @@ function HuntingPhaseUI({
           })}
         </div>
       </div>
-
-      {/* Confirm Button */}
-      {isYourTurn && (
-        <div className="flex-shrink-0 pt-4 border-t border-slate-700/50">
-          <button
-            onClick={onConfirmSelection}
-            disabled={!hasSelectedCard}
-            className={cn(
-              'w-full py-3 rounded-xl font-semibold text-white transition-all',
-              hasSelectedCard
-                ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 shadow-lg shadow-emerald-500/30 animate-pulse'
-                : 'bg-slate-700 cursor-not-allowed text-slate-400'
-            )}
-            data-testid="confirm-selection-btn"
-          >
-            {hasSelectedCard ? '確認選擇' : '請先選擇一張卡片'}
-          </button>
-        </div>
-      )}
     </div>
   )
 }
@@ -318,16 +299,22 @@ function ActionPhaseUI({
   resolutionMode = false,
   onFinishResolution,
 }: ActionPhaseUIProps) {
+  // Split players: self first, others after
+  const selfPlayer = playersFieldData.find(p => p.playerId === currentPlayerId)
+  const otherPlayers = playersFieldData.filter(p => p.playerId !== currentPlayerId)
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden" data-testid={resolutionMode ? "resolution-phase" : "action-phase"}>
       {/* Top Section - Field Area & Hand */}
       <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar min-h-0">
-        {/* Players Field Area */}
-        <PlayersFieldArea
-          players={playersFieldData}
-          currentPlayerId={currentPlayerId}
-          onCardReturn={onCardReturn}
-        />
+        {/* Self Player's Field Area */}
+        {selfPlayer && (
+          <PlayersFieldArea
+            players={[selfPlayer]}
+            currentPlayerId={currentPlayerId}
+            onCardReturn={onCardReturn}
+          />
+        )}
 
         {/* Player Hand Section */}
         <div>
@@ -342,6 +329,15 @@ function ActionPhaseUI({
             className="rounded-xl border border-purple-900/30"
           />
         </div>
+
+        {/* Other Players' Field Area */}
+        {otherPlayers.length > 0 && (
+          <PlayersFieldArea
+            players={otherPlayers}
+            currentPlayerId={currentPlayerId}
+            onCardReturn={onCardReturn}
+          />
+        )}
       </div>
 
       {/* Bottom Section - Score Track */}
@@ -932,10 +928,13 @@ export function MultiplayerGame() {
             marketDiscardCount={gameRoom.discardIds?.length ?? 0}
             deckCount={gameRoom.deckIds?.length ?? 0}
             isYourTurn={isYourTurn}
+            phase={gameRoom.status}
             onTakeCoin={handleTakeCoinFromBank}
             onReturnCoin={handleReturnCoinToBank}
             onDiscardClick={() => {}} // TODO: Player's discard pile modal
             onMarketDiscardClick={() => setShowMarketDiscardModal(true)}
+            onConfirmSelection={handleConfirmCardSelection}
+            onEndTurn={handlePassTurn}
           />
         }
         scoreBar={

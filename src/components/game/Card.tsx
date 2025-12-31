@@ -1,9 +1,9 @@
 /**
  * Card Component with Image Display
  * Renders a game card with its image and stats
- * @version 2.8.0 - Sell button shows element-based coin breakdown
+ * @version 2.15.0 - Adjusted to 80% size (22.4rem × 33.6rem)
  */
-console.log('[components/game/Card.tsx] v2.8.0 loaded')
+console.log('[components/game/Card.tsx] v2.15.0 loaded')
 
 import { useState, useCallback, memo } from 'react'
 import { Flame, Droplets, TreePine, Wind, Crown, Gem } from 'lucide-react'
@@ -283,9 +283,9 @@ export const Card = memo(function Card({
         className={`
           relative rounded-lg overflow-hidden border-2 border-slate-600
           bg-gradient-to-b from-slate-700 to-slate-800
-          ${compact ? 'w-24 h-32' : 'w-36 h-52'}
           ${className}
         `}
+        style={{ width: '22.4rem', height: '33.6rem' }}
         data-testid={`card-back-${index}`}
       >
         <div className="absolute inset-0 flex items-center justify-center">
@@ -302,11 +302,12 @@ export const Card = memo(function Card({
         className={`
           relative rounded-lg overflow-hidden border-2
           ${borderClass} ${bgClass}
-          w-24 h-32 flex-shrink-0 cursor-pointer
-          transition-all duration-200 hover:scale-105
+          flex-shrink-0 cursor-pointer
+          transition-all duration-200
           ${isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900' : ''}
           ${className}
         `}
+        style={{ width: '22.4rem', height: '33.6rem' }}
         onClick={handleClick}
         data-testid={`card-compact-${card.instanceId}`}
       >
@@ -344,18 +345,19 @@ export const Card = memo(function Card({
     )
   }
 
-  // Full card
+  // Full card (same size as compact for consistency)
   return (
     <div
       className={`
         relative rounded-lg overflow-hidden border-2
         ${borderClass} ${bgClass}
-        w-52 h-72 flex-shrink-0 cursor-pointer
-        transition-all duration-200 hover:scale-105 hover:shadow-lg
+        flex-shrink-0 cursor-pointer
+        transition-all duration-200
         ${isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900' : ''}
         ${selectedByColor ? 'opacity-80' : ''}
         ${className}
       `}
+      style={{ width: '22.4rem', height: '33.6rem' }}
       onClick={handleClick}
       data-testid={`card-${index}`}
     >
@@ -405,12 +407,12 @@ export const Card = memo(function Card({
       {/* Player Selection Marker - shown when card is selected during hunting phase */}
       {selectedByColor && (
         <div
-          className="absolute -top-1 -right-1 z-10"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10"
           data-testid={`card-marker-${index}`}
         >
           <PlayerMarker
             color={selectedByColor}
-            size="md"
+            size="lg"
             showGlow={!isConfirmed}
             playerName={selectedByName}
             isConfirmed={isConfirmed}
