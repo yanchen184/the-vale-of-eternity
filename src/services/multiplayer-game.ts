@@ -1,9 +1,9 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 3.6.2 - Fixed confirmedSelections accumulation: now properly stores all cards across multiple confirmations
+ * @version 3.7.0 - Manual payment: tameCard no longer auto-deducts stones, added returnCardToHand
  */
-console.log('[services/multiplayer-game.ts] v3.6.2 loaded')
+console.log('[services/multiplayer-game.ts] v3.7.0 loaded')
 
 import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -910,58 +910,17 @@ export class MultiplayerGameService {
       throw new Error('Card not found')
     }
 
-    const card: CardInstanceData = cardSnapshot.val()
-
-    // Check if player has enough stones to pay cost
-    const totalStones = Object.values(player.stones).reduce((sum, amount) => sum + amount, 0)
-    if (totalStones < card.cost) {
-      throw new Error(`Not enough stones. Need ${card.cost}, have ${totalStones}`)
-    }
-
-    // Pay stones (simple strategy: use highest value stones first)
-    const updatedStones = { ...player.stones }
-    let remainingCost = card.cost
-
-    // Payment order: 6 → 3 → 1 → element stones
-    const paymentOrder: StoneType[] = [
-      StoneType.SIX,
-      StoneType.THREE,
-      StoneType.ONE,
-      StoneType.FIRE,
-      StoneType.WATER,
-      StoneType.EARTH,
-      StoneType.WIND,
-    ]
-
-    for (const stoneType of paymentOrder) {
-      if (remainingCost <= 0) break
-
-      const stoneValue = stoneType === StoneType.SIX ? 6 : stoneType === StoneType.THREE ? 3 : 1
-      const available = updatedStones[stoneType]
-
-      if (available > 0) {
-        const stonesToUse = Math.min(Math.ceil(remainingCost / stoneValue), available)
-        updatedStones[stoneType] -= stonesToUse
-        remainingCost -= stonesToUse * stoneValue
-      }
-    }
-
-    if (remainingCost > 0) {
-      throw new Error('Cannot pay exact cost with available stones')
-    }
-
-    // Move card from hand to field
+    // Move card from hand to field (NO automatic payment - player pays manually)
     // Ensure arrays exist
     const currentHand = Array.isArray(player.hand) ? player.hand : []
     const currentField = Array.isArray(player.field) ? player.field : []
     const updatedHand = currentHand.filter(id => id !== cardInstanceId)
     const updatedField = [...currentField, cardInstanceId]
 
-    // Update player state
+    // Update player state (only move card, don't touch stones)
     await update(ref(database, `games/${gameId}/players/${playerId}`), {
       hand: updatedHand,
       field: updatedField,
-      stones: updatedStones,
     })
 
     // Update card location
@@ -969,7 +928,7 @@ export class MultiplayerGameService {
       location: CardLocation.FIELD,
     })
 
-    console.log(`[MultiplayerGame] Player ${playerId} tamed card ${cardInstanceId}`)
+    console.log(`[MultiplayerGame] Player ${playerId} tamed card ${cardInstanceId} (manual payment)`)
 
     // Process ON_TAME effects (⚡)
     const allPlayersSnapshot = await get(ref(database, `games/${gameId}/players`))
@@ -982,7 +941,7 @@ export class MultiplayerGameService {
       gameId,
       playerId,
       cardInstanceId,
-      currentPlayerState: { ...player, hand: updatedHand, field: updatedField, stones: updatedStones },
+      currentPlayerState: { ...player, hand: updatedHand, field: updatedField },
       allPlayers,
       gameCards: allCards,
     }
@@ -994,6 +953,71 @@ export class MultiplayerGameService {
       console.error(`[MultiplayerGame] Error processing ON_TAME effects:`, error)
       // Don't throw - card is already tamed, just log the error
     }
+  }
+
+  /**
+   * Return a card from field back to hand (undo taming)
+   */
+  async returnCardToHand(
+    gameId: string,
+    playerId: string,
+    cardInstanceId: string
+  ): Promise<void> {
+    const gameRef = ref(database, `games/${gameId}`)
+    const snapshot = await get(gameRef)
+
+    if (!snapshot.exists()) {
+      throw new Error('Game not found')
+    }
+
+    const game: GameRoom = snapshot.val()
+
+    if (game.status !== 'ACTION') {
+      throw new Error('Not in action phase')
+    }
+
+    const currentPlayerIndex = game.currentPlayerIndex
+    const expectedPlayerId = game.playerIds[currentPlayerIndex]
+
+    if (playerId !== expectedPlayerId) {
+      throw new Error('Not your turn')
+    }
+
+    // Get player state
+    const playerSnapshot = await get(ref(database, `games/${gameId}/players/${playerId}`))
+    if (!playerSnapshot.exists()) {
+      throw new Error('Player not found')
+    }
+
+    const player: PlayerState = playerSnapshot.val()
+
+    // Ensure field array exists
+    if (!player.field || !Array.isArray(player.field)) {
+      throw new Error('Player field is not initialized')
+    }
+
+    if (!player.field.includes(cardInstanceId)) {
+      throw new Error('Card not in field')
+    }
+
+    // Move card from field back to hand
+    const currentHand = Array.isArray(player.hand) ? player.hand : []
+    const currentField = Array.isArray(player.field) ? player.field : []
+    const updatedHand = [...currentHand, cardInstanceId]
+    const updatedField = currentField.filter(id => id !== cardInstanceId)
+
+    // Update player state
+    await update(ref(database, `games/${gameId}/players/${playerId}`), {
+      hand: updatedHand,
+      field: updatedField,
+    })
+
+    // Update card location
+    await update(ref(database, `games/${gameId}/cards/${cardInstanceId}`), {
+      location: CardLocation.HAND,
+    })
+
+    console.log(`[MultiplayerGame] Player ${playerId} returned card ${cardInstanceId} to hand`)
   }
 
   /**
@@ -1049,32 +1073,15 @@ export class MultiplayerGameService {
 
     const card: CardInstanceData = cardSnapshot.val()
 
-    // Selling gives baseScore value in coins (using optimal denomination: 6, 3, 1)
-    const totalValue = card.baseScore
-    const updatedStones = { ...player.stones }
-
-    // Calculate optimal coin breakdown
-    let remaining = totalValue
-    const sixCoins = Math.floor(remaining / 6)
-    remaining -= sixCoins * 6
-    const threeCoins = Math.floor(remaining / 3)
-    remaining -= threeCoins * 3
-    const oneCoins = remaining
-
-    // Add coins to player
-    updatedStones.SIX = (updatedStones.SIX || 0) + sixCoins
-    updatedStones.THREE = (updatedStones.THREE || 0) + threeCoins
-    updatedStones.ONE = (updatedStones.ONE || 0) + oneCoins
-
+    // Selling just moves card to discard - player takes coins manually from bank
     // Move card from hand to discard
     // Ensure hand is an array
     const currentHand = Array.isArray(player.hand) ? player.hand : []
     const updatedHand = currentHand.filter(id => id !== cardInstanceId)
 
-    // Update player state
+    // Update player state (only remove card from hand, no automatic coin payment)
     await update(ref(database, `games/${gameId}/players/${playerId}`), {
       hand: updatedHand,
-      stones: updatedStones,
     })
 
     // Update card location
@@ -1089,13 +1096,8 @@ export class MultiplayerGameService {
       updatedAt: Date.now(),
     })
 
-    const coinsDescription = []
-    if (sixCoins > 0) coinsDescription.push(`${sixCoins}x6元`)
-    if (threeCoins > 0) coinsDescription.push(`${threeCoins}x3元`)
-    if (oneCoins > 0) coinsDescription.push(`${oneCoins}x1元`)
-
     console.log(
-      `[MultiplayerGame] Player ${playerId} sold card ${cardInstanceId} (${card.name}) for ${totalValue} value: ${coinsDescription.join(', ')}`
+      `[MultiplayerGame] Player ${playerId} sold card ${cardInstanceId} (${card.name}) worth ${card.baseScore} - player takes coins manually from bank`
     )
   }
 

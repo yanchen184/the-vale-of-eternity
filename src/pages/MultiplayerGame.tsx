@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 3.9.0 - Added DiscardPile and PlayerCoinArea, players start with index+1 score
+ * @version 4.0.1 - Fixed: restored canTameCard prop to enable Tame button
  */
-console.log('[pages/MultiplayerGame.tsx] v3.9.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v4.0.1 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -867,6 +867,19 @@ export function MultiplayerGame() {
     [gameId, playerId]
   )
 
+  const handleReturnCard = useCallback(
+    async (cardInstanceId: string) => {
+      if (!gameId || !playerId) return
+
+      try {
+        await multiplayerGameService.returnCardToHand(gameId, playerId, cardInstanceId)
+      } catch (err: any) {
+        setError(err.message || 'Failed to return card')
+      }
+    },
+    [gameId, playerId]
+  )
+
   const handlePassTurn = useCallback(async () => {
     if (!gameId || !playerId) return
 
@@ -927,15 +940,6 @@ export function MultiplayerGame() {
       }
     },
     [gameId, playerId]
-  )
-
-  const canTameCard = useCallback(
-    (cardInstanceId: string): boolean => {
-      const card = cards[cardInstanceId]
-      if (!card || !currentPlayer) return false
-      return totalStoneValue >= card.cost
-    },
-    [cards, currentPlayer, totalStoneValue]
   )
 
   // Clear error after timeout
@@ -1052,6 +1056,7 @@ export function MultiplayerGame() {
               <PlayersFieldArea
                 players={playersFieldData}
                 currentPlayerId={playerId ?? ''}
+                onCardReturn={(_playerId, cardId) => handleReturnCard(cardId)}
               />
 
               {/* 2. PlayerHand - 手牌 */}
@@ -1062,7 +1067,7 @@ export function MultiplayerGame() {
                 enableDrag={isYourTurn}
                 onCardPlay={handleTameCard}
                 onCardSell={handleSellCard}
-                canTameCard={canTameCard}
+                canTameCard={() => true}  // Manual payment mode: always allow taming
               />
 
               {/* 3. PlayersInfoArea - 玩家資訊 */}

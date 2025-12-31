@@ -1,9 +1,9 @@
 /**
  * PlayersFieldArea Component
  * Displays all players' field cards - each player gets a horizontal row
- * @version 1.1.0 - Horizontal rows (can accommodate many cards per player)
+ * @version 1.2.0 - Added "Return to Hand" button for current player's cards
  */
-console.log('[components/game/PlayersFieldArea.tsx] v1.1.0 loaded')
+console.log('[components/game/PlayersFieldArea.tsx] v1.2.0 loaded')
 
 import { memo, useMemo, useCallback } from 'react'
 import { Card } from './Card'
@@ -32,6 +32,8 @@ export interface PlayersFieldAreaProps {
   currentPlayerId: string
   /** Callback when a card is clicked (optional) */
   onCardClick?: (playerId: string, cardId: string) => void
+  /** Callback when a card is returned to hand (optional) */
+  onCardReturn?: (playerId: string, cardId: string) => void
   /** Additional CSS classes */
   className?: string
 }
@@ -45,6 +47,7 @@ interface PlayerFieldSectionProps {
   isCurrentPlayer: boolean
   position: 'top' | 'bottom' | 'left' | 'right' | 'grid'
   onCardClick?: (cardId: string) => void
+  onCardReturn?: (cardId: string) => void
 }
 
 const PlayerFieldSection = memo(function PlayerFieldSection({
@@ -52,12 +55,17 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
   isCurrentPlayer,
   position,
   onCardClick,
+  onCardReturn,
 }: PlayerFieldSectionProps) {
   const colorConfig = PLAYER_COLORS[player.color]
 
   const handleCardClick = useCallback((cardId: string) => {
     onCardClick?.(cardId)
   }, [onCardClick])
+
+  const handleCardReturn = useCallback((cardId: string) => {
+    onCardReturn?.(cardId)
+  }, [onCardReturn])
 
   return (
     <div
@@ -122,7 +130,7 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
             {player.fieldCards.map((card, index) => (
               <div
                 key={card.instanceId}
-                className="transform transition-transform duration-200 hover:scale-105 hover:z-10 flex-shrink-0"
+                className="relative group transform transition-transform duration-200 hover:scale-105 hover:z-10 flex-shrink-0"
               >
                 <Card
                   card={card}
@@ -134,6 +142,27 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
                     player.isCurrentTurn && 'ring-1 ring-vale-500/30'
                   )}
                 />
+                {/* Return button - only show for current player's own cards during their turn */}
+                {isCurrentPlayer && player.isCurrentTurn && !player.hasPassed && onCardReturn && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleCardReturn(card.instanceId)
+                    }}
+                    className={cn(
+                      'absolute -bottom-2 left-1/2 -translate-x-1/2',
+                      'px-2 py-1 text-xs rounded-md',
+                      'bg-amber-600 hover:bg-amber-500 text-white',
+                      'opacity-0 group-hover:opacity-100',
+                      'transition-opacity duration-200',
+                      'shadow-lg border border-amber-400/50',
+                      'whitespace-nowrap z-20'
+                    )}
+                    type="button"
+                  >
+                    撤回
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -161,6 +190,7 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
   players,
   currentPlayerId,
   onCardClick,
+  onCardReturn,
   className,
 }: PlayersFieldAreaProps) {
   // Sort players: self first, then others by index
@@ -178,6 +208,10 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
   const handlePlayerCardClick = useCallback((playerId: string, cardId: string) => {
     onCardClick?.(playerId, cardId)
   }, [onCardClick])
+
+  const handlePlayerCardReturn = useCallback((playerId: string, cardId: string) => {
+    onCardReturn?.(playerId, cardId)
+  }, [onCardReturn])
 
   return (
     <section
@@ -204,6 +238,7 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
             isCurrentPlayer={player.playerId === currentPlayerId}
             position="grid"
             onCardClick={(cardId) => handlePlayerCardClick(player.playerId, cardId)}
+            onCardReturn={(cardId) => handlePlayerCardReturn(player.playerId, cardId)}
           />
         ))}
       </div>
