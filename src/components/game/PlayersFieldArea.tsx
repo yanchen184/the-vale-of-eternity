@@ -251,7 +251,7 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
   return (
     <section
       className={cn(
-        'bg-slate-800/20 rounded-xl border border-slate-700/30 p-4',
+        'bg-slate-800/20 rounded-xl border border-slate-700/30 p-2',
         className
       )}
       data-testid="players-field-area"
@@ -259,7 +259,7 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
       {/* Header - Removed to save space */}
 
       {/* Players' Fields - Stacked Rows (每個玩家一列) */}
-      <div className="space-y-2">
+      <div className="space-y-1">
         {sortedPlayers.map((player) => (
           <PlayerFieldSection
             key={player.playerId}

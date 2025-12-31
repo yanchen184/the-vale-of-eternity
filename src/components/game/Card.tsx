@@ -313,7 +313,7 @@ export const Card = memo(function Card({
     )
   }
 
-  // Compact card (for field display)
+  // Compact card (for field display) - 50% size
   if (compact) {
     return (
       <div
@@ -325,7 +325,7 @@ export const Card = memo(function Card({
           ${isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900' : ''}
           ${className}
         `}
-        style={{ width: '21rem', height: '31.5rem' }}
+        style={{ width: '10.5rem', height: '15.75rem' }}
         onClick={handleClick}
         data-testid={`card-compact-${card.instanceId}`}
       >
