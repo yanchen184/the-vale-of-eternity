@@ -82,7 +82,7 @@ export const SEVEN_LEAGUE_BOOTS: Artifact = {
   description:
     'Instant: During hunting phase, flip 1 additional card from the deck and shelter 1 card from the display.',
   descriptionTw: '立即：在狩獵階段，從牌庫多翻開1張卡，並將展示區的1張卡庇護。',
-  image: '/the-vale-of-eternity/assets/artifacts/Seven-League_Boots.jpg',
+  image: '/the-vale-of-eternity/assets/artifacts/3 Player Artifacts/Snipaste_2025-12-31_18-40-06.png',
   implemented: false, // User requested to skip this one
   effectDetails: {
     affectsCardSelection: true,
@@ -105,7 +105,7 @@ export const GOLDEN_FLEECE: Artifact = {
   description:
     'Action: Gain 2 red stones and shelter 1 card from the top of your deck, OR recall 1 card from your play area.',
   descriptionTw: '行動：獲得2顆紅石並將牌庫頂的1張卡庇護，或是從場上召回1張卡。',
-  image: '/the-vale-of-eternity/assets/artifacts/Golden_Fleece.jpg',
+  image: '/the-vale-of-eternity/assets/artifacts/4 Player Artifacts/Snipaste_2025-12-31_18-40-18.png',
   implemented: true,
   effectDetails: {
     affectsStones: true,
@@ -146,7 +146,7 @@ export const CAP_OF_HADES: Artifact = {
   description:
     'Action: Shelter 1 card from your hand and buy 1 card from the buy area for free, OR gain 1 blue stone.',
   descriptionTw: '行動：將手上的1張卡庇護並免費購買買入區的1張卡，或是獲得1顆藍石。',
-  image: '/the-vale-of-eternity/assets/artifacts/Cap_of_Hades.jpg',
+  image: '/the-vale-of-eternity/assets/artifacts/Random Artifacts/Snipaste_2025-12-31_18-40-51.png',
   implemented: true,
   effectDetails: {
     affectsCardSelection: true,
@@ -165,7 +165,7 @@ export const GEM_OF_KUKULKAN: Artifact = {
   description:
     'Permanent: When you sell/discard a creature card, you may pay 1 red stone to return that card to your hand instead.',
   descriptionTw: '永久：當你出售/棄掉一張生物卡時，你可以支付1顆紅石將該卡返回你的手牌。',
-  image: '/the-vale-of-eternity/assets/artifacts/Gem_of_Kukulkan.jpg',
+  image: '/the-vale-of-eternity/assets/artifacts/Random Artifacts/Snipaste_2025-12-31_18-40-57.png',
   implemented: true,
   effectDetails: {
     affectsStones: true,
@@ -220,7 +220,7 @@ export const RING_OF_WISHES: Artifact = {
   description:
     'Action: Activate the instant effect (⚡) of 1 card from the buy area without purchasing it.',
   descriptionTw: '行動：啟動買入區1張卡的立即效果（⚡），無需購買該卡。',
-  image: '/the-vale-of-eternity/assets/artifacts/Ring_of_Wishes.jpg',
+  image: '/the-vale-of-eternity/assets/artifacts/Random Artifacts/Snipaste_2025-12-31_18-41-06.png',
   implemented: true,
   effectDetails: {
     affectsCardSelection: true,

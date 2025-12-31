@@ -1,9 +1,9 @@
 /**
  * Card Image Path Mapping
  * Maps card IDs to their corresponding image files
- * @version 2.1.0
+ * @version 2.2.0 - Added DLC card image support
  */
-console.log('[lib/card-images.ts] v2.1.0 loaded')
+console.log('[lib/card-images.ts] v2.2.0 loaded')
 
 // ============================================
 // IMAGE PATH CONFIGURATION
@@ -15,6 +15,7 @@ console.log('[lib/card-images.ts] v2.1.0 loaded')
  * Vite's base path is included via import.meta.env.BASE_URL
  */
 const BASE_PATH = `${import.meta.env.BASE_URL}cards/base`.replace(/\/+/g, '/')
+const DLC_BASE_PATH = `${import.meta.env.BASE_URL}assets/dlc`.replace(/\/+/g, '/')
 
 /**
  * Placeholder image for missing cards
@@ -111,16 +112,73 @@ const CARD_IMAGE_MAP: Record<string, string> = {
   D010: '200px-Eternity.webp',
 }
 
+/**
+ * Maps DLC card IDs to their image filenames
+ * DLC cards use .jpg format and are located in assets/dlc/
+ */
+const DLC_CARD_IMAGE_MAP: Record<string, string> = {
+  // Fire DLC (7 cards)
+  DLC_F001: 'Ash.jpg',
+  DLC_F002: 'Firerat.jpg',
+  DLC_F003: 'Bul-gae.jpg',
+  DLC_F004: 'Fireblast.jpg',
+  DLC_F005: 'Hephaestus.jpg',
+  DLC_F006: 'Belphegor.jpg',
+  DLC_F007: 'Pyro.jpg',
+
+  // Water DLC (8 cards)
+  DLC_W001: 'Akhlut.jpg',
+  DLC_W002: 'Melusine.jpg',
+  DLC_W003: 'Thalassa.jpg',
+  DLC_W004: 'Siren.jpg',
+  DLC_W005: 'Kraken.jpg',
+  DLC_W006: 'Taweret.jpg',
+  DLC_W007: 'Deepdive.jpg',
+  DLC_W008: 'Duduri.jpg',
+
+  // Earth DLC (7 cards)
+  DLC_E001: 'Anubis.jpg',
+  DLC_E002: 'Duduri.jpg',
+  DLC_E003: 'Mandrake.jpg',
+  DLC_E004: 'Totempole.jpg',
+  DLC_E005: 'Wendigo.jpg',
+  DLC_E006: 'Duduriking.jpg',
+  DLC_E007: 'Yeti.jpg', // Note: Image file missing
+
+  // Wind DLC (4 cards)
+  DLC_Wi001: 'Anzu.jpg',
+  DLC_Wi002: 'Nurikabe.jpg',
+  DLC_Wi003: 'Rukh.jpg',
+  DLC_Wi004: 'Banshee.jpg',
+
+  // Dragon DLC (4 cards)
+  DLC_D001: 'Horus.jpg',
+  DLC_D002: 'Loki.jpg',
+  DLC_D003: 'Rockscale.jpg',
+  DLC_D004: 'Whisper.jpg',
+}
+
 // ============================================
 // PUBLIC API
 // ============================================
 
 /**
  * Get the image path for a card by its ID
- * @param cardId Card ID (e.g., 'F001', 'W002')
+ * @param cardId Card ID (e.g., 'F001', 'W002', 'DLC_F001')
  * @returns Full image path or placeholder
  */
 export function getCardImagePath(cardId: string): string {
+  // Check if it's a DLC card
+  if (cardId.startsWith('DLC_')) {
+    const dlcFilename = DLC_CARD_IMAGE_MAP[cardId]
+    if (!dlcFilename) {
+      console.warn(`[card-images] No DLC image found for card ID: ${cardId}`)
+      return PLACEHOLDER_IMAGE
+    }
+    return `${DLC_BASE_PATH}/${dlcFilename}`
+  }
+
+  // Base game card
   const filename = CARD_IMAGE_MAP[cardId]
   if (!filename) {
     console.warn(`[card-images] No image found for card ID: ${cardId}`)
@@ -162,6 +220,9 @@ export function getCardImageByName(cardName: string): string {
  * @returns true if image exists in mapping
  */
 export function hasCardImage(cardId: string): boolean {
+  if (cardId.startsWith('DLC_')) {
+    return cardId in DLC_CARD_IMAGE_MAP
+  }
   return cardId in CARD_IMAGE_MAP
 }
 
@@ -175,10 +236,10 @@ export function getAllCardImages(): Record<string, string> {
 
 /**
  * Get the total number of card images
- * @returns Number of mapped images
+ * @returns Number of mapped images (base + DLC)
  */
 export function getCardImageCount(): number {
-  return Object.keys(CARD_IMAGE_MAP).length
+  return Object.keys(CARD_IMAGE_MAP).length + Object.keys(DLC_CARD_IMAGE_MAP).length
 }
 
 /**
@@ -215,6 +276,8 @@ export function getCardBackImage(): string {
 
 export {
   BASE_PATH,
+  DLC_BASE_PATH,
   PLACEHOLDER_IMAGE,
   CARD_IMAGE_MAP,
+  DLC_CARD_IMAGE_MAP,
 }
