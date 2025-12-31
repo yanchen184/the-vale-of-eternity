@@ -1,9 +1,9 @@
 /**
  * Card Component with Image Display
  * Renders a game card with its image and stats
- * @version 2.18.0 - Compact mode increased to 1.5x (15.75rem × 23.625rem)
+ * @version 2.19.0 - Added large mode for hand window display
  */
-console.log('[components/game/Card.tsx] v2.18.0 loaded')
+console.log('[components/game/Card.tsx] v2.19.0 loaded')
 
 import { useState, useCallback, memo } from 'react'
 import { Flame, Droplets, TreePine, Wind, Crown, Gem } from 'lucide-react'
@@ -71,6 +71,8 @@ export interface CardProps {
   index?: number
   /** Compact display mode for field cards */
   compact?: boolean
+  /** Large display mode for hand window (1.5x size) */
+  large?: boolean
   /** Show action buttons */
   showActions?: boolean
   /** Whether the card is selected */

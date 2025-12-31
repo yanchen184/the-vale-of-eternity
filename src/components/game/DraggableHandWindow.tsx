@@ -1,9 +1,9 @@
 /**
  * DraggableHandWindow Component
  * Floating, draggable, resizable window for displaying player's hand
- * @version 1.2.0 - Increased default height for larger card display
+ * @version 1.3.0 - Added zoom functionality with Ctrl+Wheel
  */
-console.log('[components/game/DraggableHandWindow.tsx] v1.2.0 loaded')
+console.log('[components/game/DraggableHandWindow.tsx] v1.3.0 loaded')
 
 import { memo, useState, useRef, useCallback, useEffect } from 'react'
 import { Minimize2, Maximize2, GripHorizontal, Maximize } from 'lucide-react'
@@ -70,9 +70,11 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
   const [isResizing, setIsResizing] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 })
+  const [zoom, setZoom] = useState(1.4) // Zoom level: 0.5 to 2.5, default 1.4 for larger cards
 
   // Refs
   const windowRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
 
   // Handle drag start
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -158,6 +160,35 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
     }
   }, [isResizing, resizeStart])
 
+  // Handle zoom with Ctrl+Wheel (like Chrome)
+  useEffect(() => {
+    const element = windowRef.current
+    if (!element) return
+
+    const handleWheel = (e: WheelEvent) => {
+      // Only zoom when Ctrl is pressed
+      if (!e.ctrlKey && !e.metaKey) return
+
+      e.preventDefault()
+
+      setZoom((prevZoom) => {
+        // Calculate new zoom level - smoother increment
+        const delta = e.deltaY > 0 ? -0.05 : 0.05
+        const newZoom = prevZoom + delta
+
+        // Clamp zoom between 0.5 and 2.5
+        return Math.max(0.5, Math.min(2.5, newZoom))
+      })
+    }
+
+    element.addEventListener('wheel', handleWheel, { passive: false })
+
+    return () => {
+      element.removeEventListener('wheel', handleWheel)
+    }
+  }, [])
+
+
   return (
     <div
       ref={windowRef}
@@ -209,18 +240,33 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
 
       {/* Content */}
       {!isMinimized && (
-        <div className="p-3">
-          <PlayerHand
-            cards={cards}
-            onCardClick={onCardClick}
-            onTameCard={onTameCard}
-            onSellCard={onSellCard}
-            onDiscardCard={onDiscardCard}
-            selectedCardId={selectedCardId}
-            showActions={showCardActions}
-            canTame={canTame}
-            maxHandSize={999} // No limit in floating window
-          />
+        <div
+          ref={contentRef}
+          className="overflow-auto"
+          style={{
+            height: 'calc(100% - 48px)', // Full height minus header
+          }}
+        >
+          <div
+            style={{
+              transform: `scale(${zoom})`,
+              transformOrigin: 'top center',
+              padding: '12px',
+              transition: 'transform 0.1s ease-out',
+            }}
+          >
+            <PlayerHand
+              cards={cards}
+              onCardClick={onCardClick}
+              onTameCard={onTameCard}
+              onSellCard={onSellCard}
+              onDiscardCard={onDiscardCard}
+              selectedCardId={selectedCardId}
+              showActions={showCardActions}
+              canTame={canTame}
+              maxHandSize={999} // No limit in floating window
+            />
+          </div>
         </div>
       )}
 
