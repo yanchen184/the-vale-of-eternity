@@ -1,9 +1,9 @@
 /**
  * DraggableHandWindow Component
  * Floating, draggable, resizable window for displaying player's hand
- * @version 1.1.0 - Added resize functionality
+ * @version 1.2.0 - Increased default height for larger card display
  */
-console.log('[components/game/DraggableHandWindow.tsx] v1.1.0 loaded')
+console.log('[components/game/DraggableHandWindow.tsx] v1.2.0 loaded')
 
 import { memo, useState, useRef, useCallback, useEffect } from 'react'
 import { Minimize2, Maximize2, GripHorizontal, Maximize } from 'lucide-react'
@@ -50,12 +50,13 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
 }: DraggableHandWindowProps) {
   // Calculate initial position at bottom, centered between sidebars
   // Left sidebar: 320px (w-80), Right sidebar: 320px (w-80)
-  // Card height: full size card ~33.6rem (537px), need about 380px height for hand display
+  // Card height: full size card ~33.6rem (537px)
+  // PlayerHand needs: header ~40px + cards with fan layout ~450px + footer ~30px = ~520px minimum
   const sidebarWidth = 320
   const initialWidth = typeof window !== 'undefined'
     ? Math.min(1400, window.innerWidth - (sidebarWidth * 2) - 32)
     : 800
-  const initialHeight = 420 // 足夠放下卡片的高度
+  const initialHeight = 580 // 增加高度以完整顯示卡片和扇形佈局
   const initialX = sidebarWidth + 16
   const initialY = typeof window !== 'undefined'
     ? window.innerHeight - initialHeight - 100 // 100px from bottom (留出分數條空間)
@@ -140,7 +141,7 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
 
       setSize({
         width: Math.max(400, resizeStart.width + deltaX),
-        height: Math.max(300, resizeStart.height + deltaY),
+        height: Math.max(480, resizeStart.height + deltaY), // 最小高度調整為 480px
       })
     }
 
