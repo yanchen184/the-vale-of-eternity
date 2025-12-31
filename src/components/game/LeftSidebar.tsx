@@ -1,9 +1,9 @@
 /**
  * LeftSidebar Component
  * Left sidebar for multiplayer game - displays player list and my info
- * @version 1.1.0 - Added individual coin display (1, 3, 6)
+ * @version 1.4.0 - Deck button matches discard pile card size (aspect-[2/3])
  */
-console.log('[components/game/LeftSidebar.tsx] v1.1.0 loaded')
+console.log('[components/game/LeftSidebar.tsx] v1.4.0 loaded')
 
 import { memo, useMemo } from 'react'
 import { cn } from '@/lib/utils'
@@ -40,6 +40,10 @@ export interface LeftSidebarProps {
   currentTurnPlayerId: string
   /** Current game phase */
   phase: 'WAITING' | 'HUNTING' | 'ACTION' | 'RESOLUTION' | 'ENDED'
+  /** Number of cards remaining in deck */
+  deckCount: number
+  /** Callback when drawing a card from deck */
+  onDrawCard?: () => void
   /** Additional CSS classes */
   className?: string
 }
@@ -51,11 +55,17 @@ export interface LeftSidebarProps {
 interface MyInfoCardProps {
   player: PlayerSidebarData
   isCurrentTurn: boolean
+  deckCount: number
+  onDrawCard?: () => void
+  canDrawCard: boolean
 }
 
 const MyInfoCard = memo(function MyInfoCard({
   player,
   isCurrentTurn,
+  deckCount,
+  onDrawCard,
+  canDrawCard,
 }: MyInfoCardProps) {
   const totalStoneValue = calculateStonePoolValue(player.stones)
   const colorConfig = PLAYER_COLORS[player.color]
@@ -166,6 +176,58 @@ const MyInfoCard = memo(function MyInfoCard({
             </div>
           </div>
         )}
+
+        {/* Deck - Draw Card Button - Same size as discard pile */}
+        <GlassCard
+          variant={canDrawCard && deckCount > 0 ? 'blue' : 'default'}
+          glow={canDrawCard && deckCount > 0 ? 'blue' : 'none'}
+          padding="sm"
+          className={cn(
+            'transition-all duration-200',
+            canDrawCard && deckCount > 0
+              ? 'cursor-pointer hover:scale-105 active:scale-95'
+              : 'cursor-not-allowed opacity-50'
+          )}
+          onClick={canDrawCard && deckCount > 0 ? onDrawCard : undefined}
+          hoverable={canDrawCard && deckCount > 0}
+        >
+          <div className="space-y-2">
+            {/* Deck Card Display */}
+            <div className="relative">
+              <div className="w-full aspect-[2/3] bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 rounded-lg border-2 border-slate-600 flex flex-col items-center justify-center shadow-lg relative overflow-hidden">
+                {/* Glow effect when active */}
+                {canDrawCard && deckCount > 0 && (
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 via-transparent to-blue-500/20 animate-pulse" />
+                )}
+
+                <span className="relative text-slate-300 text-5xl font-bold mb-2">?</span>
+
+                {canDrawCard && deckCount > 0 && (
+                  <span className="relative text-blue-400 text-sm font-bold animate-pulse">
+                    點擊抽牌
+                  </span>
+                )}
+              </div>
+
+              {/* Count badge */}
+              {deckCount > 0 && (
+                <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 border-2 border-slate-900 rounded-full flex items-center justify-center shadow-lg ring-2 ring-blue-300/50">
+                  <span className="text-white text-sm font-bold">{deckCount}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Label */}
+            <div className="text-center">
+              <div className={cn(
+                'text-sm font-semibold',
+                canDrawCard && deckCount > 0 ? 'text-blue-400' : 'text-slate-500'
+              )}>
+                {deckCount === 0 ? '牌組已空' : '牌組'}
+              </div>
+            </div>
+          </div>
+        </GlassCard>
 
         {/* Turn Indicator */}
         {isCurrentTurn && (
@@ -293,6 +355,8 @@ export const LeftSidebar = memo(function LeftSidebar({
   currentPlayerId,
   currentTurnPlayerId,
   phase,
+  deckCount,
+  onDrawCard,
   className,
 }: LeftSidebarProps) {
   // Separate my player from others
@@ -307,6 +371,9 @@ export const LeftSidebar = memo(function LeftSidebar({
   )
 
   const isMyTurn = currentPlayerId === currentTurnPlayerId
+
+  // Can draw card if it's my turn and in ACTION or RESOLUTION phase
+  const canDrawCard = isMyTurn && (phase === 'ACTION' || phase === 'RESOLUTION')
 
   return (
     <aside
@@ -342,6 +409,9 @@ export const LeftSidebar = memo(function LeftSidebar({
           <MyInfoCard
             player={myPlayer}
             isCurrentTurn={isMyTurn}
+            deckCount={deckCount}
+            onDrawCard={onDrawCard}
+            canDrawCard={canDrawCard}
           />
         )}
 

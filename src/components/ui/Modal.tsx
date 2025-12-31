@@ -1,8 +1,8 @@
 /**
  * Modal component
- * @version 1.0.0
+ * @version 1.1.0 - Added 'wide' size option (80vw)
  */
-console.log('[components/ui/Modal.tsx] v1.0.0 loaded')
+console.log('[components/ui/Modal.tsx] v1.1.0 loaded')
 
 import { useEffect, useCallback, type ReactNode } from 'react'
 import { X } from 'lucide-react'
@@ -15,7 +15,7 @@ export interface ModalProps {
   title?: string
   children: ReactNode
   footer?: ReactNode
-  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full' | 'wide'
   closeOnOverlayClick?: boolean
   showCloseButton?: boolean
   className?: string
@@ -27,6 +27,7 @@ const sizeStyles = {
   lg: 'max-w-lg',
   xl: 'max-w-xl',
   full: 'max-w-4xl',
+  wide: 'w-[80vw] max-w-none',
 }
 
 export function Modal({

@@ -437,12 +437,7 @@ export const PlayerHand = memo(function PlayerHand({
         data-testid="player-hand"
       >
         <HandRunes />
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold text-slate-200 font-game tracking-wide">
-            Hand
-          </h3>
-          <span className="text-sm text-slate-500">0 / {maxHandSize}</span>
-        </div>
+        {/* Header removed to save space */}
         <div className="flex items-center justify-center h-52 text-slate-500">
           <div className="text-center">
             <div className="text-4xl mb-2 opacity-30">-</div>
@@ -468,13 +463,8 @@ export const PlayerHand = memo(function PlayerHand({
       <HandRunes />
       <HandLimitWarning currentCount={cards.length} maxCount={maxHandSize} />
 
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3 relative z-10">
-        <h3 className="text-lg font-semibold text-slate-200 font-game tracking-wide flex items-center gap-2">
-          <span className="text-purple-400">-</span>
-          Hand
-          <span className="text-purple-400">-</span>
-        </h3>
+      {/* Header - Removed title to save space, keep card count */}
+      <div className="flex items-center justify-end mb-3 relative z-10">
         <div className="flex items-center gap-2">
           {hiddenCount > 0 && (
             <span className="text-xs text-amber-400 bg-amber-500/10 px-2 py-1 rounded-full border border-amber-500/20">

@@ -1,9 +1,9 @@
 /**
  * MarketArea Component
  * Displays purchasable cards with pricing and purchase functionality
- * @version 1.0.0
+ * @version 1.0.1 - Changed "Tame" button text to "召喚"
  */
-console.log('[components/game/MarketArea.tsx] v1.0.0 loaded')
+console.log('[components/game/MarketArea.tsx] v1.0.1 loaded')
 
 import { useState, useCallback, memo } from 'react'
 import type { CardInstance } from '@/types/cards'

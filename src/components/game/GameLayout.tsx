@@ -2,9 +2,9 @@
  * GameLayout Component
  * Symmetric layout container for multiplayer game
  * Fixed height, no scroll, left-right balanced design
- * @version 1.1.0 - Added scoreBar support at the bottom
+ * @version 1.2.0 - Added "View Score" button in GameHeader
  */
-console.log('[components/game/GameLayout.tsx] v1.1.0 loaded')
+console.log('[components/game/GameLayout.tsx] v1.2.0 loaded')
 
 import { memo, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
@@ -142,6 +142,8 @@ export interface GameHeaderProps {
   isYourTurn: boolean
   /** Leave game callback */
   onLeave: () => void
+  /** View score callback */
+  onViewScore?: () => void
   /** Pass turn callback */
   onPassTurn?: () => void
   /** Whether to show pass button */
@@ -171,6 +173,7 @@ export const GameHeader = memo(function GameHeader({
   currentPlayerName,
   isYourTurn,
   onLeave,
+  onViewScore,
   onPassTurn,
   showPassTurn = false,
 }: GameHeaderProps) {
@@ -236,14 +239,28 @@ export const GameHeader = memo(function GameHeader({
         </div>
       )}
 
-      {/* Right: Leave Button */}
-      <button
-        onClick={onLeave}
-        className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-colors"
-        data-testid="leave-game-btn"
-      >
-        離開遊戲
-      </button>
+      {/* Right: Action Buttons */}
+      <div className="flex items-center gap-2">
+        {/* View Score Button */}
+        {phase !== 'WAITING' && onViewScore && (
+          <button
+            onClick={onViewScore}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-purple-600/80 hover:bg-purple-500/80 text-purple-100 transition-colors"
+            data-testid="view-score-btn"
+          >
+            查看分數
+          </button>
+        )}
+
+        {/* Leave Button */}
+        <button
+          onClick={onLeave}
+          className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-colors"
+          data-testid="leave-game-btn"
+        >
+          離開遊戲
+        </button>
+      </div>
     </div>
   )
 })

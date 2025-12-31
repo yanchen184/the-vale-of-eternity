@@ -1,15 +1,15 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 3.10.0 - Auto-assign last card to first player and skip to ACTION phase
+ * @version 3.12.1 - Tengu goes to deck top when clicking return (not on tame)
  */
-console.log('[services/multiplayer-game.ts] v3.10.0 loaded')
+console.log('[services/multiplayer-game.ts] v3.12.1 loaded')
 
 import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
 import { getAllBaseCards } from '@/data/cards'
 import type { CardInstance, CardTemplate } from '@/types/cards'
-import { CardLocation, StoneType, Element } from '@/types/cards'
+import { CardLocation, StoneType, Element, EffectType, EffectTrigger } from '@/types/cards'
 import { effectProcessor } from './effect-processor'
 import { scoreCalculator, type ScoreBreakdown } from './score-calculator'
 import { type PlayerColor, getColorByIndex } from '@/types/player-color'
@@ -1372,8 +1372,10 @@ export class MultiplayerGameService {
   }
 
   /**
-   * Take a card from market discard pile to hand (Action Phase)
-   * No cost - just moves card from market discard to player's hand
+   * Take a card from market discard pile
+   * - If your turn: take to hand (ACTION phase only)
+   * - If not your turn: take to field (any phase except WAITING/ENDED)
+   * No cost - just moves card from market discard to player's hand/field
    */
   async takeCardFromMarketDiscard(
     gameId: string,
@@ -1389,15 +1391,17 @@ export class MultiplayerGameService {
 
     const game: GameRoom = snapshot.val()
 
-    if (game.status !== 'ACTION') {
-      throw new Error('Not in action phase')
+    if (game.status === 'WAITING' || game.status === 'ENDED') {
+      throw new Error('Cannot take cards during WAITING or ENDED phase')
     }
 
     const currentPlayerIndex = game.currentPlayerIndex
     const expectedPlayerId = game.playerIds[currentPlayerIndex]
+    const isYourTurn = playerId === expectedPlayerId
 
-    if (playerId !== expectedPlayerId) {
-      throw new Error('Not your turn')
+    // If it's your turn, must be in ACTION phase
+    if (isYourTurn && game.status !== 'ACTION') {
+      throw new Error('Can only take cards to hand during ACTION phase')
     }
 
     // Get player state
@@ -1421,23 +1425,47 @@ export class MultiplayerGameService {
     }
 
     const card: CardInstanceData = cardSnapshot.val()
-
-    // Move card from market discard to hand
-    const currentHand = Array.isArray(player.hand) ? player.hand : []
-    const updatedHand = [...currentHand, cardInstanceId]
     const updatedDiscardIds = currentDiscardIds.filter(id => id !== cardInstanceId)
 
-    // Update player state (add card to hand)
-    await update(ref(database, `games/${gameId}/players/${playerId}`), {
-      hand: updatedHand,
-    })
+    if (isYourTurn) {
+      // Your turn: Take to hand
+      const currentHand = Array.isArray(player.hand) ? player.hand : []
+      const updatedHand = [...currentHand, cardInstanceId]
 
-    // Update card location and owner
-    await update(ref(database, `games/${gameId}/cards/${cardInstanceId}`), {
-      location: CardLocation.HAND,
-      ownerId: playerId, // Set owner to current player
-      acquiredInRound: game.currentRound, // Mark which round this card was acquired
-    })
+      await update(ref(database, `games/${gameId}/players/${playerId}`), {
+        hand: updatedHand,
+      })
+
+      // Update card location and owner
+      await update(ref(database, `games/${gameId}/cards/${cardInstanceId}`), {
+        location: CardLocation.HAND,
+        ownerId: playerId,
+        acquiredInRound: game.currentRound, // Mark which round this card was acquired
+      })
+
+      console.log(
+        `[MultiplayerGame] Player ${playerId} took card ${cardInstanceId} (${card.name}) from market discard pile to HAND`
+      )
+    } else {
+      // Not your turn: Take to field
+      const currentField = Array.isArray(player.field) ? player.field : []
+      const updatedField = [...currentField, cardInstanceId]
+
+      await update(ref(database, `games/${gameId}/players/${playerId}`), {
+        field: updatedField,
+      })
+
+      // Update card location and owner
+      await update(ref(database, `games/${gameId}/cards/${cardInstanceId}`), {
+        location: CardLocation.FIELD,
+        ownerId: playerId,
+        acquiredInRound: game.currentRound, // Mark which round this card was acquired
+      })
+
+      console.log(
+        `[MultiplayerGame] Player ${playerId} took card ${cardInstanceId} (${card.name}) from market discard pile to FIELD (not their turn)`
+      )
+    }
 
     // Update game market discard pile
     await update(ref(database, `games/${gameId}`), {
@@ -1496,11 +1524,17 @@ export class MultiplayerGameService {
       e => e.type === EffectType.PUT_ON_DECK_TOP
     )
 
+    console.log(`[MultiplayerGame] Returning field card ${cardInstanceId} (${card.name})`)
+    console.log(`[MultiplayerGame] Card template:`, cardTemplate?.name, cardTemplate?.nameTw)
+    console.log(`[MultiplayerGame] Has PUT_ON_DECK_TOP effect:`, hasDeckTopEffect)
+
     // Remove from field
     const updatedField = currentField.filter(id => id !== cardInstanceId)
 
     if (hasDeckTopEffect) {
-      // Special case: Card goes to top of deck (like Tengu)
+      // Special case: Card goes to top of deck (like Tengu 天狗)
+      console.log(`[MultiplayerGame] ⭐ TENGU SPECIAL: Card ${card.nameTw || card.name} returning to TOP of deck!`)
+
       await update(ref(database, `games/${gameId}/players/${playerId}`), {
         field: updatedField,
       })
@@ -1512,12 +1546,14 @@ export class MultiplayerGameService {
 
       // Add to top of deck (unshift to beginning of array)
       const currentDeckIds = Array.isArray(game.deckIds) ? game.deckIds : []
+      const newDeckIds = [cardInstanceId, ...currentDeckIds]
       await update(ref(database, `games/${gameId}`), {
-        deckIds: [cardInstanceId, ...currentDeckIds],
+        deckIds: newDeckIds,
         updatedAt: Date.now(),
       })
 
-      console.log(`[MultiplayerGame] Player ${playerId} returned ${cardInstanceId} to top of deck`)
+      console.log(`[MultiplayerGame] ✅ ${card.nameTw || card.name} is now at top of deck (position 0 in deckIds array)`)
+      console.log(`[MultiplayerGame] Deck now has ${newDeckIds.length} cards, first card is: ${newDeckIds[0]}`)
     } else {
       // Normal case: Card returns to hand
       const currentHand = Array.isArray(player.hand) ? player.hand : []
@@ -1661,6 +1697,89 @@ export class MultiplayerGameService {
   }
 
   /**
+   * Draw a card from the top of the deck to hand
+   * Can be done during Action or Resolution phase on your turn
+   */
+  async drawCardFromDeck(
+    gameId: string,
+    playerId: string
+  ): Promise<void> {
+    const gameRef = ref(database, `games/${gameId}`)
+    const snapshot = await get(gameRef)
+
+    if (!snapshot.exists()) {
+      throw new Error('Game not found')
+    }
+
+    const game: GameRoom = snapshot.val()
+
+    if (game.status !== 'ACTION' && game.status !== 'RESOLUTION') {
+      throw new Error('Can only draw cards during Action or Resolution phase')
+    }
+
+    const currentPlayerIndex = game.currentPlayerIndex
+    const expectedPlayerId = game.playerIds[currentPlayerIndex]
+
+    if (playerId !== expectedPlayerId) {
+      throw new Error('Not your turn')
+    }
+
+    // Check if deck has cards
+    const currentDeckIds = Array.isArray(game.deckIds) ? game.deckIds : []
+    if (currentDeckIds.length === 0) {
+      throw new Error('Deck is empty')
+    }
+
+    // Get player state
+    const playerSnapshot = await get(ref(database, `games/${gameId}/players/${playerId}`))
+    if (!playerSnapshot.exists()) {
+      throw new Error('Player not found')
+    }
+
+    const player: PlayerState = playerSnapshot.val()
+
+    // Draw top card (first card in deckIds array)
+    const drawnCardId = currentDeckIds[0]
+    const remainingDeckIds = currentDeckIds.slice(1)
+
+    console.log(`[MultiplayerGame] 🎴 DRAWING CARD FROM DECK TOP`)
+    console.log(`[MultiplayerGame] Deck before draw:`, currentDeckIds.slice(0, 3), `... (${currentDeckIds.length} total)`)
+    console.log(`[MultiplayerGame] Drawing card:`, drawnCardId)
+
+    // Get card info for better logging
+    const drawnCardSnapshot = await get(ref(database, `games/${gameId}/cards/${drawnCardId}`))
+    if (drawnCardSnapshot.exists()) {
+      const drawnCard = drawnCardSnapshot.val()
+      console.log(`[MultiplayerGame] ✅ Drew: ${drawnCard.nameTw || drawnCard.name} (${drawnCardId})`)
+    }
+
+    // Add to player's hand
+    const currentHand = Array.isArray(player.hand) ? player.hand : []
+    const updatedHand = [...currentHand, drawnCardId]
+
+    await update(ref(database, `games/${gameId}/players/${playerId}`), {
+      hand: updatedHand,
+    })
+
+    // Update card location (DO NOT set acquiredInRound - drawn cards cannot be sold)
+    await update(ref(database, `games/${gameId}/cards/${drawnCardId}`), {
+      location: CardLocation.HAND,
+      ownerId: playerId,
+      // Explicitly DO NOT set acquiredInRound here
+      // This ensures drawn cards from deck cannot be sold (only hunting phase cards can)
+    })
+
+    // Update deck
+    await update(ref(database, `games/${gameId}`), {
+      deckIds: remainingDeckIds,
+      updatedAt: Date.now(),
+    })
+
+    console.log(`[MultiplayerGame] Deck after draw: ${remainingDeckIds.length} cards remaining`)
+    console.log(`[MultiplayerGame] Player ${playerId} now has ${updatedHand.length} cards in hand`)
+  }
+
+  /**
    * Pass turn (Action Phase)
    */
   async passTurn(gameId: string, playerId: string): Promise<void> {
@@ -1703,6 +1822,9 @@ export class MultiplayerGameService {
 
           // Rotate starting player: Round 1 → Player 0, Round 2 → Player 1, etc.
           const startingPlayerIndex = (game.currentRound - 1) % game.playerIds.length
+          console.log(
+            `[MultiplayerGame] v1.1.19 Starting Round ${game.currentRound} - Starting player index: ${startingPlayerIndex}`
+          )
           game.currentPlayerIndex = startingPlayerIndex
           game.passedPlayerIds = []
 

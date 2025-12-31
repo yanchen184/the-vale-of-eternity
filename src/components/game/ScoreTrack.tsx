@@ -1,11 +1,11 @@
 /**
  * ScoreTrack Component
  * Displays a snake-pattern score track with player markers
- * @version 1.4.0 - Flip bonus: marker stays at base position with +60 badge
+ * @version 1.6.0 - Added jump animation for score increases (150ms per cell)
  */
-console.log('[components/game/ScoreTrack.tsx] v1.4.0 loaded')
+console.log('[components/game/ScoreTrack.tsx] v1.6.0 loaded')
 
-import { memo, useMemo } from 'react'
+import { memo, useMemo, useState, useEffect, useRef } from 'react'
 import { PlayerMarker } from './PlayerMarker'
 import { type PlayerColor } from '@/types/player-color'
 import { cn } from '@/lib/utils'
@@ -41,8 +41,8 @@ export interface ScoreTrackProps {
 // CONSTANTS
 // ============================================
 
-const TRACK_LENGTH = 60 // 0-60 points
-const CELLS_PER_ROW = 20 // Snake pattern: 20 cells per row
+const TRACK_LENGTH = 60 // 1-60 points
+const CELLS_PER_ROW = 12 // Snake pattern: 12 cells per row for bigger display
 
 // ============================================
 // HELPER FUNCTIONS
@@ -84,6 +84,66 @@ export const ScoreTrack = memo(function ScoreTrack({
 }: ScoreTrackProps) {
   const rows = Math.ceil((maxScore + 1) / CELLS_PER_ROW)
 
+  // Track previous scores for animation
+  const prevScoresRef = useRef<Map<string, number>>(new Map())
+  const [animatingPlayers, setAnimatingPlayers] = useState<Map<string, { from: number; to: number; current: number }>>(new Map())
+
+  // Detect score changes and trigger animations (only for score increases)
+  useEffect(() => {
+    const newAnimations = new Map<string, { from: number; to: number; current: number }>()
+
+    players.forEach(player => {
+      const displayScore = player.isFlipped ? player.score - 60 : player.score
+      const clampedScore = Math.max(1, Math.min(maxScore, displayScore))
+      const prevScore = prevScoresRef.current.get(player.playerId)
+
+      if (prevScore !== undefined && clampedScore > prevScore) {
+        // Score increased - animate!
+        newAnimations.set(player.playerId, {
+          from: prevScore,
+          to: clampedScore,
+          current: prevScore
+        })
+      }
+
+      prevScoresRef.current.set(player.playerId, clampedScore)
+    })
+
+    if (newAnimations.size > 0) {
+      setAnimatingPlayers(newAnimations)
+    }
+  }, [players, maxScore])
+
+  // Animate the jumping effect
+  useEffect(() => {
+    if (animatingPlayers.size === 0) return
+
+    const interval = setInterval(() => {
+      setAnimatingPlayers(prev => {
+        const updated = new Map(prev)
+        let hasChanges = false
+
+        updated.forEach((anim, playerId) => {
+          if (anim.current < anim.to) {
+            anim.current += 1
+            hasChanges = true
+          }
+        })
+
+        // Remove completed animations
+        updated.forEach((anim, playerId) => {
+          if (anim.current >= anim.to) {
+            updated.delete(playerId)
+          }
+        })
+
+        return hasChanges ? updated : new Map()
+      })
+    }, 150) // Jump every 150ms
+
+    return () => clearInterval(interval)
+  }, [animatingPlayers])
+
   // Group players by score for positioning
   // If player has flipped (+60), show marker at (score - 60) position
   const playersByPosition = useMemo(() => {
@@ -91,12 +151,19 @@ export const ScoreTrack = memo(function ScoreTrack({
     players.forEach(player => {
       // Calculate display position: if flipped, subtract 60 from actual score
       const displayScore = player.isFlipped ? player.score - 60 : player.score
-      const clampedScore = Math.max(0, Math.min(maxScore, displayScore))
+      let clampedScore = Math.max(1, Math.min(maxScore, displayScore))
+
+      // If animating, use animation position
+      const anim = animatingPlayers.get(player.playerId)
+      if (anim) {
+        clampedScore = anim.current
+      }
+
       const existing = map.get(clampedScore) || []
       map.set(clampedScore, [...existing, player])
     })
     return map
-  }, [players, maxScore])
+  }, [players, maxScore, animatingPlayers])
 
   return (
     <div className="w-full bg-slate-800/50 rounded-xl border border-slate-700 p-6">
@@ -109,10 +176,10 @@ export const ScoreTrack = memo(function ScoreTrack({
       </div>
 
       {/* Score Track Grid */}
-      <div className="space-y-1">
+      <div className="space-y-2">
         {Array.from({ length: rows }, (_, rowIndex) => {
           const isReversedRow = rowIndex % 2 === 1
-          const startScore = rowIndex * CELLS_PER_ROW
+          const startScore = rowIndex * CELLS_PER_ROW + 1 // Start from 1, not 0
 
           // Build cells for this row with sequential scores
           const cells = Array.from({ length: CELLS_PER_ROW }, (_, colIndex) => {
@@ -127,8 +194,8 @@ export const ScoreTrack = memo(function ScoreTrack({
                 key={score}
                 className={cn(
                   'relative flex flex-col items-center justify-center',
-                  'border rounded transition-all duration-200',
-                  'min-h-[48px] p-1',
+                  'border-2 rounded-lg transition-all duration-200',
+                  'min-h-[80px] p-2',
                   isOccupied
                     ? 'bg-slate-700/50 border-slate-600'
                     : 'bg-slate-900/30 border-slate-700/50',
@@ -155,7 +222,7 @@ export const ScoreTrack = memo(function ScoreTrack({
                 data-testid={`score-cell-${score}`}
               >
                 {/* Score Number */}
-                <div className="text-[10px] font-mono text-slate-500 mb-0.5">{score}</div>
+                <div className="text-sm font-bold font-mono text-slate-400 mb-1">{score}</div>
 
                 {/* Player Markers */}
                 {playersAtScore.length > 0 && (
@@ -194,8 +261,8 @@ export const ScoreTrack = memo(function ScoreTrack({
           return (
             <div
               key={rowIndex}
-              className="grid gap-0.5"
-              style={{ gridTemplateColumns: 'repeat(20, minmax(0, 1fr))' }}
+              className="grid gap-1"
+              style={{ gridTemplateColumns: 'repeat(12, minmax(0, 1fr))' }}
               data-testid={`score-row-${rowIndex}`}
             >
               {displayCells}

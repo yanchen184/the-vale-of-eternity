@@ -115,17 +115,10 @@ export const WIND_CARDS: readonly CardTemplate[] = [
     baseScore: 5,
     effects: [
       {
-        type: EffectType.EARN_STONES,
-        trigger: EffectTrigger.ON_TAME,
-        stones: [{ type: StoneType.WATER, amount: 1 }],
-        description: 'Earn Water stone and put this card on the top of the draw deck.',
-        descriptionTw: '獲得 1 個水石頭，並將此卡放回牌庫頂。',
-      },
-      {
         type: EffectType.PUT_ON_DECK_TOP,
         trigger: EffectTrigger.ON_TAME,
-        description: 'Put this card on the top of the draw deck.',
-        descriptionTw: '將此卡放回牌庫頂。',
+        description: 'Put this card on the top of the draw deck when returned from field.',
+        descriptionTw: '從場上收回時，放回牌庫頂。',
       },
     ],
     flavorText: 'Master of the mountain winds.',

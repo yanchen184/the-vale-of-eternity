@@ -153,8 +153,8 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
               {/* Action buttons - only show for current player's own cards */}
               {isCurrentPlayer && (
                 <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
-                  {/* Return to Hand button - always available */}
-                  {onCardReturn && (
+                  {/* Return to Hand button - only show during player's own turn */}
+                  {player.isCurrentTurn && !player.hasPassed && onCardReturn && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
@@ -173,8 +173,8 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
                     </button>
                   )}
 
-                  {/* Discard button - only during player's turn */}
-                  {player.isCurrentTurn && !player.hasPassed && onCardDiscard && (
+                  {/* Discard button - show during other players' turns */}
+                  {!player.isCurrentTurn && onCardDiscard && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
@@ -187,9 +187,9 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
                         'whitespace-nowrap'
                       )}
                       type="button"
-                      title="捨棄到棄牌堆"
+                      title="棄置到棄牌堆"
                     >
-                      捨棄
+                      棄置
                     </button>
                   )}
                 </div>
@@ -256,13 +256,7 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
       )}
       data-testid="players-field-area"
     >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-slate-200">場上怪獸</h3>
-        <span className="text-sm text-slate-500">
-          共 {totalFieldCards} 張卡片
-        </span>
-      </div>
+      {/* Header - Removed to save space */}
 
       {/* Players' Fields - Stacked Rows (每個玩家一列) */}
       <div className="space-y-3">

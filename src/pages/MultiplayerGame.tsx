@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 5.7.1 - Disabled card selling in RESOLUTION phase
+ * @version 5.8.2 - Removed title from score modal
  */
-console.log('[pages/MultiplayerGame.tsx] v5.7.1 loaded')
+console.log('[pages/MultiplayerGame.tsx] v5.8.2 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -350,18 +350,6 @@ function ActionPhaseUI({
         )}
       </div>
 
-      {/* Bottom Section - Score Track */}
-      <div className="flex-shrink-0 border-t border-purple-900/30 bg-gradient-to-t from-slate-900/80 to-transparent p-3">
-        <ScoreTrack
-          players={playerScores}
-          maxScore={60}
-          currentPlayerId={currentPlayerId}
-          onScoreAdjust={onScoreAdjust}
-          allowAdjustment={isYourTurn}
-          onFlipToggle={onFlipToggle}
-        />
-      </div>
-
       {/* Resolution Mode - Finish Button */}
       {resolutionMode && isYourTurn && onFinishResolution && (
         <div className="flex-shrink-0 p-3 pt-2 border-t border-purple-900/30">
@@ -410,6 +398,7 @@ export function MultiplayerGame() {
   const [showLeaveModal, setShowLeaveModal] = useState(false)
   const [showGameOverModal, setShowGameOverModal] = useState(false)
   const [showMarketDiscardModal, setShowMarketDiscardModal] = useState(false)
+  const [showScoreModal, setShowScoreModal] = useState(false)
   const [scores, setScores] = useState<{ playerId: string; name: string; score: number }[]>([])
 
   // Extract state from location or redirect
@@ -818,6 +807,16 @@ export function MultiplayerGame() {
     }
   }, [gameId, playerId])
 
+  const handleDrawCard = useCallback(async () => {
+    if (!gameId || !playerId) return
+
+    try {
+      await multiplayerGameService.drawCardFromDeck(gameId, playerId)
+    } catch (err: any) {
+      setError(err.message || 'Failed to draw card from deck')
+    }
+  }, [gameId, playerId])
+
   const handleScoreAdjust = useCallback(
     async (targetPlayerId: string, newScore: number) => {
       if (!gameId) return
@@ -962,6 +961,7 @@ export function MultiplayerGame() {
             currentPlayerName={currentTurnPlayer?.name ?? 'Unknown'}
             isYourTurn={isYourTurn}
             onLeave={handleLeaveGame}
+            onViewScore={() => setShowScoreModal(true)}
             onPassTurn={handlePassTurn}
             showPassTurn={gameRoom.status === 'ACTION'}
           />
@@ -972,6 +972,8 @@ export function MultiplayerGame() {
             currentPlayerId={playerId ?? ''}
             currentTurnPlayerId={currentTurnPlayerId}
             phase={gameRoom.status}
+            deckCount={gameRoom.deckIds?.length ?? 0}
+            onDrawCard={handleDrawCard}
           />
         }
         rightSidebar={
@@ -1077,6 +1079,24 @@ export function MultiplayerGame() {
           {error}
         </div>
       )}
+
+      {/* Score Modal */}
+      <Modal
+        isOpen={showScoreModal}
+        onClose={() => setShowScoreModal(false)}
+        size="wide"
+      >
+        <div className="p-6">
+          <ScoreTrack
+            players={playerScores}
+            maxScore={60}
+            currentPlayerId={playerId ?? ''}
+            onScoreAdjust={handleScoreAdjust}
+            allowAdjustment={isYourTurn}
+            onFlipToggle={handleFlipToggle}
+          />
+        </div>
+      </Modal>
 
       {/* Leave Confirmation Modal */}
       <Modal

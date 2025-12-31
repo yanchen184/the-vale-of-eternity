@@ -1,9 +1,9 @@
 /**
  * Card Component with Image Display
  * Renders a game card with its image and stats
- * @version 2.16.1 - Changed "Tame" button text to "召喚"
+ * @version 2.17.0 - Adjusted to 75% size (21rem × 31.5rem)
  */
-console.log('[components/game/Card.tsx] v2.16.1 loaded')
+console.log('[components/game/Card.tsx] v2.17.0 loaded')
 
 import { useState, useCallback, memo } from 'react'
 import { Flame, Droplets, TreePine, Wind, Crown, Gem } from 'lucide-react'
@@ -303,7 +303,7 @@ export const Card = memo(function Card({
           bg-gradient-to-b from-slate-700 to-slate-800
           ${className}
         `}
-        style={{ width: '22.4rem', height: '33.6rem' }}
+        style={{ width: '21rem', height: '31.5rem' }}
         data-testid={`card-back-${index}`}
       >
         <div className="absolute inset-0 flex items-center justify-center">
@@ -325,7 +325,7 @@ export const Card = memo(function Card({
           ${isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900' : ''}
           ${className}
         `}
-        style={{ width: '22.4rem', height: '33.6rem' }}
+        style={{ width: '21rem', height: '31.5rem' }}
         onClick={handleClick}
         data-testid={`card-compact-${card.instanceId}`}
       >
