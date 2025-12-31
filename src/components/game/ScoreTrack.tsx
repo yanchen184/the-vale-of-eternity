@@ -1,9 +1,9 @@
 /**
  * ScoreTrack Component
  * Displays a snake-pattern score track with player markers
- * @version 1.6.0 - Added jump animation for score increases (150ms per cell)
+ * @version 1.6.1 - Adjusted jump animation speed to 300ms per cell
  */
-console.log('[components/game/ScoreTrack.tsx] v1.6.0 loaded')
+console.log('[components/game/ScoreTrack.tsx] v1.6.1 loaded')
 
 import { memo, useMemo, useState, useEffect, useRef } from 'react'
 import { PlayerMarker } from './PlayerMarker'
@@ -139,7 +139,7 @@ export const ScoreTrack = memo(function ScoreTrack({
 
         return hasChanges ? updated : new Map()
       })
-    }, 150) // Jump every 150ms
+    }, 300) // Jump every 300ms
 
     return () => clearInterval(interval)
   }, [animatingPlayers])

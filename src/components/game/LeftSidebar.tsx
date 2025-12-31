@@ -141,7 +141,7 @@ const MyInfoCard = memo(function MyInfoCard({
           <div className="flex items-center justify-around">
             <div className="flex items-center gap-1">
               <img
-                src=`${import.meta.env.BASE_URL}assets/stones/stone-1.png`
+                src={`${import.meta.env.BASE_URL}assets/stones/stone-1.png`}
                 alt="1元"
                 className="w-5 h-5"
               />
@@ -151,7 +151,7 @@ const MyInfoCard = memo(function MyInfoCard({
             </div>
             <div className="flex items-center gap-1">
               <img
-                src=`${import.meta.env.BASE_URL}assets/stones/stone-3.png`
+                src={`${import.meta.env.BASE_URL}assets/stones/stone-3.png`}
                 alt="3元"
                 className="w-5 h-5"
               />
@@ -161,7 +161,7 @@ const MyInfoCard = memo(function MyInfoCard({
             </div>
             <div className="flex items-center gap-1">
               <img
-                src=`${import.meta.env.BASE_URL}assets/stones/stone-6.png`
+                src={`${import.meta.env.BASE_URL}assets/stones/stone-6.png`}
                 alt="6元"
                 className="w-5 h-5"
               />
@@ -311,7 +311,7 @@ const OtherPlayerCard = memo(function OtherPlayerCard({
           <span className="text-slate-400">幣:</span>
           <div className="flex items-center gap-1">
             <img
-              src=`${import.meta.env.BASE_URL}assets/stones/stone-1.png`
+              src={`${import.meta.env.BASE_URL}assets/stones/stone-1.png`}
               alt="1"
               className="w-3 h-3"
             />
@@ -319,7 +319,7 @@ const OtherPlayerCard = memo(function OtherPlayerCard({
           </div>
           <div className="flex items-center gap-1">
             <img
-              src=`${import.meta.env.BASE_URL}assets/stones/stone-3.png`
+              src={`${import.meta.env.BASE_URL}assets/stones/stone-3.png`}
               alt="3"
               className="w-3 h-3"
             />
@@ -327,7 +327,7 @@ const OtherPlayerCard = memo(function OtherPlayerCard({
           </div>
           <div className="flex items-center gap-1">
             <img
-              src=`${import.meta.env.BASE_URL}assets/stones/stone-6.png`
+              src={`${import.meta.env.BASE_URL}assets/stones/stone-6.png`}
               alt="6"
               className="w-3 h-3"
             />
