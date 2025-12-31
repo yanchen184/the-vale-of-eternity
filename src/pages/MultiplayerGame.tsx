@@ -1225,11 +1225,26 @@ export function MultiplayerGame() {
           // Handle card selection if needed
           console.log('Hand card clicked:', card)
         }}
-        onTameCard={handleTameCard}
-        onSellCard={handleSellCard}
-        onDiscardCard={handleDiscardCard}
+        onTameCard={(cardId) => {
+          const card = handCards.find(c => c.instanceId === cardId)
+          if (card) handleTameCard(card)
+        }}
+        onSellCard={(cardId) => {
+          const card = handCards.find(c => c.instanceId === cardId)
+          if (card) handleSellCard(card)
+        }}
+        onDiscardCard={(cardId) => {
+          const card = handCards.find(c => c.instanceId === cardId)
+          if (card) handleDiscardCard(card)
+        }}
         showCardActions={isYourTurn}
-        canTame={true}
+        canTameCard={(cardId) => {
+          // 只要是你的回合就能召喚
+          if (!isYourTurn) return false
+          if (gameRoom?.status !== 'ACTION') return false
+          return true
+        }}
+        currentRound={gameRoom?.currentRound}
       />
     </>
   )

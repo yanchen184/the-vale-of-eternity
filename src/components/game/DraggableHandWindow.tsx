@@ -1,9 +1,9 @@
 /**
  * DraggableHandWindow Component
  * Floating, draggable, resizable window for displaying player's hand
- * @version 1.4.0 - Added drag-to-pan content when zoomed
+ * @version 1.5.0 - Fixed canTameCard prop to accept function instead of boolean
  */
-console.log('[components/game/DraggableHandWindow.tsx] v1.4.0 loaded')
+console.log('[components/game/DraggableHandWindow.tsx] v1.5.0 loaded')
 
 import { memo, useState, useRef, useCallback, useEffect } from 'react'
 import { Minimize2, Maximize2, GripHorizontal, Maximize } from 'lucide-react'
@@ -21,17 +21,19 @@ export interface DraggableHandWindowProps {
   /** Callback when a card is clicked */
   onCardClick?: (card: CardInstance) => void
   /** Callback when a card is selected for taming */
-  onTameCard?: (card: CardInstance) => void
+  onTameCard?: (cardId: string) => void
   /** Callback when a card is sold */
-  onSellCard?: (card: CardInstance) => void
+  onSellCard?: (cardId: string) => void
   /** Callback when a card is discarded */
-  onDiscardCard?: (card: CardInstance) => void
+  onDiscardCard?: (cardId: string) => void
   /** Selected card instance ID (for highlighting) */
   selectedCardId?: string | null
   /** Whether to show action buttons on cards */
   showCardActions?: boolean
-  /** Whether taming is allowed */
-  canTame?: boolean
+  /** Check if a card can be tamed */
+  canTameCard?: (cardId: string) => boolean
+  /** Current round number (for sell restriction) */
+  currentRound?: number
 }
 
 // ============================================
@@ -46,7 +48,8 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
   onDiscardCard,
   selectedCardId,
   showCardActions,
-  canTame,
+  canTameCard,
+  currentRound,
 }: DraggableHandWindowProps) {
   // Calculate initial position at bottom, centered between sidebars
   // Left sidebar: 320px (w-80), Right sidebar: 320px (w-80)
@@ -56,7 +59,7 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
   const initialWidth = typeof window !== 'undefined'
     ? Math.min(1400, window.innerWidth - (sidebarWidth * 2) - 32)
     : 800
-  const initialHeight = 580 // 增加高度以完整顯示卡片和扇形佈局
+  const initialHeight = 380 // 減小預設視窗高度，內容區域會有更多padding提供卡片移動空間
   const initialX = sidebarWidth + 16
   const initialY = typeof window !== 'undefined'
     ? window.innerHeight - initialHeight - 100 // 100px from bottom (留出分數條空間)
@@ -145,7 +148,7 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
 
       setSize({
         width: Math.max(400, resizeStart.width + deltaX),
-        height: Math.max(480, resizeStart.height + deltaY), // 最小高度調整為 480px
+        height: Math.max(280, resizeStart.height + deltaY), // 最小高度調整為 280px
       })
     }
 
@@ -306,19 +309,23 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
             style={{
               transform: `scale(${zoom})`,
               transformOrigin: 'top center',
-              padding: '12px',
+              padding: '80px 12px', // 上下增加更多padding讓卡片有空間移動和懸停
               transition: 'transform 0.1s ease-out',
             }}
           >
             <PlayerHand
               cards={cards}
-              onCardClick={onCardClick}
-              onTameCard={onTameCard}
-              onSellCard={onSellCard}
-              onDiscardCard={onDiscardCard}
+              onCardSelect={(cardId) => {
+                const card = cards.find(c => c.instanceId === cardId)
+                if (card && onCardClick) onCardClick(card)
+              }}
+              onCardPlay={onTameCard}
+              onCardSell={onSellCard}
+              onCardDiscard={onDiscardCard}
               selectedCardId={selectedCardId}
               showActions={showCardActions}
-              canTame={canTame}
+              canTameCard={canTameCard}
+              currentRound={currentRound}
               maxHandSize={999} // No limit in floating window
             />
           </div>
