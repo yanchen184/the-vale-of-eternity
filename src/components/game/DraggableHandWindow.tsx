@@ -71,7 +71,7 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
-  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 })
+  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0, bottomY: 0 })
   const [zoom, setZoom] = useState(0.7) // Zoom level: 0.5 to 2.5, default 0.7 to match field card size
   const [isPanning, setIsPanning] = useState(false)
   const [scrollStart, setScrollStart] = useState({ scrollLeft: 0, scrollTop: 0, mouseX: 0, mouseY: 0 })
@@ -161,19 +161,20 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
     e.preventDefault()
     e.stopPropagation()
     setIsResizing(true)
+    // Record the bottom edge position (y + height) to keep it fixed
+    const bottomY = position.y + size.height
     setResizeStart({
       x: e.clientX,
       y: e.clientY,
       width: size.width,
       height: size.height,
+      bottomY: bottomY,
     })
-  }, [size])
+  }, [size, position])
 
   // Handle resize move (top-right corner behavior)
   useEffect(() => {
     if (!isResizing) return
-
-    const initialPosition = { ...position }
 
     const handleMouseMove = (e: MouseEvent) => {
       const deltaX = e.clientX - resizeStart.x
@@ -190,12 +191,12 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
         height: newHeight,
       })
 
-      // Adjust position.y so the BOTTOM edge stays fixed while top expands upward
-      const heightChange = newHeight - resizeStart.height
-      setPosition({
-        x: initialPosition.x,
-        y: initialPosition.y - heightChange,
-      })
+      // Keep bottom edge fixed: bottomY = newY + newHeight
+      // So: newY = bottomY - newHeight
+      setPosition(prev => ({
+        x: prev.x,
+        y: resizeStart.bottomY - newHeight,
+      }))
     }
 
     const handleMouseUp = () => {
@@ -209,7 +210,7 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [isResizing, resizeStart, position])
+  }, [isResizing, resizeStart])
 
   // Handle zoom with Ctrl+Wheel (like Chrome)
   useEffect(() => {
