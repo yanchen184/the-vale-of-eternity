@@ -278,6 +278,7 @@ interface ActionPhaseUIProps {
   onCardPlay: (cardId: string) => void
   onCardSell: (cardId: string) => void
   onCardReturn: (playerId: string, cardId: string) => void
+  onCardDiscard: (playerId: string, cardId: string) => void
   onScoreAdjust: (playerId: string, score: number) => void
   onFlipToggle: (playerId: string) => void
   canTameCard: (cardId: string) => boolean
@@ -295,6 +296,7 @@ function ActionPhaseUI({
   onCardPlay,
   onCardSell,
   onCardReturn,
+  onCardDiscard,
   onScoreAdjust,
   onFlipToggle,
   canTameCard,
@@ -315,6 +317,7 @@ function ActionPhaseUI({
             players={[selfPlayer]}
             currentPlayerId={currentPlayerId}
             onCardReturn={onCardReturn}
+            onCardDiscard={onCardDiscard}
           />
         )}
 
@@ -339,6 +342,7 @@ function ActionPhaseUI({
             players={otherPlayers}
             currentPlayerId={currentPlayerId}
             onCardReturn={onCardReturn}
+            onCardDiscard={onCardDiscard}
           />
         )}
       </div>
@@ -556,6 +560,12 @@ export function MultiplayerGame() {
       .filter((c): c is CardInstance => c !== null)
   }, [gameRoom, convertToCardInstance])
 
+  // Get latest discarded card (last in array)
+  const latestDiscardedCard = useMemo(() => {
+    if (discardedCards.length === 0) return null
+    return discardedCards[discardedCards.length - 1]
+  }, [discardedCards])
+
   // Get current turn player
   const currentTurnPlayerId = useMemo(() => {
     if (!gameRoom || !players.length) return ''
@@ -756,6 +766,32 @@ export function MultiplayerGame() {
     [gameId, playerId]
   )
 
+  const handleReturnFieldCardToHand = useCallback(
+    async (_playerId: string, cardInstanceId: string) => {
+      if (!gameId || !playerId) return
+
+      try {
+        await multiplayerGameService.returnFieldCardToHand(gameId, playerId, cardInstanceId)
+      } catch (err: any) {
+        setError(err.message || 'Failed to return field card to hand')
+      }
+    },
+    [gameId, playerId]
+  )
+
+  const handleDiscardFieldCard = useCallback(
+    async (_playerId: string, cardInstanceId: string) => {
+      if (!gameId || !playerId) return
+
+      try {
+        await multiplayerGameService.discardFieldCard(gameId, playerId, cardInstanceId)
+      } catch (err: any) {
+        setError(err.message || 'Failed to discard field card')
+      }
+    },
+    [gameId, playerId]
+  )
+
   const handlePassTurn = useCallback(async () => {
     if (!gameId || !playerId) return
 
@@ -929,6 +965,7 @@ export function MultiplayerGame() {
             playerName={currentPlayer?.name ?? ''}
             discardCount={0}
             marketDiscardCount={gameRoom.discardIds?.length ?? 0}
+            latestDiscardedCard={latestDiscardedCard}
             isYourTurn={isYourTurn}
             phase={gameRoom.status}
             onTakeCoin={handleTakeCoinFromBank}

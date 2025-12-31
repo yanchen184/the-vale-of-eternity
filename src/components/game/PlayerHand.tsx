@@ -357,7 +357,15 @@ export const PlayerHand = memo(function PlayerHand({
     // If no currentRound is provided, allow selling all cards (backward compatibility)
     if (currentRound === undefined) return true
     // @ts-expect-error - acquiredInRound is added at runtime from Firebase
-    return card.acquiredInRound === currentRound
+    const canSell = card.acquiredInRound === currentRound
+    console.log('[PlayerHand] canSellCard check:', {
+      cardName: card.name,
+      cardId: card.instanceId,
+      acquiredInRound: card.acquiredInRound,
+      currentRound,
+      canSell
+    })
+    return canSell
   }, [currentRound])
 
   // Limit visible cards
