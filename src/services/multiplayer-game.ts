@@ -2625,6 +2625,16 @@ export class MultiplayerGameService {
 
     return usedArtifacts
   }
+
+  /**
+   * Update game room fields
+   * @param gameId - Game room ID
+   * @param updates - Partial GameRoom fields to update
+   */
+  async updateGameRoom(gameId: string, updates: Partial<GameRoom>): Promise<void> {
+    const gameRef = ref(database, `games/${gameId}`)
+    await update(gameRef, updates)
+  }
 }
 
 export const multiplayerGameService = new MultiplayerGameService()

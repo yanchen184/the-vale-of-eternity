@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 5.14.0 - Fixed card scale center alignment to prevent bottom content clipping
+ * @version 5.15.0 - Set default card scale to 70% for better visibility
  */
-console.log('[pages/MultiplayerGame.tsx] v5.14.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v5.15.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -435,7 +435,7 @@ export function MultiplayerGame() {
   const [showAllFieldsModal, setShowAllFieldsModal] = useState(false)
   const [showSanctuaryModal, setShowSanctuaryModal] = useState(false)
   const [scores, setScores] = useState<{ playerId: string; name: string; score: number }[]>([])
-  const [cardScale, setCardScale] = useState(100) // Card size: 50% to 150% (step 10%)
+  const [cardScale, setCardScale] = useState(70) // Card size: 50% to 150% (step 10%), default 70%
 
   // Extract state from location or redirect
   const playerId = state?.playerId
@@ -700,6 +700,7 @@ export function MultiplayerGame() {
       score: player.score ?? 0,
       hasPassed: player.hasPassed ?? false,
       isReady: player.isReady,
+      zoneBonus: player.zoneBonus || 0,
     }))
   }, [players])
 
@@ -855,6 +856,19 @@ export function MultiplayerGame() {
         await multiplayerGameService.returnCardToHand(gameId, playerId, cardInstanceId)
       } catch (err: any) {
         setError(err.message || 'Failed to return card')
+      }
+    },
+    [gameId, playerId]
+  )
+
+  const handleToggleZoneBonus = useCallback(
+    async () => {
+      if (!gameId || !playerId) return
+
+      try {
+        await multiplayerGameService.toggleZoneBonus(gameId, playerId)
+      } catch (err: any) {
+        setError(err.message || 'Failed to toggle zone bonus')
       }
     },
     [gameId, playerId]
@@ -1128,7 +1142,7 @@ export function MultiplayerGame() {
             currentPlayerName={currentTurnPlayer?.name ?? 'Unknown'}
             isYourTurn={isYourTurn}
             onLeave={handleLeaveGame}
-            onViewScore={() => setShowScoreModal(true)}
+            onViewScore={() => handleToggleScoreModal(true)}
             onViewAllFields={() => setShowAllFieldsModal(true)}
             onViewSanctuary={() => setShowSanctuaryModal(true)}
             onPassTurn={handlePassTurn}
@@ -1169,6 +1183,8 @@ export function MultiplayerGame() {
             marketDiscardCount={gameRoom.discardIds?.length ?? 0}
             latestDiscardedCard={latestDiscardedCard}
             onDiscardClick={() => setShowMarketDiscardModal(true)}
+            onToggleZoneBonus={handleToggleZoneBonus}
+            currentRound={gameRoom.currentRound}
           />
         }
         rightSidebar={
@@ -1289,7 +1305,7 @@ export function MultiplayerGame() {
       {/* Score Modal */}
       <Modal
         isOpen={showScoreModal}
-        onClose={() => setShowScoreModal(false)}
+        onClose={() => handleToggleScoreModal(false)}
         size="wide"
       >
         <div className="p-6">

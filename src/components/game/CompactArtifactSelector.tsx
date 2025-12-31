@@ -1,9 +1,9 @@
 /**
  * CompactArtifactSelector Component
  * Compact version of artifact selector for inline display with card selection
- * @version 1.3.0 - Added extensive debug logging for click events
+ * @version 1.4.0 - Fixed click events blocked by PlayerMarker overlay
  */
-console.log('[components/game/CompactArtifactSelector.tsx] v1.3.0 loaded')
+console.log('[components/game/CompactArtifactSelector.tsx] v1.4.0 loaded')
 
 import { memo, useState } from 'react'
 import { cn } from '@/lib/utils'
@@ -210,7 +210,7 @@ const CompactArtifactCard = memo(function CompactArtifactCard({
       {/* Player Selection Marker - shown when artifact is selected */}
       {selectedByColor && (
         <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none"
           data-testid={`artifact-marker-${artifact.id}`}
         >
           <PlayerMarker
