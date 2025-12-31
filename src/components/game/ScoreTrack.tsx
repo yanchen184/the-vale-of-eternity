@@ -184,7 +184,8 @@ export const ScoreTrack = memo(function ScoreTrack({
           return (
             <div
               key={rowIndex}
-              className="grid grid-cols-20 gap-0.5"
+              className="grid gap-0.5"
+              style={{ gridTemplateColumns: 'repeat(20, minmax(0, 1fr))' }}
               data-testid={`score-row-${rowIndex}`}
             >
               {displayCells}

@@ -1,14 +1,13 @@
 /**
  * DiscardPile Component
- * Displays discarded cards with 3D stack visualization and animations
- * @version 1.0.0
+ * Displays discarded cards face-up with full card details visible
+ * @version 1.1.0 - Cards are face-up and readable
  */
-console.log('[components/game/DiscardPile.tsx] v1.0.0 loaded')
+console.log('[components/game/DiscardPile.tsx] v1.1.0 loaded')
 
 import { useState, memo, useRef, useEffect, useCallback } from 'react'
 import gsap from 'gsap'
 import type { CardInstance } from '@/types/cards'
-import { Element, ELEMENT_COLORS } from '@/types/cards'
 import { cn } from '@/lib/utils'
 import { ANIMATION_DURATION, ANIMATION_EASE, prefersReducedMotion } from '@/lib/animations'
 import { Modal } from '@/components/ui/Modal'
@@ -35,24 +34,6 @@ export interface DiscardPileProps {
 
 const MAX_VISIBLE_STACK = 5
 const STACK_OFFSET = 2
-
-// ============================================
-// HELPER COMPONENTS
-// ============================================
-
-/**
- * Get element gradient for card back
- */
-function getElementGradient(element: Element): string {
-  const gradients: Record<Element, string> = {
-    [Element.FIRE]: 'from-red-800 to-red-950',
-    [Element.WATER]: 'from-blue-800 to-blue-950',
-    [Element.EARTH]: 'from-green-800 to-green-950',
-    [Element.WIND]: 'from-purple-800 to-purple-950',
-    [Element.DRAGON]: 'from-amber-800 to-amber-950',
-  }
-  return gradients[element] || 'from-slate-700 to-slate-900'
-}
 
 // ============================================
 // STACKED CARD COMPONENT
@@ -93,7 +74,7 @@ const StackedCard = memo(function StackedCard({
       {
         y: 0,
         x: 0,
-        rotation: gsap.utils.random(-5, 5),
+        rotation: gsap.utils.random(-2, 2),
         opacity: 1,
         scale: 1,
         duration: ANIMATION_DURATION.SLOW,
@@ -102,48 +83,20 @@ const StackedCard = memo(function StackedCard({
     )
   }, [isTopCard])
 
-  const elementColor = ELEMENT_COLORS[card.element]
-
   return (
     <div
       ref={cardRef}
-      className={cn(
-        'absolute w-16 h-24 rounded-lg overflow-hidden',
-        'border-2 transition-all duration-200',
-        `bg-gradient-to-br ${getElementGradient(card.element)}`
-      )}
+      className="absolute"
       style={{
         top: `${stackIndex * STACK_OFFSET}px`,
         left: `${stackIndex * STACK_OFFSET}px`,
-        transform: `rotate(${gsap.utils.random(-3, 3)}deg)`,
+        transform: `rotate(${gsap.utils.random(-2, 2)}deg)`,
         zIndex: index + 1,
-        borderColor: elementColor,
-        boxShadow: isTopCard
-          ? `0 4px 12px rgba(0, 0, 0, 0.4), 0 0 8px ${elementColor}40`
-          : '0 2px 4px rgba(0, 0, 0, 0.3)',
       }}
       data-testid={`discard-stack-${index}`}
     >
-      {/* Card Back Pattern */}
-      <div className="absolute inset-0 flex items-center justify-center opacity-30">
-        <svg viewBox="0 0 40 60" className="w-10 h-14 text-white/50">
-          <path
-            d="M20 5 L35 15 L35 45 L20 55 L5 45 L5 15 Z"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1"
-          />
-          <circle cx="20" cy="30" r="8" fill="none" stroke="currentColor" strokeWidth="1" />
-        </svg>
-      </div>
-
-      {/* Element indicator */}
-      <div
-        className="absolute bottom-1 right-1 w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold"
-        style={{ backgroundColor: elementColor }}
-      >
-        {card.element.charAt(0)}
-      </div>
+      {/* Show actual card face-up */}
+      <Card card={card} size="sm" compact />
     </div>
   )
 })
@@ -167,18 +120,18 @@ const DiscardModal = memo(function DiscardModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Discard Pile"
+      title="棄置牌堆"
       size="lg"
     >
       <div className="p-4">
         {cards.length === 0 ? (
           <div className="text-center text-slate-500 py-8">
-            No cards in discard pile
+            尚無棄置的卡片
           </div>
         ) : (
           <>
             <p className="text-sm text-slate-400 mb-4">
-              {cards.length} card{cards.length !== 1 ? 's' : ''} discarded
+              共 {cards.length} 張卡片已棄置
             </p>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 max-h-[60vh] overflow-y-auto">
               {cards.map((card, index) => (
@@ -191,7 +144,6 @@ const DiscardModal = memo(function DiscardModal({
                     card={card}
                     index={index}
                     compact
-                    className="opacity-70 grayscale-[30%]"
                   />
                 </div>
               ))}
@@ -261,7 +213,7 @@ export const DiscardPile = memo(function DiscardPile({
         data-testid="discard-pile-empty"
       >
         <div className="text-slate-600 text-2xl mb-1">-</div>
-        <span className="text-[10px] text-slate-600">Discard</span>
+        <span className="text-[10px] text-slate-600">棄置牌堆</span>
       </div>
     )
   }
@@ -321,13 +273,13 @@ export const DiscardPile = memo(function DiscardPile({
             isHovered && 'text-purple-400'
           )}
         >
-          Discard Pile
+          棄置牌堆
         </div>
 
         {/* Hover overlay */}
         {isHovered && interactive && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg">
-            <span className="text-xs text-white font-medium">View All</span>
+            <span className="text-xs text-white font-medium">查看全部</span>
           </div>
         )}
       </div>

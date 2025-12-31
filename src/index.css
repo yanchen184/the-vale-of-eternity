@@ -1,17 +1,40 @@
 /**
  * Global styles with Tailwind CSS
  * Enhanced with fantasy/medieval theme and animations
- * @version 2.0.0
+ * @version 3.0.0 - Added magic UI animations and effects
  */
 
 /* Import Google Fonts for game title - must be first */
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@400;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  /* CSS Variables for theming */
+  :root {
+    --vale-primary-light: #a78bfa;
+    --vale-primary: #7c3aed;
+    --vale-primary-dark: #5b21b6;
+    --vale-primary-glow: rgba(124, 58, 237, 0.5);
+
+    --vale-secondary-light: #fcd34d;
+    --vale-secondary: #f59e0b;
+    --vale-secondary-dark: #d97706;
+    --vale-secondary-glow: rgba(245, 158, 11, 0.5);
+
+    --vale-accent-blue: #3b82f6;
+    --vale-accent-emerald: #10b981;
+    --vale-accent-rose: #f43f5e;
+    --vale-accent-cyan: #06b6d4;
+
+    --vale-glass-light: rgba(255, 255, 255, 0.1);
+    --vale-glass-medium: rgba(255, 255, 255, 0.05);
+    --vale-glass-dark: rgba(0, 0, 0, 0.2);
+    --vale-glass-border: rgba(255, 255, 255, 0.1);
+  }
+
   /* Global styles */
   html {
     @apply antialiased;
@@ -29,12 +52,12 @@
 
   /* Focus styles for accessibility */
   :focus-visible {
-    @apply outline-none ring-2 ring-vale-400 ring-offset-2 ring-offset-slate-900;
+    @apply outline-none ring-2 ring-purple-400 ring-offset-2 ring-offset-slate-900;
   }
 
   /* Selection color */
   ::selection {
-    @apply bg-vale-500/30 text-slate-100;
+    @apply bg-purple-500/30 text-slate-100;
   }
 
   /* Scrollbar styling */
@@ -43,15 +66,16 @@
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-slate-800/50;
+    @apply bg-slate-800/50 rounded-full;
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-slate-600 rounded-full;
+    @apply bg-purple-600/50 rounded-full;
+    border: 2px solid transparent;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-slate-500;
+    @apply bg-purple-500/70;
   }
 
   /* Remove default button styles */
@@ -61,7 +85,9 @@
 }
 
 @layer components {
-  /* Card styling */
+  /* ============================================
+   * Card Styling
+   * ============================================ */
   .game-card {
     @apply relative rounded-lg overflow-hidden transition-all duration-200;
     @apply border-2 border-slate-600;
@@ -70,52 +96,40 @@
   }
 
   .game-card:hover {
-    @apply border-vale-400 shadow-lg shadow-vale-500/20;
+    @apply border-purple-400 shadow-lg;
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
     transform: translateY(-4px);
   }
 
   .game-card.selected {
-    @apply border-vale-400 ring-2 ring-vale-400/50;
+    @apply border-purple-400 ring-2 ring-purple-400/50;
   }
 
   /* Element-specific card borders */
   .game-card.fire {
     @apply border-fire;
   }
-
   .game-card.water {
     @apply border-water;
   }
-
   .game-card.earth {
     @apply border-earth;
   }
-
   .game-card.wind {
     @apply border-slate-400;
   }
 
-  /* Button hover effects */
-  .btn-glow:hover {
-    @apply shadow-lg shadow-vale-500/30;
-  }
-
-  /* Glass effect */
-  .glass {
-    @apply bg-slate-800/50 backdrop-blur-sm border border-slate-700/50;
-  }
-
-  /* Gradient text */
-  .text-gradient {
-    @apply text-transparent bg-clip-text bg-gradient-to-r from-vale-400 to-purple-400;
-  }
-
-  /* Fantasy panel styles */
+  /* ============================================
+   * Fantasy Panel Styles
+   * ============================================ */
   .fantasy-panel {
     @apply relative rounded-2xl overflow-hidden;
     @apply bg-gradient-to-b from-slate-800/90 to-slate-900/95;
     @apply border-2 border-slate-700/50;
-    @apply shadow-xl shadow-slate-950/50;
+    @apply shadow-xl;
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.3),
+      0 0 40px -5px rgba(139, 92, 246, 0.15);
   }
 
   .fantasy-panel::before {
@@ -125,42 +139,168 @@
     @apply opacity-50;
   }
 
-  /* Glow effects */
-  .glow-vale {
-    box-shadow: 0 0 20px theme('colors.vale.500 / 30%'),
-                0 0 40px theme('colors.vale.500 / 20%'),
-                0 0 60px theme('colors.vale.500 / 10%');
+  /* ============================================
+   * Glass Effect Components
+   * ============================================ */
+  .glass {
+    @apply bg-white/5 backdrop-blur-md border border-white/10;
+    @apply shadow-xl;
   }
 
-  .glow-amber {
-    box-shadow: 0 0 20px theme('colors.amber.500 / 30%'),
-                0 0 40px theme('colors.amber.500 / 20%'),
-                0 0 60px theme('colors.amber.500 / 10%');
+  .glass-light {
+    @apply bg-white/10 backdrop-blur-md border border-white/20;
   }
 
+  .glass-dark {
+    @apply bg-black/30 backdrop-blur-md border border-white/5;
+  }
+
+  /* ============================================
+   * Gradient Text
+   * ============================================ */
+  .text-gradient {
+    @apply text-transparent bg-clip-text;
+    @apply bg-gradient-to-r from-purple-400 via-violet-400 to-purple-400;
+  }
+
+  .text-gradient-gold {
+    @apply text-transparent bg-clip-text;
+    @apply bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400;
+  }
+
+  .text-gradient-blue {
+    @apply text-transparent bg-clip-text;
+    @apply bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-400;
+  }
+
+  /* ============================================
+   * Glow Effects
+   * ============================================ */
   .glow-purple {
-    box-shadow: 0 0 20px theme('colors.purple.500 / 30%'),
-                0 0 40px theme('colors.purple.500 / 20%'),
-                0 0 60px theme('colors.purple.500 / 10%');
+    box-shadow:
+      0 0 20px rgba(139, 92, 246, 0.3),
+      0 0 40px rgba(139, 92, 246, 0.2),
+      0 0 60px rgba(139, 92, 246, 0.1);
+  }
+
+  .glow-gold {
+    box-shadow:
+      0 0 20px rgba(245, 158, 11, 0.3),
+      0 0 40px rgba(245, 158, 11, 0.2),
+      0 0 60px rgba(245, 158, 11, 0.1);
+  }
+
+  .glow-blue {
+    box-shadow:
+      0 0 20px rgba(59, 130, 246, 0.3),
+      0 0 40px rgba(59, 130, 246, 0.2),
+      0 0 60px rgba(59, 130, 246, 0.1);
+  }
+
+  .glow-emerald {
+    box-shadow:
+      0 0 20px rgba(16, 185, 129, 0.3),
+      0 0 40px rgba(16, 185, 129, 0.2),
+      0 0 60px rgba(16, 185, 129, 0.1);
+  }
+
+  /* ============================================
+   * Magic Title Styles
+   * ============================================ */
+  .magic-title {
+    @apply font-game text-4xl md:text-5xl lg:text-6xl font-bold;
+    @apply text-transparent bg-clip-text;
+    @apply bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-300;
+    text-shadow:
+      0 0 20px rgba(245, 158, 11, 0.5),
+      0 0 40px rgba(245, 158, 11, 0.3),
+      0 2px 4px rgba(0, 0, 0, 0.5);
+  }
+
+  .magic-subtitle {
+    @apply font-game text-lg md:text-xl text-slate-300;
+    @apply tracking-widest uppercase;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  }
+
+  /* ============================================
+   * Phase Badge Styles
+   * ============================================ */
+  .phase-badge {
+    @apply relative inline-flex items-center px-6 py-2.5 rounded-full;
+    @apply border border-white/20;
+    @apply font-semibold tracking-wide;
+    @apply shadow-lg;
+  }
+
+  .phase-badge::before {
+    content: '';
+    @apply absolute inset-0 rounded-full;
+    @apply bg-gradient-to-r from-transparent via-white/10 to-transparent;
+    animation: shimmer 3s infinite;
+  }
+}
+
+@layer utilities {
+  /* ============================================
+   * Animation Keyframes
+   * ============================================ */
+
+  /* Float animation for particles */
+  @keyframes floatParticle {
+    0%, 100% {
+      transform: translateY(0) translateX(0);
+      opacity: 0.3;
+    }
+    25% {
+      transform: translateY(-30px) translateX(10px);
+      opacity: 0.6;
+    }
+    50% {
+      transform: translateY(-50px) translateX(-5px);
+      opacity: 0.8;
+    }
+    75% {
+      transform: translateY(-30px) translateX(-10px);
+      opacity: 0.5;
+    }
+  }
+
+  .animate-float-particle {
+    animation: floatParticle 20s ease-in-out infinite;
+  }
+
+  /* Float animation for orbs */
+  @keyframes floatOrb {
+    0%, 100% {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 0.8;
+    }
+    50% {
+      transform: translate(-50%, -50%) scale(1.1);
+      opacity: 1;
+    }
+  }
+
+  .animate-float-orb {
+    animation: floatOrb 8s ease-in-out infinite;
+  }
+
+  /* Slow rotation for rune circles */
+  @keyframes rotateSlow {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .animate-rotate-slow {
+    animation: rotateSlow 60s linear infinite;
   }
 
   /* Shimmer effect */
-  .shimmer {
-    @apply relative overflow-hidden;
-  }
-
-  .shimmer::after {
-    content: '';
-    @apply absolute inset-0;
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.1) 50%,
-      transparent 100%
-    );
-    animation: shimmer 2s infinite;
-  }
-
   @keyframes shimmer {
     0% {
       transform: translateX(-100%);
@@ -169,76 +309,210 @@
       transform: translateX(100%);
     }
   }
-}
 
-@layer utilities {
-  /* Hide scrollbar but keep functionality */
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+  .animate-shimmer {
+    animation: shimmer 2s infinite;
   }
 
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
+  .animate-shimmer-slow {
+    animation: shimmer 4s infinite;
   }
 
-  /* Animation utilities */
-  .animate-delay-100 {
-    animation-delay: 100ms;
-  }
-
-  .animate-delay-200 {
-    animation-delay: 200ms;
-  }
-
-  .animate-delay-300 {
-    animation-delay: 300ms;
-  }
-
-  .animate-delay-500 {
-    animation-delay: 500ms;
-  }
-
-  .animate-delay-700 {
-    animation-delay: 700ms;
-  }
-
-  .animate-delay-1000 {
-    animation-delay: 1000ms;
-  }
-
-  .animate-delay-150 {
-    animation-delay: 150ms;
-  }
-
-  /* Stone pool animations */
-  .animate-pulse-slow {
-    animation: pulseSlow 3s ease-in-out infinite;
-  }
-
-  @keyframes pulseSlow {
+  /* Pulse glow animation */
+  @keyframes pulseGlow {
     0%, 100% {
       opacity: 1;
+      box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
     }
     50% {
       opacity: 0.8;
+      box-shadow: 0 0 40px rgba(139, 92, 246, 0.8);
     }
   }
 
-  .animate-bounce-subtle {
-    animation: bounceSubtle 1s ease-in-out infinite;
+  .animate-pulse-glow {
+    animation: pulseGlow 2s ease-in-out infinite;
   }
 
-  @keyframes bounceSubtle {
+  /* Subtle pulse for empty slots */
+  @keyframes pulseSubtle {
+    0%, 100% {
+      opacity: 0.5;
+    }
+    50% {
+      opacity: 0.3;
+    }
+  }
+
+  .animate-pulse-subtle {
+    animation: pulseSubtle 2s ease-in-out infinite;
+  }
+
+  /* Button pulse */
+  @keyframes pulseButton {
+    0%, 100% {
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+    }
+    50% {
+      box-shadow: 0 0 35px rgba(16, 185, 129, 0.6);
+    }
+  }
+
+  .animate-pulse-button {
+    animation: pulseButton 2s ease-in-out infinite;
+  }
+
+  /* Float animation */
+  @keyframes float {
     0%, 100% {
       transform: translateY(0);
     }
     50% {
-      transform: translateY(-2px);
+      transform: translateY(-10px);
     }
   }
 
-  /* Card flip animation */
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  /* Scale up animation */
+  @keyframes scaleUp {
+    from {
+      transform: scale(0.9);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .animate-scale-up {
+    animation: scaleUp 0.3s ease-out forwards;
+  }
+
+  /* Bounce in animation */
+  @keyframes bounceIn {
+    0% {
+      transform: scale(0);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.1);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .animate-bounce-in {
+    animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  /* Slide up animation */
+  @keyframes slideUp {
+    from {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out forwards;
+  }
+
+  /* Shake animation */
+  @keyframes shake {
+    10%, 90% { transform: translateX(-1px); }
+    20%, 80% { transform: translateX(2px); }
+    30%, 50%, 70% { transform: translateX(-4px); }
+    40%, 60% { transform: translateX(4px); }
+  }
+
+  .animate-shake {
+    animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  }
+
+  /* Magic sparkle */
+  @keyframes sparkle {
+    0%, 100% {
+      opacity: 0;
+      transform: scale(0);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-sparkle {
+    animation: sparkle 1.5s ease-in-out infinite;
+  }
+
+  /* ============================================
+   * Utility Classes
+   * ============================================ */
+
+  /* Hide scrollbar */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Animation delays */
+  .animate-delay-100 { animation-delay: 100ms; }
+  .animate-delay-200 { animation-delay: 200ms; }
+  .animate-delay-300 { animation-delay: 300ms; }
+  .animate-delay-500 { animation-delay: 500ms; }
+  .animate-delay-700 { animation-delay: 700ms; }
+  .animate-delay-1000 { animation-delay: 1000ms; }
+
+  /* Text shadows */
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  }
+
+  .text-shadow-lg {
+    text-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+  }
+
+  .text-shadow-glow {
+    text-shadow:
+      0 0 10px rgba(139, 92, 246, 0.5),
+      0 0 20px rgba(139, 92, 246, 0.3);
+  }
+
+  .text-shadow-gold {
+    text-shadow:
+      0 0 10px rgba(245, 158, 11, 0.5),
+      0 0 20px rgba(245, 158, 11, 0.3),
+      0 2px 4px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Backdrop blur variations */
+  .backdrop-blur-xs {
+    backdrop-filter: blur(2px);
+  }
+
+  /* Transform perspective */
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+
+  /* Card flip */
   .card-flip-inner {
     transform-style: preserve-3d;
     transition: transform 0.6s;
@@ -257,103 +531,6 @@
     transform: rotateY(180deg);
   }
 
-  /* Float animation */
-  .animate-float {
-    animation: float 3s ease-in-out infinite;
-  }
-
-  @keyframes float {
-    0%, 100% {
-      transform: translateY(0);
-    }
-    50% {
-      transform: translateY(-10px);
-    }
-  }
-
-  /* Glow pulse animation */
-  .animate-glow-pulse {
-    animation: glowPulse 2s ease-in-out infinite;
-  }
-
-  @keyframes glowPulse {
-    0%, 100% {
-      filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.3));
-    }
-    50% {
-      filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.6));
-    }
-  }
-
-  /* Rotate animation */
-  .animate-rotate {
-    animation: rotate 20s linear infinite;
-  }
-
-  @keyframes rotate {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  /* Scale up animation */
-  .animate-scale-up {
-    animation: scaleUp 0.3s ease-out forwards;
-  }
-
-  @keyframes scaleUp {
-    from {
-      transform: scale(0.9);
-      opacity: 0;
-    }
-    to {
-      transform: scale(1);
-      opacity: 1;
-    }
-  }
-
-  /* Bounce in animation */
-  .animate-bounce-in {
-    animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  }
-
-  @keyframes bounceIn {
-    0% {
-      transform: scale(0);
-      opacity: 0;
-    }
-    50% {
-      transform: scale(1.1);
-    }
-    100% {
-      transform: scale(1);
-      opacity: 1;
-    }
-  }
-
-  /* Shake animation */
-  .animate-shake {
-    animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-  }
-
-  @keyframes shake {
-    10%, 90% {
-      transform: translateX(-1px);
-    }
-    20%, 80% {
-      transform: translateX(2px);
-    }
-    30%, 50%, 70% {
-      transform: translateX(-4px);
-    }
-    40%, 60% {
-      transform: translateX(4px);
-    }
-  }
-
   /* Gradient border */
   .gradient-border {
     position: relative;
@@ -370,46 +547,7 @@
     z-index: -1;
   }
 
-  /* Text shadow utilities */
-  .text-shadow {
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-  }
-
-  .text-shadow-lg {
-    text-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
-  }
-
-  .text-shadow-glow {
-    text-shadow: 0 0 10px rgba(56, 189, 248, 0.5),
-                 0 0 20px rgba(56, 189, 248, 0.3);
-  }
-
-  /* Backdrop blur variations */
-  .backdrop-blur-xs {
-    backdrop-filter: blur(2px);
-  }
-
-  /* Transform perspective */
-  .perspective-1000 {
-    perspective: 1000px;
-  }
-
-  .preserve-3d {
-    transform-style: preserve-3d;
-  }
-
-  /* Mask gradient */
-  .mask-gradient-to-b {
-    mask-image: linear-gradient(to bottom, black, transparent);
-    -webkit-mask-image: linear-gradient(to bottom, black, transparent);
-  }
-
-  .mask-gradient-to-t {
-    mask-image: linear-gradient(to top, black, transparent);
-    -webkit-mask-image: linear-gradient(to top, black, transparent);
-  }
-
-  /* Line clamp utilities */
+  /* Line clamp */
   .line-clamp-3 {
     display: -webkit-box;
     -webkit-line-clamp: 3;
@@ -422,6 +560,136 @@
     -webkit-line-clamp: 4;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+
+  /* ============================================
+   * Player Marker Animations
+   * Magic gem drop-in and glow effects
+   * ============================================ */
+
+  /* Drop-in animation - gem falls from above with bounce */
+  @keyframes markerDropIn {
+    0% {
+      transform: translateY(-80px) scale(0.5) rotateZ(-15deg);
+      opacity: 0;
+    }
+    40% {
+      transform: translateY(8px) scale(1.15) rotateZ(5deg);
+      opacity: 1;
+    }
+    55% {
+      transform: translateY(-4px) scale(0.95) rotateZ(-3deg);
+    }
+    70% {
+      transform: translateY(2px) scale(1.05) rotateZ(1deg);
+    }
+    85% {
+      transform: translateY(-1px) scale(0.98) rotateZ(-0.5deg);
+    }
+    100% {
+      transform: translateY(0) scale(1) rotateZ(0deg);
+      opacity: 1;
+    }
+  }
+
+  .animate-marker-drop-in {
+    animation: markerDropIn 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  /* Fly-out animation - gem flies away when removed */
+  @keyframes markerFlyOut {
+    0% {
+      transform: translateY(0) scale(1) rotateZ(0deg);
+      opacity: 1;
+    }
+    30% {
+      transform: translateY(-10px) scale(1.1) rotateZ(-10deg);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(-100px) scale(0) rotateZ(360deg);
+      opacity: 0;
+    }
+  }
+
+  .animate-marker-fly-out {
+    animation: markerFlyOut 0.5s ease-in forwards;
+  }
+
+  /* Pulse glow animation for active selection */
+  @keyframes markerPulseGlow {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 0.4;
+    }
+    50% {
+      transform: scale(1.2);
+      opacity: 0.7;
+    }
+  }
+
+  .animate-marker-pulse-glow {
+    animation: markerPulseGlow 2s ease-in-out infinite;
+  }
+
+  /* Gem glow animation - subtle pulsing glow on the gem itself */
+  @keyframes markerGemGlow {
+    0%, 100% {
+      filter: brightness(1) saturate(1);
+      transform: scale(1);
+    }
+    50% {
+      filter: brightness(1.15) saturate(1.1);
+      transform: scale(1.02);
+    }
+  }
+
+  .animate-marker-gem-glow {
+    animation: markerGemGlow 2s ease-in-out infinite;
+  }
+
+  /* Sparkle effect for newly placed markers */
+  @keyframes markerSparkle {
+    0%, 100% {
+      opacity: 0;
+      transform: scale(0) rotate(0deg);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1) rotate(180deg);
+    }
+  }
+
+  .animate-marker-sparkle {
+    animation: markerSparkle 1s ease-in-out;
+  }
+
+  /* Selection ring pulse */
+  @keyframes selectionRingPulse {
+    0%, 100% {
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+    }
+    50% {
+      box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.2);
+    }
+  }
+
+  .animate-selection-ring {
+    animation: selectionRingPulse 1.5s ease-in-out infinite;
+  }
+
+  /* Card selection highlight animation */
+  @keyframes cardSelectionGlow {
+    0%, 100% {
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.6), inset 0 0 10px rgba(59, 130, 246, 0.1);
+    }
+    50% {
+      box-shadow: 0 0 25px rgba(59, 130, 246, 0.8), inset 0 0 15px rgba(59, 130, 246, 0.2);
+    }
+  }
+
+  .animate-card-selection {
+    animation: cardSelectionGlow 1.5s ease-in-out infinite;
   }
 
   /* Reduced motion support */

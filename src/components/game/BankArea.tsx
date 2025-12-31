@@ -105,20 +105,17 @@ export const BankArea = memo(function BankArea({
       {/* Coin Grid */}
       <div className="grid grid-cols-3 gap-6">
         {COIN_CONFIGS.map((config) => {
-          const count = bankCoins[config.type] || 0
-          const canTake = allowInteraction && count > 0
-
           return (
             <button
               key={config.type}
               type="button"
-              disabled={!canTake}
-              onClick={() => canTake && onTakeCoin?.(config.type)}
+              disabled={!allowInteraction}
+              onClick={() => allowInteraction && onTakeCoin?.(config.type)}
               className={cn(
                 'flex flex-col items-center justify-center p-4 rounded-xl',
                 'border-2 border-slate-600 bg-slate-700/50',
                 'transition-all duration-200',
-                canTake
+                allowInteraction
                   ? 'hover:scale-105 hover:shadow-lg hover:border-amber-500 cursor-pointer'
                   : 'opacity-50 cursor-not-allowed'
               )}
@@ -134,27 +131,13 @@ export const BankArea = memo(function BankArea({
                 />
               </div>
 
-              {/* Coin Count Badge */}
-              <div className="flex items-center gap-2 px-4 py-2 bg-slate-800 rounded-full border border-slate-600">
-                <span className="text-sm text-slate-400">數量:</span>
-                <span className="text-xl font-bold text-amber-400">{count}</span>
+              {/* Coin Value Label */}
+              <div className="px-3 py-1 bg-slate-800 rounded-full border border-slate-600">
+                <span className="text-lg font-bold text-amber-400">{config.value} 元</span>
               </div>
             </button>
           )
         })}
-      </div>
-
-      {/* Total Value Display */}
-      <div className="mt-4 pt-4 border-t border-slate-700">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-slate-400">銀行總價值</span>
-          <span className="text-amber-400 font-bold text-lg">
-            {Object.entries(bankCoins).reduce((total, [type, count]) => {
-              const config = COIN_CONFIGS.find(c => c.type === type)
-              return total + (config?.value || 0) * count
-            }, 0)}
-          </span>
-        </div>
       </div>
     </div>
   )

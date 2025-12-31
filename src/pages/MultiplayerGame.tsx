@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 3.7.0 - Refactored ACTION phase layout with PlayersInfoArea and PlayersFieldArea
+ * @version 3.9.0 - Added DiscardPile and PlayerCoinArea, players start with index+1 score
  */
-console.log('[pages/MultiplayerGame.tsx] v3.7.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v3.9.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -24,6 +24,8 @@ import {
   PlayersInfoArea,
   PlayersFieldArea,
   BankArea,
+  DiscardPile,
+  PlayerCoinArea,
 } from '@/components/game'
 import type { PlayerScoreInfo, PlayerInfoData, PlayerFieldData } from '@/components/game'
 import { Button } from '@/components/ui/Button'
@@ -52,6 +54,8 @@ interface GameHeaderProps {
   currentPlayerName: string
   isYourTurn: boolean
   onLeave: () => void
+  onPassTurn?: () => void
+  showPassTurn?: boolean
 }
 
 interface PlayerListProps {
@@ -101,6 +105,8 @@ function GameHeader({
   currentPlayerName,
   isYourTurn,
   onLeave,
+  onPassTurn,
+  showPassTurn = false,
 }: GameHeaderProps) {
   const phaseLabels: Record<GamePhase, string> = {
     WAITING: '等待中',
@@ -149,15 +155,29 @@ function GameHeader({
 
           {/* Turn Indicator */}
           {phase !== 'WAITING' && phase !== 'ENDED' && (
-            <div
-              className={cn(
-                'px-4 py-2 rounded-lg border-2',
-                isYourTurn
-                  ? 'bg-vale-600/20 border-vale-500 text-vale-300'
-                  : 'bg-slate-700/50 border-slate-600 text-slate-400'
+            <div className="flex items-center gap-3">
+              <div
+                className={cn(
+                  'px-4 py-2 rounded-lg border-2',
+                  isYourTurn
+                    ? 'bg-vale-600/20 border-vale-500 text-vale-300'
+                    : 'bg-slate-700/50 border-slate-600 text-slate-400'
+                )}
+              >
+                {isYourTurn ? '輪到你了！' : `${currentPlayerName} 的回合`}
+              </div>
+
+              {/* Pass Turn Button */}
+              {showPassTurn && isYourTurn && onPassTurn && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={onPassTurn}
+                  data-testid="pass-turn-btn"
+                >
+                  結束回合
+                </Button>
               )}
-            >
-              {isYourTurn ? '輪到你了！' : `${currentPlayerName} 的回合`}
             </div>
           )}
         </div>
@@ -648,6 +668,13 @@ export function MultiplayerGame() {
       .filter((c): c is CardInstance => c !== null)
   }, [currentPlayer, convertToCardInstance])
 
+  const discardedCards = useMemo(() => {
+    if (!gameRoom?.discardIds) return []
+    return gameRoom.discardIds
+      .map(convertToCardInstance)
+      .filter((c): c is CardInstance => c !== null)
+  }, [gameRoom, convertToCardInstance])
+
   // Get current turn player
   const currentTurnPlayerId = useMemo(() => {
     if (!gameRoom || !players.length) return ''
@@ -889,6 +916,19 @@ export function MultiplayerGame() {
     [gameId, playerId]
   )
 
+  const handleReturnCoinToBank = useCallback(
+    async (coinType: StoneType) => {
+      if (!gameId || !playerId) return
+
+      try {
+        await multiplayerGameService.returnCoinToBank(gameId, playerId, coinType)
+      } catch (err: any) {
+        setError(err.message || 'Failed to return coin to bank')
+      }
+    },
+    [gameId, playerId]
+  )
+
   const canTameCard = useCallback(
     (cardInstanceId: string): boolean => {
       const card = cards[cardInstanceId]
@@ -974,6 +1014,8 @@ export function MultiplayerGame() {
         currentPlayerName={currentTurnPlayer?.name ?? 'Unknown'}
         isYourTurn={isYourTurn}
         onLeave={handleLeaveGame}
+        onPassTurn={handlePassTurn}
+        showPassTurn={gameRoom.status === 'ACTION'}
       />
 
       {/* Main Content */}
@@ -1006,37 +1048,13 @@ export function MultiplayerGame() {
           {/* Action Phase UI */}
           {gameRoom.status === 'ACTION' && (
             <>
-              {/* 1. Score Track - 分數進度條 */}
-              <ScoreTrack
-                players={playerScores}
-                maxScore={60}
-                currentPlayerId={playerId ?? ''}
-                onScoreAdjust={handleScoreAdjust}
-                allowAdjustment={isYourTurn}
-                onFlipToggle={handleFlipToggle}
-              />
-
-              {/* 2. Bank Area - 銀行錢幣池 */}
-              <BankArea
-                bankCoins={gameRoom.bankCoins}
-                allowInteraction={isYourTurn}
-                onTakeCoin={handleTakeCoinFromBank}
-              />
-
-              {/* 3. Players Info Area - 所有玩家的資訊(錢幣+手牌數量) */}
-              <PlayersInfoArea
-                players={playersInfoData}
-                currentPlayerId={playerId ?? ''}
-                currentTurnPlayerId={currentTurnPlayerId}
-              />
-
-              {/* 4. Players Field Area - 所有玩家的場上卡片 */}
+              {/* 1. PlayersFieldArea - 場上怪獸 */}
               <PlayersFieldArea
                 players={playersFieldData}
                 currentPlayerId={playerId ?? ''}
               />
 
-              {/* 5. Player Hand - 自己的手牌 */}
+              {/* 2. PlayerHand - 手牌 */}
               <PlayerHand
                 cards={handCards}
                 maxHandSize={10}
@@ -1045,6 +1063,46 @@ export function MultiplayerGame() {
                 onCardPlay={handleTameCard}
                 onCardSell={handleSellCard}
                 canTameCard={canTameCard}
+              />
+
+              {/* 3. PlayersInfoArea - 玩家資訊 */}
+              <PlayersInfoArea
+                players={playersInfoData}
+                currentPlayerId={playerId ?? ''}
+                currentTurnPlayerId={currentTurnPlayerId}
+              />
+
+              {/* 4. BankArea - 銀行 */}
+              <BankArea
+                bankCoins={gameRoom.bankCoins}
+                allowInteraction={isYourTurn}
+                onTakeCoin={handleTakeCoinFromBank}
+              />
+
+              {/* 5. PlayerCoinArea - 我的錢幣 */}
+              {currentPlayer && (
+                <PlayerCoinArea
+                  playerCoins={currentPlayer.stones}
+                  playerName={currentPlayer.name}
+                  allowInteraction={isYourTurn}
+                  onReturnCoin={handleReturnCoinToBank}
+                />
+              )}
+
+              {/* 6. DiscardPile - 棄置牌堆 */}
+              <DiscardPile
+                cards={discardedCards}
+                interactive={true}
+              />
+
+              {/* 7. ScoreTrack - 分數條 */}
+              <ScoreTrack
+                players={playerScores}
+                maxScore={60}
+                currentPlayerId={playerId ?? ''}
+                onScoreAdjust={handleScoreAdjust}
+                allowAdjustment={isYourTurn}
+                onFlipToggle={handleFlipToggle}
               />
             </>
           )}

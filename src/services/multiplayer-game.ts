@@ -1,9 +1,9 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 3.5.1 - Fixed sellCard to work with hand instead of field
+ * @version 3.6.1 - Fixed passTurn: added passedPlayerIds initialization check
  */
-console.log('[services/multiplayer-game.ts] v3.5.1 loaded')
+console.log('[services/multiplayer-game.ts] v3.6.1 loaded')
 
 import { ref, set, get, update, onValue, off, remove, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -50,8 +50,9 @@ export interface HuntingState {
     [playerId: string]: string[]  // selected card IDs (legacy, kept for compatibility)
   }
   /** Confirmed selections - cards locked in after player clicks confirm button */
+  /** Can be single cardId (string) or array of cardIds (string[]) for last player */
   confirmedSelections: {
-    [playerId: string]: string  // playerId -> single confirmed card ID
+    [playerId: string]: string | string[]  // playerId -> confirmed card ID(s)
   }
   isComplete: boolean
 }
@@ -177,6 +178,31 @@ function getNextHuntingPlayer(
   }
 }
 
+/**
+ * Calculate how many cards a player can select in the current position
+ * Snake Draft: Last player in Round 1 can pick 2 cards (consecutive turns)
+ * @param playerIndex - Current player's index
+ * @param round - Current round (1 or 2)
+ * @param playerCount - Total number of players
+ * @returns Number of cards the player can select (1 or 2)
+ */
+export function getPlayerSelectionLimit(
+  playerIndex: number,
+  round: 1 | 2,
+  playerCount: number
+): number {
+  const order = getSnakeDraftOrder(playerCount, round)
+  const positionInRound = order.indexOf(playerIndex)
+
+  // Last player in Round 1 gets to pick 2 cards
+  // (They pick at end of Round 1, then immediately pick again at start of Round 2)
+  if (round === 1 && positionInRound === order.length - 1) {
+    return 2
+  }
+
+  return 1
+}
+
 // ============================================
 // FIREBASE OPERATIONS
 // ============================================
@@ -201,7 +227,7 @@ export class MultiplayerGameService {
       hand: [],
       field: [],
       stones: { ONE: 0, THREE: 0, SIX: 0, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 },
-      score: 0,
+      score: 1, // First player starts with 1 point
       isReady: false,
       hasPassed: false,
       isConnected: true,
@@ -286,7 +312,7 @@ export class MultiplayerGameService {
       hand: [],
       field: [],
       stones: { ONE: 0, THREE: 0, SIX: 0, WATER: 0, FIRE: 0, EARTH: 0, WIND: 0 },
-      score: 0,
+      score: playerIndex + 1, // Players start with score equal to their position (1, 2, 3, 4)
       isReady: false,
       hasPassed: false,
       isConnected: true,
@@ -999,6 +1025,11 @@ export class MultiplayerGameService {
 
       if (playerId !== expectedPlayerId) {
         throw new Error('Not your turn')
+      }
+
+      // Ensure passedPlayerIds is initialized
+      if (!Array.isArray(game.passedPlayerIds)) {
+        game.passedPlayerIds = []
       }
 
       // Mark player as passed

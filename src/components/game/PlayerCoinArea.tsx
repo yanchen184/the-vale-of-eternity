@@ -114,29 +114,20 @@ export const PlayerCoinArea = memo(function PlayerCoinArea({
         </div>
       </div>
 
-      {/* Coin Grid */}
+      {/* Coin Display Grid */}
       <div className="grid grid-cols-3 gap-6">
         {COIN_CONFIGS.map((config) => {
           const count = playerCoins[config.type] || 0
-          const canReturn = allowInteraction && count > 0
 
           return (
-            <button
+            <div
               key={config.type}
-              type="button"
-              disabled={!canReturn}
-              onClick={() => canReturn && onReturnCoin?.(config.type)}
               className={cn(
                 'flex flex-col items-center justify-center p-4 rounded-xl',
                 'border-2 border-slate-600 bg-slate-700/50',
-                'transition-all duration-200',
-                count > 0 ? 'opacity-100' : 'opacity-30',
-                canReturn
-                  ? 'hover:scale-105 hover:shadow-lg hover:border-vale-500 cursor-pointer'
-                  : 'cursor-default'
+                count > 0 ? 'opacity-100' : 'opacity-30'
               )}
               data-testid={`player-coin-${config.type}`}
-              title={config.displayName}
             >
               {/* Coin Image */}
               <div className="relative w-24 h-24 mb-3">
@@ -152,31 +143,52 @@ export const PlayerCoinArea = memo(function PlayerCoinArea({
                 <span className="text-sm text-slate-400">數量:</span>
                 <span className="text-xl font-bold text-vale-400">{count}</span>
               </div>
-            </button>
+            </div>
           )
         })}
       </div>
 
-      {/* Quick Actions (if interactive) */}
+      {/* Return to Bank Section (if interactive) */}
       {allowInteraction && (
-        <div className="mt-4 pt-4 border-t border-slate-700">
-          <div className="flex gap-2">
-            <button
-              type="button"
-              className="flex-1 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm text-slate-200 transition-colors"
-              onClick={() => {
-                // Return all coins
-                COIN_CONFIGS.forEach(config => {
-                  const count = playerCoins[config.type] || 0
-                  for (let i = 0; i < count; i++) {
-                    onReturnCoin?.(config.type)
-                  }
-                })
-              }}
-              disabled={totalValue === 0}
-            >
-              全部放回
-            </button>
+        <div className="mt-6 pt-6 border-t border-slate-700">
+          <h4 className="text-sm font-semibold text-slate-300 mb-3">歸還給銀行</h4>
+          <div className="grid grid-cols-3 gap-4">
+            {COIN_CONFIGS.map((config) => {
+              const count = playerCoins[config.type] || 0
+              const canReturn = count > 0
+
+              return (
+                <button
+                  key={`return-${config.type}`}
+                  type="button"
+                  disabled={!canReturn}
+                  onClick={() => canReturn && onReturnCoin?.(config.type)}
+                  className={cn(
+                    'flex flex-col items-center justify-center p-3 rounded-lg',
+                    'border-2 transition-all duration-200',
+                    canReturn
+                      ? 'border-red-500/50 bg-red-900/20 hover:bg-red-900/40 hover:border-red-500 hover:scale-105 cursor-pointer'
+                      : 'border-slate-600 bg-slate-800/30 opacity-40 cursor-not-allowed'
+                  )}
+                  data-testid={`return-coin-${config.type}`}
+                  title={canReturn ? `歸還 ${config.displayName}` : `沒有 ${config.displayName} 可歸還`}
+                >
+                  {/* Small Coin Image */}
+                  <div className="relative w-12 h-12 mb-2">
+                    <img
+                      src={config.image}
+                      alt={config.displayName}
+                      className="w-full h-full object-contain drop-shadow-md"
+                    />
+                  </div>
+
+                  {/* Return Label */}
+                  <div className="text-xs font-semibold text-red-400">
+                    歸還
+                  </div>
+                </button>
+              )
+            })}
           </div>
         </div>
       )}

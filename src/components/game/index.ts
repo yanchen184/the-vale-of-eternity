@@ -57,6 +57,8 @@ export { BankArea } from './BankArea'
 export type { BankAreaProps } from './BankArea'
 export { PlayerCoinArea } from './PlayerCoinArea'
 export type { PlayerCoinAreaProps } from './PlayerCoinArea'
+export { DiscardPile } from './DiscardPile'
+export type { DiscardPileProps } from './DiscardPile'
 
 // Multiplayer ACTION phase components (v3.6.0)
 export { PlayersInfoArea } from './PlayersInfoArea'
