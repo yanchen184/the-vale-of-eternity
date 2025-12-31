@@ -1,9 +1,9 @@
 /**
  * DraggableHandWindow Component
  * Floating, draggable, resizable window for displaying player's hand
- * @version 1.3.1 - Adjusted default zoom to match field card size
+ * @version 1.4.0 - Added drag-to-pan content when zoomed
  */
-console.log('[components/game/DraggableHandWindow.tsx] v1.3.1 loaded')
+console.log('[components/game/DraggableHandWindow.tsx] v1.4.0 loaded')
 
 import { memo, useState, useRef, useCallback, useEffect } from 'react'
 import { Minimize2, Maximize2, GripHorizontal, Maximize } from 'lucide-react'
@@ -71,6 +71,8 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 })
   const [zoom, setZoom] = useState(0.7) // Zoom level: 0.5 to 2.5, default 0.7 to match field card size
+  const [isPanning, setIsPanning] = useState(false)
+  const [scrollStart, setScrollStart] = useState({ scrollLeft: 0, scrollTop: 0, mouseX: 0, mouseY: 0 })
 
   // Refs
   const windowRef = useRef<HTMLDivElement>(null)
@@ -188,6 +190,57 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
     }
   }, [])
 
+  // Handle content panning (drag to scroll)
+  const handleContentMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const content = contentRef.current
+    if (!content) return
+
+    // Don't pan if clicking on a card or interactive element
+    const target = e.target as HTMLElement
+    if (target.closest('button') || target.closest('[draggable="true"]')) {
+      return
+    }
+
+    setIsPanning(true)
+    setScrollStart({
+      scrollLeft: content.scrollLeft,
+      scrollTop: content.scrollTop,
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+    })
+
+    // Prevent text selection while dragging
+    e.preventDefault()
+  }, [])
+
+  // Handle panning move
+  useEffect(() => {
+    if (!isPanning) return
+
+    const content = contentRef.current
+    if (!content) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - scrollStart.mouseX
+      const deltaY = e.clientY - scrollStart.mouseY
+
+      content.scrollLeft = scrollStart.scrollLeft - deltaX
+      content.scrollTop = scrollStart.scrollTop - deltaY
+    }
+
+    const handleMouseUp = () => {
+      setIsPanning(false)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isPanning, scrollStart])
+
 
   return (
     <div
@@ -242,10 +295,12 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
       {!isMinimized && (
         <div
           ref={contentRef}
-          className="overflow-auto"
+          className="overflow-auto select-none"
           style={{
             height: 'calc(100% - 48px)', // Full height minus header
+            cursor: isPanning ? 'grabbing' : 'grab',
           }}
+          onMouseDown={handleContentMouseDown}
         >
           <div
             style={{
