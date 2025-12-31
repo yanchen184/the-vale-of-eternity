@@ -1,9 +1,9 @@
 /**
  * Card Gallery Page - Display all cards and artifacts
  * Supports Base Game (70 cards), DLC (28 cards), and Artifacts (11)
- * @version 4.2.0 - Reduced grid columns (1/2/3) and increased gap to prevent overlap
+ * @version 4.4.0 - Added card size control, enlarged card names, artifacts 75% size
  */
-console.log('[pages/CardGallery.tsx] v4.2.0 loaded')
+console.log('[pages/CardGallery.tsx] v4.4.0 loaded')
 
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -27,6 +27,8 @@ import {
   XCircle,
   Infinity,
   Package,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react'
 import { Button, ImagePreviewModal } from '@/components/ui'
 import { Card } from '@/components/game'
@@ -425,15 +427,15 @@ function CardDetailPanel({ card, onImageClick, isDlc = false }: CardDetailPanelP
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="text-2xl font-bold text-slate-100 font-game truncate">{card.nameTw}</h3>
+            <h3 className="text-4xl font-bold text-slate-100 font-game truncate">{card.nameTw}</h3>
             {isDlc && (
-              <span className="px-2 py-0.5 text-xs font-bold rounded bg-amber-500 text-slate-900">
+              <span className="px-2 py-1 text-sm font-bold rounded bg-amber-500 text-slate-900">
                 DLC
               </span>
             )}
           </div>
-          <p className="text-slate-400 text-sm">{card.name}</p>
-          <p className="text-xs text-slate-500 font-mono mt-1">{card.id}</p>
+          <p className="text-slate-400 text-base mt-1">{card.name}</p>
+          <p className="text-sm text-slate-500 font-mono mt-1">{card.id}</p>
         </div>
       </div>
 
@@ -455,21 +457,14 @@ function CardDetailPanel({ card, onImageClick, isDlc = false }: CardDetailPanelP
         </div>
       </div>
 
-      {/* Stats Grid - More Prominent */}
-      <div className="grid grid-cols-2 gap-4 mb-5">
-        <div className="bg-slate-900/60 p-4 rounded-xl text-center border border-amber-500/20">
+      {/* Stats Grid - Cost Only */}
+      <div className="flex justify-center mb-5">
+        <div className="bg-slate-900/60 p-4 rounded-xl text-center border border-amber-500/20 min-w-[200px]">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Gem className="w-5 h-5 text-amber-400" />
             <span className="text-sm font-medium text-amber-300">成本</span>
           </div>
           <div className="text-4xl font-bold text-amber-400">{card.cost}</div>
-        </div>
-        <div className="bg-slate-900/60 p-4 rounded-xl text-center border border-emerald-500/20">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <Star className="w-5 h-5 text-emerald-400" />
-            <span className="text-sm font-medium text-emerald-300">分數</span>
-          </div>
-          <div className="text-4xl font-bold text-emerald-400">{card.baseScore}</div>
         </div>
       </div>
 
@@ -646,6 +641,7 @@ export function CardGallery() {
   const [selectedArtifact, setSelectedArtifact] = useState<Artifact | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [showImagePreview, setShowImagePreview] = useState(false)
+  const [cardScale, setCardScale] = useState(100) // Card size: 75%, 100%, 125%, 150%
 
   // Validate card data on mount
   const validation = useMemo(() => validateCardData(), [])
@@ -817,8 +813,8 @@ export function CardGallery() {
       </header>
 
       <main className="relative z-10 max-w-7xl mx-auto px-4 py-6">
-        {/* Tab Navigation */}
-        <div className="mb-6 flex flex-wrap gap-3 justify-center">
+        {/* Tab Navigation with Size Control */}
+        <div className="mb-6 flex flex-wrap gap-3 justify-center items-center">
           <TabButton
             isActive={activeTab === 'base'}
             onClick={() => handleTabChange('base')}
@@ -849,6 +845,29 @@ export function CardGallery() {
             <Sparkles className="w-5 h-5" />
             <span>神器</span>
           </TabButton>
+
+          {/* Card Size Control */}
+          <div className="flex items-center gap-2 ml-4 px-4 py-2 rounded-xl bg-slate-800/50 border-2 border-slate-700/50">
+            <button
+              onClick={() => setCardScale(Math.max(75, cardScale - 25))}
+              className="p-1.5 rounded-lg hover:bg-slate-700/50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              disabled={cardScale <= 75}
+              title="縮小"
+            >
+              <Minimize2 className="w-4 h-4 text-slate-300" />
+            </button>
+            <span className="text-sm font-medium text-slate-300 min-w-[3rem] text-center">
+              {cardScale}%
+            </span>
+            <button
+              onClick={() => setCardScale(Math.min(150, cardScale + 25))}
+              className="p-1.5 rounded-lg hover:bg-slate-700/50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              disabled={cardScale >= 150}
+              title="放大"
+            >
+              <Maximize2 className="w-4 h-4 text-slate-300" />
+            </button>
+          </div>
         </div>
 
         {/* Filters - Element for cards, Category for artifacts */}
@@ -962,7 +981,10 @@ export function CardGallery() {
                   )}
                 </div>
               ) : viewMode === 'grid' ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                <div
+                  className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"
+                  style={{ transform: `scale(${0.75 * (cardScale / 100)})`, transformOrigin: 'top center' }}
+                >
                   {filteredArtifacts.map((artifact, index) => {
                     const typeConfig = ARTIFACT_TYPE_CONFIG[artifact.type]
                     return (
@@ -1076,7 +1098,10 @@ export function CardGallery() {
                   )}
                 </div>
               ) : viewMode === 'grid' ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
+                <div
+                  className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8"
+                  style={{ transform: `scale(${cardScale / 100})`, transformOrigin: 'top center' }}
+                >
                   {cardInstances.map((card, index) => (
                     <div
                       key={card.instanceId}
@@ -1139,9 +1164,6 @@ export function CardGallery() {
                         <span className="w-12 text-center font-bold text-amber-400">{template.cost}</span>
                         <span className="flex-1 text-slate-200 font-medium">{template.nameTw}</span>
                         <span className="hidden sm:block flex-1 text-slate-500 text-sm">{template.name}</span>
-                        <span className="w-12 text-center text-lg font-bold text-emerald-400">
-                          {template.baseScore}
-                        </span>
                       </div>
                     )
                   })}
@@ -1192,10 +1214,6 @@ export function CardGallery() {
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-500">成本：</span>
               <span className="text-xl font-bold text-amber-400">{selectedCard.cost}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-slate-500">分數：</span>
-              <span className="text-xl font-bold text-emerald-400">{selectedCard.baseScore}</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-2xl">{ELEMENT_ICONS[selectedCard.element]}</span>
