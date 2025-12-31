@@ -323,13 +323,6 @@ const HandCardItem = memo(function HandCardItem({
           canTame && 'ring-2 ring-emerald-400/50'
         )}
       />
-
-      {/* Tameable indicator */}
-      {canTame && !isHovered && (
-        <div className="absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-bold shadow-lg animate-bounce-in">
-          可召喚
-        </div>
-      )}
     </div>
   )
 })

@@ -9,10 +9,12 @@ import { memo, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { PlayerMarker } from './PlayerMarker'
+import { Card } from './Card'
 import { type PlayerColor, PLAYER_COLORS } from '@/types/player-color'
 import type { StonePool } from '@/types/game'
 import { calculateStonePoolValue } from '@/types/game'
 import { StoneType } from '@/types/cards'
+import type { CardInstance } from '@/types/cards'
 
 // ============================================
 // TYPES
@@ -44,6 +46,12 @@ export interface LeftSidebarProps {
   deckCount: number
   /** Callback when drawing a card from deck */
   onDrawCard?: () => void
+  /** Number of cards in market discard pile */
+  marketDiscardCount?: number
+  /** Latest discarded card to display (optional) */
+  latestDiscardedCard?: CardInstance | null
+  /** Callback when clicking discard pile */
+  onDiscardClick?: () => void
   /** Additional CSS classes */
   className?: string
 }
@@ -133,7 +141,7 @@ const MyInfoCard = memo(function MyInfoCard({
           <div className="flex items-center justify-around">
             <div className="flex items-center gap-1">
               <img
-                src="/the-vale-of-eternity/assets/stones/stone-1.png"
+                src=`${import.meta.env.BASE_URL}assets/stones/stone-1.png`
                 alt="1元"
                 className="w-5 h-5"
               />
@@ -143,7 +151,7 @@ const MyInfoCard = memo(function MyInfoCard({
             </div>
             <div className="flex items-center gap-1">
               <img
-                src="/the-vale-of-eternity/assets/stones/stone-3.png"
+                src=`${import.meta.env.BASE_URL}assets/stones/stone-3.png`
                 alt="3元"
                 className="w-5 h-5"
               />
@@ -153,7 +161,7 @@ const MyInfoCard = memo(function MyInfoCard({
             </div>
             <div className="flex items-center gap-1">
               <img
-                src="/the-vale-of-eternity/assets/stones/stone-6.png"
+                src=`${import.meta.env.BASE_URL}assets/stones/stone-6.png`
                 alt="6元"
                 className="w-5 h-5"
               />
@@ -303,7 +311,7 @@ const OtherPlayerCard = memo(function OtherPlayerCard({
           <span className="text-slate-400">幣:</span>
           <div className="flex items-center gap-1">
             <img
-              src="/the-vale-of-eternity/assets/stones/stone-1.png"
+              src=`${import.meta.env.BASE_URL}assets/stones/stone-1.png`
               alt="1"
               className="w-3 h-3"
             />
@@ -311,7 +319,7 @@ const OtherPlayerCard = memo(function OtherPlayerCard({
           </div>
           <div className="flex items-center gap-1">
             <img
-              src="/the-vale-of-eternity/assets/stones/stone-3.png"
+              src=`${import.meta.env.BASE_URL}assets/stones/stone-3.png`
               alt="3"
               className="w-3 h-3"
             />
@@ -319,7 +327,7 @@ const OtherPlayerCard = memo(function OtherPlayerCard({
           </div>
           <div className="flex items-center gap-1">
             <img
-              src="/the-vale-of-eternity/assets/stones/stone-6.png"
+              src=`${import.meta.env.BASE_URL}assets/stones/stone-6.png`
               alt="6"
               className="w-3 h-3"
             />
@@ -357,6 +365,9 @@ export const LeftSidebar = memo(function LeftSidebar({
   phase,
   deckCount,
   onDrawCard,
+  marketDiscardCount = 0,
+  latestDiscardedCard,
+  onDiscardClick,
   className,
 }: LeftSidebarProps) {
   // Separate my player from others
@@ -437,6 +448,36 @@ export const LeftSidebar = memo(function LeftSidebar({
             />
           ))}
         </div>
+
+        {/* Discard Pile - At bottom */}
+        {onDiscardClick && (
+          <GlassCard
+            variant="default"
+            padding="sm"
+            className="cursor-pointer hover:bg-white/10 transition-colors"
+            onClick={onDiscardClick}
+            hoverable
+          >
+            <div className="space-y-2">
+              {latestDiscardedCard ? (
+                <div className="relative">
+                  <Card card={latestDiscardedCard} index={0} compact />
+                  {/* Count badge */}
+                  {marketDiscardCount > 1 && (
+                    <div className="absolute -top-2 -right-2 w-6 h-6 bg-purple-500 border-2 border-slate-900 rounded-full flex items-center justify-center shadow-lg">
+                      <span className="text-white text-xs font-bold">{marketDiscardCount}</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="w-full aspect-[2/3] bg-gradient-to-br from-slate-700 to-slate-800 rounded border-2 border-slate-600 flex items-center justify-center shadow-lg relative">
+                  <span className="text-slate-500 text-xs">無棄牌</span>
+                </div>
+              )}
+              <div className="text-[10px] text-slate-400 text-center">棄牌堆</div>
+            </div>
+          </GlassCard>
+        )}
       </div>
 
       {/* Footer - Phase Status */}

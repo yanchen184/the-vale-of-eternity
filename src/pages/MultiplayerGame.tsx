@@ -974,6 +974,9 @@ export function MultiplayerGame() {
             phase={gameRoom.status}
             deckCount={gameRoom.deckIds?.length ?? 0}
             onDrawCard={handleDrawCard}
+            marketDiscardCount={gameRoom.discardIds?.length ?? 0}
+            latestDiscardedCard={latestDiscardedCard}
+            onDiscardClick={() => setShowMarketDiscardModal(true)}
           />
         }
         rightSidebar={
@@ -982,14 +985,11 @@ export function MultiplayerGame() {
             playerCoins={currentPlayer?.stones || createEmptyStonePool()}
             playerName={currentPlayer?.name ?? ''}
             discardCount={0}
-            marketDiscardCount={gameRoom.discardIds?.length ?? 0}
-            latestDiscardedCard={latestDiscardedCard}
+            marketDiscardCount={0}
             isYourTurn={isYourTurn}
             phase={gameRoom.status}
             onTakeCoin={handleTakeCoinFromBank}
             onReturnCoin={handleReturnCoinToBank}
-            onDiscardClick={() => setShowMarketDiscardModal(true)}
-            onMarketDiscardClick={() => setShowMarketDiscardModal(true)}
             onConfirmSelection={handleConfirmCardSelection}
             onEndTurn={handlePassTurn}
           />
@@ -1135,7 +1135,8 @@ export function MultiplayerGame() {
           ) : (
             <>
               <p className="text-sm text-slate-400 mb-6">
-                共 {discardedCards.length} 張卡片已棄置{isYourTurn ? '（點擊拿取按鈕拿回到手上）' : ''}
+                共 {discardedCards.length} 張卡片已棄置
+                {isYourTurn ? '（點擊拿取按鈕拿回到手上）' : '（點擊拿取按鈕放到場上）'}
               </p>
               <div className="flex flex-wrap gap-6 max-h-[70vh] overflow-y-auto justify-start px-4">
                 {discardedCards.map((card, index) => {
@@ -1154,25 +1155,24 @@ export function MultiplayerGame() {
                       <div className="transform scale-[0.4] origin-top-left">
                         <Card card={card} index={index} compact={false} />
                       </div>
-                      {/* Take button - positioned at the bottom of the scaled container */}
-                      {isYourTurn ? (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            console.log('[MarketDiscardModal] Take button clicked for card:', card.instanceId)
-                            handleTakeCardFromMarketDiscard(card.instanceId)
-                          }}
-                          className="absolute bottom-0 left-0 right-0 z-50 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 px-3 rounded-lg transition-all shadow-lg hover:shadow-blue-500/50 hover:scale-105"
-                          type="button"
-                          title="拿到手上"
-                        >
-                          拿取卡片
-                        </button>
-                      ) : (
-                        <div className="absolute bottom-0 left-0 right-0 z-50 bg-slate-600 text-slate-300 text-xs font-bold py-2 px-3 rounded-lg text-center">
-                          等待回合
-                        </div>
-                      )}
+                      {/* Take button - always available */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          console.log('[MarketDiscardModal] Take button clicked for card:', card.instanceId, 'isYourTurn:', isYourTurn)
+                          handleTakeCardFromMarketDiscard(card.instanceId)
+                        }}
+                        className={cn(
+                          'absolute bottom-0 left-0 right-0 z-50 text-white text-xs font-bold py-2 px-3 rounded-lg transition-all shadow-lg hover:scale-105',
+                          isYourTurn
+                            ? 'bg-blue-600 hover:bg-blue-500 hover:shadow-blue-500/50'
+                            : 'bg-green-600 hover:bg-green-500 hover:shadow-green-500/50'
+                        )}
+                        type="button"
+                        title={isYourTurn ? '拿到手上' : '放到場上'}
+                      >
+                        {isYourTurn ? '拿到手上' : '放到場上'}
+                      </button>
                     </div>
                   )
                 })}
