@@ -1,11 +1,11 @@
 /**
  * LeftSidebar Component
  * Left sidebar for multiplayer game - displays player list and my info
- * @version 1.9.0 - Removed discard pile (moved to ScoreBar)
+ * @version 1.10.0 - Added artifact preview modal on click
  */
-console.log('[components/game/LeftSidebar.tsx] v1.9.0 loaded')
+console.log('[components/game/LeftSidebar.tsx] v1.10.0 loaded')
 
-import { memo, useMemo } from 'react'
+import { memo, useMemo, useState, useCallback } from 'react'
 import { cn } from '@/lib/utils'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { PlayerMarker } from './PlayerMarker'
@@ -15,6 +15,7 @@ import { calculateStonePoolValue } from '@/types/game'
 import { StoneType } from '@/types/cards'
 import { ARTIFACTS_BY_ID } from '@/data/artifacts'
 import { ArtifactType } from '@/types/artifacts'
+import { Modal } from '@/components/ui/Modal'
 
 // ============================================
 // TYPES
@@ -196,7 +197,8 @@ const MyInfoCard = memo(function MyInfoCard({
               return (
                 <div className="flex justify-center">
                   <div
-                    className="relative w-20 h-28 flex-shrink-0 rounded-lg overflow-hidden border-2 border-purple-500/50 shadow-lg"
+                    className="relative w-20 h-28 flex-shrink-0 rounded-lg overflow-hidden border-2 border-purple-500/50 shadow-lg cursor-pointer hover:scale-105 transition-transform duration-200"
+                    onClick={() => handleArtifactClick(latestArtifactId)}
                   >
                     <img
                       src={artifact.image}
@@ -411,6 +413,10 @@ export const LeftSidebar = memo(function LeftSidebar({
   allArtifactSelections = {},
   className,
 }: LeftSidebarProps) {
+  // State for artifact preview modal
+  const [showArtifactModal, setShowArtifactModal] = useState(false)
+  const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(null)
+
   // Separate my player from others
   const myPlayer = useMemo(
     () => players.find((p) => p.playerId === currentPlayerId),
@@ -426,6 +432,12 @@ export const LeftSidebar = memo(function LeftSidebar({
 
   // Can draw card if it's my turn and in ACTION or RESOLUTION phase
   const canDrawCard = isMyTurn && (phase === 'ACTION' || phase === 'RESOLUTION')
+
+  // Handle artifact click
+  const handleArtifactClick = useCallback((artifactId: string) => {
+    setSelectedArtifactId(artifactId)
+    setShowArtifactModal(true)
+  }, [])
 
   return (
     <aside
@@ -517,6 +529,67 @@ export const LeftSidebar = memo(function LeftSidebar({
           </span>
         </div>
       </div>
+
+      {/* Artifact Preview Modal */}
+      {selectedArtifactId && (
+        <Modal
+          isOpen={showArtifactModal}
+          onClose={() => setShowArtifactModal(false)}
+          title=""
+          size="lg"
+          className="bg-slate-900/95"
+          showCloseButton={true}
+        >
+          <div className="flex flex-col items-center gap-6 py-4">
+            {(() => {
+              const artifact = ARTIFACTS_BY_ID[selectedArtifactId]
+              if (!artifact) return null
+
+              const typeConfig = {
+                [ArtifactType.INSTANT]: { symbol: '⚡', color: 'text-yellow-400', bg: 'from-yellow-900/50 to-amber-900/50' },
+                [ArtifactType.ACTION]: { symbol: '✕', color: 'text-blue-400', bg: 'from-blue-900/50 to-cyan-900/50' },
+                [ArtifactType.PERMANENT]: { symbol: '∞', color: 'text-purple-400', bg: 'from-purple-900/50 to-pink-900/50' },
+              }
+              const config = typeConfig[artifact.type]
+
+              return (
+                <>
+                  {/* Large Artifact Image */}
+                  <div className={`relative w-80 h-[28rem] rounded-xl overflow-hidden border-4 border-purple-500/70 shadow-2xl bg-gradient-to-br ${config.bg}`}>
+                    <img
+                      src={artifact.image}
+                      alt={artifact.nameTw}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement
+                        target.style.display = 'none'
+                        const parent = target.parentElement
+                        if (parent) {
+                          parent.innerHTML = `<div class="w-full h-full flex items-center justify-center ${config.color}" style="font-size: 12rem">${config.symbol}</div>`
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {/* Artifact Details */}
+                  <div className="w-full max-w-md space-y-3 text-center">
+                    <h3 className="text-2xl font-bold text-purple-300">{artifact.nameTw}</h3>
+                    <div className="flex items-center justify-center gap-2">
+                      <span className={`text-xl ${config.color}`}>{config.symbol}</span>
+                      <span className="text-slate-400">
+                        {artifact.type === ArtifactType.INSTANT && '瞬間'}
+                        {artifact.type === ArtifactType.ACTION && '行動'}
+                        {artifact.type === ArtifactType.PERMANENT && '永久'}
+                      </span>
+                    </div>
+                    <p className="text-slate-300 leading-relaxed">{artifact.effectDescriptionTw}</p>
+                  </div>
+                </>
+              )
+            })()}
+          </div>
+        </Modal>
+      )}
     </aside>
   )
 })
