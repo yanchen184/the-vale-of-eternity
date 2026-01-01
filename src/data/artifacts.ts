@@ -23,7 +23,7 @@ export const INCENSE_BURNER: Artifact = {
   category: ArtifactCategory.CORE,
   description:
     'Action: Buy 1 card from the buy area for 3 stones of any color, OR shelter the top 2 cards from your deck.',
-  descriptionTw: '行動：支付3顆任意顏色的石頭購買買入區的1張卡，或是將牌庫頂的2張卡庇護。',
+  descriptionTw: '行動：支付3顆任意顏色的石頭購買買入區的1張卡，或是將牌庫頂的2張卡棲息地。',
   image: '/the-vale-of-eternity/assets/artifacts/2 Player Artifacts/Snipaste_2025-12-31_18-39-33.png',
   implemented: true,
   effectDetails: {
@@ -81,7 +81,7 @@ export const SEVEN_LEAGUE_BOOTS: Artifact = {
   category: ArtifactCategory.THREE_PLAYER,
   description:
     'Instant: During hunting phase, flip 1 additional card from the deck and shelter 1 card from the display.',
-  descriptionTw: '立即：在狩獵階段，從牌庫多翻開1張卡，並將展示區的1張卡庇護。',
+  descriptionTw: '立即：在狩獵階段，從牌庫多翻開1張卡，並將展示區的1張卡棲息地。',
   image: '/the-vale-of-eternity/assets/artifacts/3 Player Artifacts/Snipaste_2025-12-31_18-40-06.png',
   implemented: true,
   effectDetails: {
@@ -104,7 +104,7 @@ export const GOLDEN_FLEECE: Artifact = {
   category: ArtifactCategory.FOUR_PLAYER,
   description:
     'Action: Gain 2 red stones and shelter 1 card from the top of your deck, OR recall 1 card from your play area.',
-  descriptionTw: '行動：獲得2顆紅石並將牌庫頂的1張卡庇護，或是從場上召回1張卡。',
+  descriptionTw: '行動：獲得2顆紅石並將牌庫頂的1張卡棲息地，或是從場上召回1張卡。',
   image: '/the-vale-of-eternity/assets/artifacts/4 Player Artifacts/Snipaste_2025-12-31_18-40-18.png',
   implemented: true,
   effectDetails: {
@@ -145,7 +145,7 @@ export const CAP_OF_HADES: Artifact = {
   category: ArtifactCategory.RANDOM,
   description:
     'Action: Shelter 1 card from your hand and buy 1 card from the buy area for free, OR gain 1 blue stone.',
-  descriptionTw: '行動：將手上的1張卡庇護並免費購買買入區的1張卡，或是獲得1顆藍石。',
+  descriptionTw: '行動：將手上的1張卡棲息地並免費購買買入區的1張卡，或是獲得1顆藍石。',
   image: '/the-vale-of-eternity/assets/artifacts/Random Artifacts/Snipaste_2025-12-31_18-40-51.png',
   implemented: true,
   effectDetails: {
@@ -156,10 +156,10 @@ export const CAP_OF_HADES: Artifact = {
   },
 }
 
-export const GEM_OF_KUKULKAN: Artifact = {
-  id: 'gem_of_kukulkan',
-  name: 'Gem of Kukulkan',
-  nameTw: '庫庫爾坎寶石',
+export const PHILOSOPHER_STONE: Artifact = {
+  id: 'philosopher_stone',
+  name: "Philosopher's Stone",
+  nameTw: '賢者之石',
   type: ArtifactType.PERMANENT,
   category: ArtifactCategory.RANDOM,
   description:
@@ -192,10 +192,10 @@ export const IMPERIAL_SEAL: Artifact = {
   },
 }
 
-export const PHILOSOPHER_STONE: Artifact = {
-  id: 'philosopher_stone',
-  name: "Philosopher's Stone",
-  nameTw: '賢者之石',
+export const RING_OF_WISHES: Artifact = {
+  id: 'ring_of_wishes',
+  name: 'Ring of Wishes',
+  nameTw: '許願戒指',
   type: ArtifactType.INSTANT,
   category: ArtifactCategory.RANDOM,
   description:
@@ -211,10 +211,10 @@ export const PHILOSOPHER_STONE: Artifact = {
   },
 }
 
-export const RING_OF_WISHES: Artifact = {
-  id: 'ring_of_wishes',
-  name: 'Ring of Wishes',
-  nameTw: '許願戒指',
+export const GEM_OF_KUKULKAN: Artifact = {
+  id: 'gem_of_kukulkan',
+  name: 'Gem of Kukulkan',
+  nameTw: '庫庫爾坎寶石',
   type: ArtifactType.ACTION,
   category: ArtifactCategory.RANDOM,
   description:
