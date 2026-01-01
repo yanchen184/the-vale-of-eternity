@@ -52,57 +52,10 @@ export interface PlayerHandProps {
 // ============================================
 
 const MAX_VISIBLE_CARDS = 7
-const HOVER_LIFT = 35 // Increased for more dramatic hover
-const FAN_ANGLE = 5 // Slightly increased angle
-const MAX_FAN_ANGLE = 18 // Increased max angle for wider spread
 
 // ============================================
 // HELPER FUNCTIONS
 // ============================================
-
-function getCardTransform(
-  index: number,
-  totalCards: number,
-  hoveredIndex: number | null,
-  isSelected: boolean,
-  isDragging: boolean
-): React.CSSProperties {
-  const centerIndex = (totalCards - 1) / 2
-  const offset = index - centerIndex
-
-  // Calculate rotation with max limit and smooth curve
-  const baseRotation = offset * FAN_ANGLE
-  let rotation = Math.max(-MAX_FAN_ANGLE, Math.min(MAX_FAN_ANGLE, baseRotation))
-
-  // Calculate Y position for arc effect with enhanced curve
-  const arcDepth = Math.abs(offset) * Math.abs(offset) * 4
-  const baseY = arcDepth
-
-  // Hover and selection states
-  let translateY = baseY
-  let scale = 1
-  let zIndex = 10 + index
-
-  if (hoveredIndex === index && !isDragging) {
-    translateY = -HOVER_LIFT
-    scale = 1.12 // Increased hover scale
-    zIndex = 100
-    rotation = 0 // Straighten card on hover
-  } else if (isSelected) {
-    translateY = -HOVER_LIFT - 8
-    scale = 1.08 // Increased selection scale
-    zIndex = 99
-    rotation = 0 // Straighten card when selected
-  }
-
-  return {
-    transform: `rotate(${rotation}deg) translateY(${translateY}px) scale(${scale})`,
-    zIndex,
-    transition: prefersReducedMotion()
-      ? 'none'
-      : 'transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), z-index 0.1s',
-  }
-}
 
 // ============================================
 // DECORATIVE RUNE COMPONENT
@@ -186,7 +139,6 @@ const _HandLimitWarning = memo(function HandLimitWarning({
 interface HandCardItemProps {
   card: CardInstance
   index: number
-  totalCards: number
   isSelected: boolean
   isHovered: boolean
   isDragging: boolean
@@ -208,7 +160,6 @@ interface HandCardItemProps {
 const HandCardItem = memo(function HandCardItem({
   card,
   index,
-  totalCards,
   isSelected,
   isHovered,
   isDragging,
@@ -491,7 +442,6 @@ export const PlayerHand = memo(function PlayerHand({
             key={card.instanceId}
             card={card}
             index={index}
-            totalCards={visibleCards.length}
             isSelected={selectedCardId === card.instanceId}
             isHovered={hoveredIndex === index}
             isDragging={draggedCardId === card.instanceId}

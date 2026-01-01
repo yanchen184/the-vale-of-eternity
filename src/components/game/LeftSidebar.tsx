@@ -74,6 +74,7 @@ interface MyInfoCardProps {
   currentRound?: number
   phase?: 'WAITING' | 'HUNTING' | 'ACTION' | 'RESOLUTION' | 'ENDED'
   mySelectedArtifacts?: string[]
+  onArtifactClick?: (artifactId: string) => void
 }
 
 const MyInfoCard = memo(function MyInfoCard({
@@ -86,9 +87,11 @@ const MyInfoCard = memo(function MyInfoCard({
   currentRound = 1,
   phase,
   mySelectedArtifacts = [],
+  onArtifactClick,
 }: MyInfoCardProps) {
   const colorConfig = PLAYER_COLORS[player.color]
   const zoneBonus = player.zoneBonus || 0
+  const maxFieldSize = currentRound + zoneBonus
   const canToggleZone = isCurrentTurn && phase === 'ACTION' && onToggleZoneBonus
 
   return (
@@ -196,7 +199,7 @@ const MyInfoCard = memo(function MyInfoCard({
                 <div className="flex justify-center">
                   <div
                     className="relative w-20 h-28 flex-shrink-0 rounded-lg overflow-hidden border-2 border-purple-500/50 shadow-lg cursor-pointer hover:scale-105 transition-transform duration-200"
-                    onClick={() => handleArtifactClick(latestArtifactId)}
+                    onClick={() => onArtifactClick?.(latestArtifactId)}
                   >
                     <img
                       src={artifact.image}
@@ -476,6 +479,7 @@ export const LeftSidebar = memo(function LeftSidebar({
             currentRound={currentRound}
             phase={phase}
             mySelectedArtifacts={mySelectedArtifacts}
+            onArtifactClick={handleArtifactClick}
           />
         )}
 
@@ -578,7 +582,7 @@ export const LeftSidebar = memo(function LeftSidebar({
                         {artifact.type === ArtifactType.PERMANENT && '永久'}
                       </span>
                     </div>
-                    <p className="text-slate-300 leading-relaxed">{artifact.effectDescriptionTw}</p>
+                    <p className="text-slate-300 leading-relaxed">{artifact.descriptionTw}</p>
                   </div>
                 </>
               )

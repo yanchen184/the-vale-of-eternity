@@ -71,7 +71,6 @@ export const HandGridView = memo(function HandGridView({
   canTameCard,
 }: HandGridViewProps) {
   const [currentPage, setCurrentPage] = useState(0)
-  const [hoveredCardId, setHoveredCardId] = useState<string | null>(null)
 
   // Calculate pagination
   const totalPages = Math.ceil(cards.length / CARDS_PER_PAGE)
