@@ -69,7 +69,6 @@ export const HandGridView = memo(function HandGridView({
   onCardClick,
   selectedCardId,
   canTameCard,
-  currentRound = 1,
 }: HandGridViewProps) {
   const [currentPage, setCurrentPage] = useState(0)
   const [hoveredCardId, setHoveredCardId] = useState<string | null>(null)
@@ -127,7 +126,6 @@ export const HandGridView = memo(function HandGridView({
       >
         {visibleCards.map((card, index) => {
           const isSelected = selectedCardId === card.instanceId
-          const isHovered = hoveredCardId === card.instanceId
           const canTame = canTameCard ? canTameCard(card.instanceId) : false
 
           return (

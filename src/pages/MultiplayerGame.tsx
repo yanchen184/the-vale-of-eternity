@@ -30,7 +30,6 @@ import { FixedHandPanel } from '@/components/game/FixedHandPanel'
 // ArtifactSelector imported but not used - kept for potential future use
 // import { ArtifactSelector } from '@/components/game/ArtifactSelector'
 import { CompactArtifactSelector } from '@/components/game/CompactArtifactSelector'
-import { DevTestPanel } from '@/components/dev/DevTestPanel'
 import type { PlayerScoreInfo, PlayerFieldData, PlayerSidebarData, ScoreBarPlayerData } from '@/components/game'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'

@@ -52,7 +52,6 @@ export interface PlayerHandProps {
 // ============================================
 
 const MAX_VISIBLE_CARDS = 7
-const CARD_OVERLAP_RATIO = 0.6 // Increased for tighter fan
 const HOVER_LIFT = 35 // Increased for more dramatic hover
 const FAN_ANGLE = 5 // Slightly increased angle
 const MAX_FAN_ANGLE = 18 // Increased max angle for wider spread
@@ -228,7 +227,6 @@ const HandCardItem = memo(function HandCardItem({
   onDragEnd,
 }: HandCardItemProps) {
   const cardRef = useRef<HTMLDivElement>(null)
-  const cardStyle = getCardTransform(index, totalCards, isHovered ? index : null, isSelected, isDragging)
 
   // Card entrance animation
   useEffect(() => {

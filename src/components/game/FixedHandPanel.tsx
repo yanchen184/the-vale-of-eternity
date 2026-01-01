@@ -6,7 +6,7 @@
  */
 console.log('[components/game/FixedHandPanel.tsx] v2.0.0 loaded')
 
-import { memo, useState, useCallback, useEffect } from 'react'
+import { memo, useState, useCallback } from 'react'
 import { Hand, Minus, LayoutGrid, Maximize2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { CardInstance } from '@/types/cards'

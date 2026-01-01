@@ -57,9 +57,7 @@ export const CardPreviewModal = memo(function CardPreviewModal({
         <div className="transform scale-150 origin-center">
           <Card
             card={card}
-            variant="field"
-            size="lg"
-            interactive={false}
+            large={true}
           />
         </div>
 

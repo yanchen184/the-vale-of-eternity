@@ -87,10 +87,8 @@ const MyInfoCard = memo(function MyInfoCard({
   phase,
   mySelectedArtifacts = [],
 }: MyInfoCardProps) {
-  const totalStoneValue = calculateStonePoolValue(player.stones)
   const colorConfig = PLAYER_COLORS[player.color]
   const zoneBonus = player.zoneBonus || 0
-  const maxFieldSize = currentRound + zoneBonus
   const canToggleZone = isCurrentTurn && phase === 'ACTION' && onToggleZoneBonus
 
   return (
@@ -302,7 +300,6 @@ const OtherPlayerCard = memo(function OtherPlayerCard({
 }: OtherPlayerCardProps) {
   const totalStoneValue = calculateStonePoolValue(player.stones)
   const zoneBonus = player.zoneBonus || 0
-  const maxFieldSize = currentRound + zoneBonus
 
   return (
     <GlassCard
@@ -410,7 +407,6 @@ export const LeftSidebar = memo(function LeftSidebar({
   onToggleZoneBonus,
   currentRound = 1,
   mySelectedArtifacts = [],
-  allArtifactSelections = {},
   className,
 }: LeftSidebarProps) {
   // State for artifact preview modal
