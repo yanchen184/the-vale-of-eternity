@@ -268,15 +268,15 @@ export function Home() {
       {/* Main content */}
       <main className="relative flex-1 flex flex-col items-center justify-center gap-4 p-4 pb-8">
         <div className="w-full max-w-lg space-y-3">
-          {/* Primary Action: Single Player Game (Disabled) */}
+          {/* Primary Action: Single Player Game */}
           <MenuButton
             icon={<Gamepad2 className="w-6 h-6 text-vale-400" />}
             title="單人遊戲"
-            subtitle="開發中，敬請期待"
-            onClick={() => {}}
+            subtitle="單人模式，挑戰自我"
+            onClick={() => navigate('/game')}
             variant="primary"
             testId="gameboard-btn"
-            disabled={true}
+            disabled={false}
           />
 
           {/* Multiplayer Online Mode (New) */}
