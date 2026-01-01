@@ -240,7 +240,7 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
               {player.sanctuaryCards.map((card, index) => (
                 <div
                   key={card.instanceId}
-                  className="absolute transition-all duration-200 hover:z-10 hover:scale-105"
+                  className="absolute transition-all duration-200"
                   style={{
                     left: `${index * 15}px`,
                     top: `${index * 6}px`,
@@ -251,7 +251,7 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
                     card={card}
                     index={index}
                     compact={true}
-                    className="shadow-lg"
+                    className="shadow-lg pointer-events-none"
                   />
                 </div>
               ))}

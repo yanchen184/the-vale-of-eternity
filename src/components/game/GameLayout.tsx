@@ -138,6 +138,8 @@ export interface GameHeaderProps {
   round: number
   /** Current turn player's name */
   currentPlayerName: string
+  /** Round starting player's name (who starts this round) */
+  roundStartingPlayerName?: string
   /** Whether it's the viewer's turn */
   isYourTurn: boolean
   /** Leave game callback */
@@ -177,6 +179,7 @@ export const GameHeader = memo(function GameHeader({
   phase,
   round,
   currentPlayerName,
+  roundStartingPlayerName,
   isYourTurn,
   onLeave,
   onViewScore,
@@ -206,8 +209,13 @@ export const GameHeader = memo(function GameHeader({
           </div>
           {phase !== 'WAITING' && (
             <div className="flex items-center gap-1 text-xs">
-              <span className="text-slate-500">回合:</span>
-              <span className="text-slate-200 font-medium">{round}</span>
+              <span className="text-slate-500">第 {round} 回合</span>
+              {roundStartingPlayerName && (
+                <>
+                  <span className="text-slate-600">|</span>
+                  <span className="text-amber-400">{roundStartingPlayerName} 先手</span>
+                </>
+              )}
             </div>
           )}
         </div>

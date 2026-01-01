@@ -257,9 +257,9 @@ function HuntingPhaseUI({
         title: '七里靴效果',
         description: isInSevenLeagueBootsSelection
           ? sevenLeagueBootsState?.selectedCardId
-            ? '已選擇卡片，點擊「確認庇護」將卡片加入棲息地'
+            ? '已選擇卡片，點擊「確認棲息地」將卡片加入棲息地'
             : '選擇一張卡片加入棲息地'
-          : `等待 ${currentPlayerName} 選擇庇護卡片...`,
+          : `等待 ${currentPlayerName} 選擇棲息地卡片...`,
         headerColor: 'text-purple-400',
       }
     }
@@ -347,7 +347,7 @@ function HuntingPhaseUI({
                   {/* Selected for shelter indicator */}
                   {isSelectedForShelter && (
                     <div className="absolute -top-2 -right-2 bg-purple-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg z-10">
-                      庇護
+                      棲息地
                     </div>
                   )}
                 </div>
@@ -760,6 +760,18 @@ export function MultiplayerGame() {
   const currentTurnPlayer = useMemo(() => {
     return players.find((p) => p.playerId === currentTurnPlayerId)
   }, [players, currentTurnPlayerId])
+
+  // Get round starting player (who starts this round)
+  const roundStartingPlayer = useMemo(() => {
+    if (!gameRoom || !players.length) return null
+
+    // Get starting player index from hunting phase
+    const startingPlayerIndex = gameRoom.huntingPhase?.startingPlayerIndex
+    if (startingPlayerIndex === undefined || startingPlayerIndex === null) return null
+
+    // Find player by index
+    return players.find((p) => p.index === startingPlayerIndex)
+  }, [gameRoom, players])
 
   const isYourTurn = playerId === currentTurnPlayerId
 
@@ -1466,6 +1478,7 @@ export function MultiplayerGame() {
             phase={gameRoom.status}
             round={gameRoom.currentRound}
             currentPlayerName={currentTurnPlayer?.name ?? 'Unknown'}
+            roundStartingPlayerName={roundStartingPlayer?.name}
             isYourTurn={isYourTurn}
             onLeave={handleLeaveGame}
             onViewScore={() => handleToggleScoreModal(true)}
