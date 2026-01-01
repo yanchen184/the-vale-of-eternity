@@ -32,7 +32,7 @@ import {
 } from '@/components/game'
 import type { PlayerSidebarData } from '@/components/game/LeftSidebar'
 import type { PlayerFieldData } from '@/components/game/PlayersFieldArea'
-import type { PlayerColor } from '@/types/player-color'
+import { PlayerColor } from '@/types/player-color'
 
 // ============================================
 // MAIN COMPONENT
