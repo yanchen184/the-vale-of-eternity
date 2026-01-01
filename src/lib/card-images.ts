@@ -1,9 +1,9 @@
 /**
  * Card Image Path Mapping
  * Maps card IDs to their corresponding image files
- * @version 2.3.0 - Corrected DLC card ID mappings based on actual card elements
+ * @version 2.4.0 - Fixed Dragon DLC card mappings (Pyro, Deepdive, Horus, Loki)
  */
-console.log('[lib/card-images.ts] v2.3.0 loaded')
+console.log('[lib/card-images.ts] v2.4.0 loaded')
 
 // ============================================
 // IMAGE PATH CONFIGURATION
@@ -141,19 +141,19 @@ const DLC_CARD_IMAGE_MAP: Record<string, string> = {
   DLC_E005: 'Wendigo.jpg',
   DLC_E006: 'Duduriking.jpg',
 
-  // Wind DLC (6 cards)
+  // Wind DLC (4 cards)
   DLC_Wi001: 'Anzu.jpg',
   DLC_Wi002: 'Nurikabe.jpg',
   DLC_Wi003: 'Rukh.jpg',
   DLC_Wi004: 'Banshee.jpg',
-  DLC_Wi005: 'Horus.jpg',
-  DLC_Wi006: 'Loki.jpg',
 
-  // Dragon DLC (4 cards)
-  DLC_D001: 'Pyro.jpg',
-  DLC_D002: 'Deepdive.jpg',
+  // Dragon DLC (6 cards)
+  DLC_D001: 'Horus.jpg',
+  DLC_D002: 'Loki.jpg',
   DLC_D003: 'Rockscale.jpg',
   DLC_D004: 'Whisper.jpg',
+  DLC_D005: 'Pyro.jpg',
+  DLC_D006: 'Deepdive.jpg',
 }
 
 // ============================================
