@@ -1965,9 +1965,11 @@ export class MultiplayerGameService {
         if (game.status === 'ACTION') {
           // All players passed in ACTION → Move to RESOLUTION phase
           game.status = 'RESOLUTION'
-          game.currentPlayerIndex = 0  // Start resolution from first player
+          // Start resolution from this round's starting player
+          const startingPlayerIndex = game.huntingPhase.startingPlayerIndex
+          game.currentPlayerIndex = startingPlayerIndex
           game.passedPlayerIds = []  // Reset for tracking who finished resolution
-          console.log(`[MultiplayerGame] All players passed, moving to RESOLUTION phase for game ${game.gameId}`)
+          console.log(`[MultiplayerGame] All players passed, moving to RESOLUTION phase - starting from player ${startingPlayerIndex} for game ${game.gameId}`)
         } else if (game.status === 'RESOLUTION') {
           // All players finished RESOLUTION → Start next round
           game.currentRound += 1
@@ -2550,12 +2552,13 @@ export class MultiplayerGameService {
       throw new Error('Selected artifact is not available in this game')
     }
 
-    // Check if player has already used this artifact in ANY previous round
-    // (下回合不能跟這回合選的是一樣的)
+    // Check if player used this artifact in the PREVIOUS round only
+    // (只有上一回合用過的神器不能選，其他回合的都可以重複選)
     const playerPreviousSelections = game.artifactSelections?.[playerId] || {}
-    const usedArtifacts = Object.values(playerPreviousSelections)
-    if (usedArtifacts.includes(artifactId)) {
-      throw new Error('You have already used this artifact in a previous round')
+    const previousRound = game.currentRound - 1
+    const previousRoundArtifact = playerPreviousSelections[previousRound]
+    if (previousRoundArtifact && previousRoundArtifact === artifactId) {
+      throw new Error('You used this artifact in the previous round. Cannot select it this round.')
     }
 
     // Just update the selection without confirming

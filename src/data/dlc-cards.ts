@@ -567,7 +567,7 @@ export const HORUS: CardTemplate = {
       trigger: EffectTrigger.ON_TAME,
       description:
         'When tamed: Copy instant effect of 1 card in any area. Dragon swap: Exchange with sheltered card.',
-      descriptionTw: '馴服時：複製任一場上1張卡的立即效果。龍交換：與庇護區卡片交換。',
+      descriptionTw: '馴服時：複製任一場上1張卡的立即效果。龍交換：與棲息地卡片交換。',
     },
   ],
   flavorText: 'Sky lord who sees all.',
@@ -615,7 +615,7 @@ export const ROCKSCALE: CardTemplate = {
       ],
       description:
         'When tamed: Earn 1 stone of each element (fire, water, earth, wind). Dragon swap: Exchange with sheltered card.',
-      descriptionTw: '馴服時：獲得各1顆元素石（火、水、地、風）。龍交換：與庇護區卡片交換。',
+      descriptionTw: '馴服時：獲得各1顆元素石（火、水、地、風）。龍交換：與棲息地卡片交換。',
     },
   ],
   flavorText: 'Ancient dragon of all elements.',
@@ -636,7 +636,7 @@ export const WHISPER: CardTemplate = {
       trigger: EffectTrigger.ON_TAME,
       description:
         'When tamed: Activate all permanent effects of cards in your area. Dragon swap: Exchange with sheltered card.',
-      descriptionTw: '馴服時：啟動你場上所有卡的永久效果。龍交換：與庇護區卡片交換。',
+      descriptionTw: '馴服時：啟動你場上所有卡的永久效果。龍交換：與棲息地卡片交換。',
     },
   ],
   flavorText: 'Voice of eternal power.',

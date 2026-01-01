@@ -1,20 +1,20 @@
 /**
  * LeftSidebar Component
  * Left sidebar for multiplayer game - displays player list and my info
- * @version 1.5.0 - Added zone bonus indicator (field limit = round + bonus)
+ * @version 1.9.0 - Removed discard pile (moved to ScoreBar)
  */
-console.log('[components/game/LeftSidebar.tsx] v1.5.0 loaded')
+console.log('[components/game/LeftSidebar.tsx] v1.9.0 loaded')
 
 import { memo, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { PlayerMarker } from './PlayerMarker'
-import { Card } from './Card'
 import { type PlayerColor, PLAYER_COLORS } from '@/types/player-color'
 import type { StonePool } from '@/types/game'
 import { calculateStonePoolValue } from '@/types/game'
 import { StoneType } from '@/types/cards'
-import type { CardInstance } from '@/types/cards'
+import { ARTIFACTS_BY_ID } from '@/data/artifacts'
+import { ArtifactType } from '@/types/artifacts'
 
 // ============================================
 // TYPES
@@ -47,16 +47,14 @@ export interface LeftSidebarProps {
   deckCount: number
   /** Callback when drawing a card from deck */
   onDrawCard?: () => void
-  /** Number of cards in market discard pile */
-  marketDiscardCount?: number
-  /** Latest discarded card to display (optional) */
-  latestDiscardedCard?: CardInstance | null
-  /** Callback when clicking discard pile */
-  onDiscardClick?: () => void
   /** Callback when toggling zone bonus */
   onToggleZoneBonus?: () => void
   /** Current game round (for zone bonus display) */
   currentRound?: number
+  /** Array of artifact IDs that current player has selected (v1.6.0) */
+  mySelectedArtifacts?: string[]
+  /** All players' artifact selections: { playerId: { round: artifactId } } (v1.8.0) */
+  allArtifactSelections?: Record<string, Record<number, string>>
   /** Additional CSS classes */
   className?: string
 }
@@ -74,6 +72,7 @@ interface MyInfoCardProps {
   onToggleZoneBonus?: () => void
   currentRound?: number
   phase?: 'WAITING' | 'HUNTING' | 'ACTION' | 'RESOLUTION' | 'ENDED'
+  mySelectedArtifacts?: string[]
 }
 
 const MyInfoCard = memo(function MyInfoCard({
@@ -85,6 +84,7 @@ const MyInfoCard = memo(function MyInfoCard({
   onToggleZoneBonus,
   currentRound = 1,
   phase,
+  mySelectedArtifacts = [],
 }: MyInfoCardProps) {
   const totalStoneValue = calculateStonePoolValue(player.stones)
   const colorConfig = PLAYER_COLORS[player.color]
@@ -242,6 +242,50 @@ const MyInfoCard = memo(function MyInfoCard({
           </div>
         )}
 
+        {/* My Selected Artifact - Current Round Only (v1.8.0) */}
+        {mySelectedArtifacts.length > 0 && (
+          <div className="bg-gradient-to-br from-purple-900/30 to-pink-900/30 rounded-lg p-2 border border-purple-500/30">
+            <div className="text-xs text-purple-300 font-bold mb-1.5 text-center">
+              本回合神器
+            </div>
+            {(() => {
+              // Only show the most recent artifact (current round)
+              const latestArtifactId = mySelectedArtifacts[mySelectedArtifacts.length - 1]
+              const artifact = ARTIFACTS_BY_ID[latestArtifactId]
+              if (!artifact) return null
+
+              const typeConfig = {
+                [ArtifactType.INSTANT]: { symbol: '⚡', color: 'text-yellow-400' },
+                [ArtifactType.ACTION]: { symbol: '✕', color: 'text-blue-400' },
+                [ArtifactType.PERMANENT]: { symbol: '∞', color: 'text-purple-400' },
+              }
+              const config = typeConfig[artifact.type]
+
+              return (
+                <div className="flex justify-center">
+                  <div
+                    className="relative w-20 h-28 flex-shrink-0 rounded-lg overflow-hidden border-2 border-purple-500/50 shadow-lg"
+                  >
+                    <img
+                      src={artifact.image}
+                      alt={artifact.nameTw}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement
+                        target.style.display = 'none'
+                        const parent = target.parentElement
+                        if (parent) {
+                          parent.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-900 to-pink-900 ${config.color} text-4xl">${config.symbol}</div>`
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              )
+            })()}
+          </div>
+        )}
+
         {/* Deck - Draw Card Button - Same size as discard pile */}
         <GlassCard
           variant={canDrawCard && deckCount > 0 ? 'blue' : 'default'}
@@ -313,12 +357,14 @@ interface OtherPlayerCardProps {
   player: PlayerSidebarData
   isCurrentTurn: boolean
   phase: LeftSidebarProps['phase']
+  artifactCount?: number
 }
 
 const OtherPlayerCard = memo(function OtherPlayerCard({
   player,
   isCurrentTurn,
   phase,
+  artifactCount = 0,
 }: OtherPlayerCardProps) {
   const totalStoneValue = calculateStonePoolValue(player.stones)
 
@@ -356,6 +402,11 @@ const OtherPlayerCard = memo(function OtherPlayerCard({
           <span className="flex items-center gap-1">
             <span className="text-emerald-400">場</span> {player.fieldCount}
           </span>
+          {artifactCount > 0 && (
+            <span className="flex items-center gap-1">
+              <span className="text-purple-400">⚡</span> {artifactCount}
+            </span>
+          )}
           {player.score > 0 && (
             <span className="flex items-center gap-1 ml-auto text-amber-300">
               {player.score} 分
@@ -422,11 +473,10 @@ export const LeftSidebar = memo(function LeftSidebar({
   phase,
   deckCount,
   onDrawCard,
-  marketDiscardCount = 0,
-  latestDiscardedCard,
-  onDiscardClick,
   onToggleZoneBonus,
   currentRound = 1,
+  mySelectedArtifacts = [],
+  allArtifactSelections = {},
   className,
 }: LeftSidebarProps) {
   // Separate my player from others
@@ -485,6 +535,7 @@ export const LeftSidebar = memo(function LeftSidebar({
             onToggleZoneBonus={onToggleZoneBonus}
             currentRound={currentRound}
             phase={phase}
+            mySelectedArtifacts={mySelectedArtifacts}
           />
         )}
 
@@ -501,45 +552,20 @@ export const LeftSidebar = memo(function LeftSidebar({
 
         {/* Other Players */}
         <div className="space-y-2">
-          {otherPlayers.map((player) => (
-            <OtherPlayerCard
-              key={player.playerId}
-              player={player}
-              isCurrentTurn={player.playerId === currentTurnPlayerId}
-              phase={phase}
-            />
-          ))}
+          {otherPlayers.map((player) => {
+            const playerArtifacts = allArtifactSelections[player.playerId] || {}
+            const artifactCount = Object.keys(playerArtifacts).length
+            return (
+              <OtherPlayerCard
+                key={player.playerId}
+                player={player}
+                isCurrentTurn={player.playerId === currentTurnPlayerId}
+                phase={phase}
+                artifactCount={artifactCount}
+              />
+            )
+          })}
         </div>
-
-        {/* Discard Pile - At bottom */}
-        {onDiscardClick && (
-          <GlassCard
-            variant="default"
-            padding="sm"
-            className="cursor-pointer hover:bg-white/10 transition-colors"
-            onClick={onDiscardClick}
-            hoverable
-          >
-            <div className="space-y-2">
-              {latestDiscardedCard ? (
-                <div className="relative">
-                  <Card card={latestDiscardedCard} index={0} compact />
-                  {/* Count badge */}
-                  {marketDiscardCount > 1 && (
-                    <div className="absolute -top-2 -right-2 w-6 h-6 bg-purple-500 border-2 border-slate-900 rounded-full flex items-center justify-center shadow-lg">
-                      <span className="text-white text-xs font-bold">{marketDiscardCount}</span>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="w-full aspect-[2/3] bg-gradient-to-br from-slate-700 to-slate-800 rounded border-2 border-slate-600 flex items-center justify-center shadow-lg relative">
-                  <span className="text-slate-500 text-xs">無棄牌</span>
-                </div>
-              )}
-              <div className="text-[10px] text-slate-400 text-center">棄牌堆</div>
-            </div>
-          </GlassCard>
-        )}
       </div>
 
       {/* Footer - Phase Status */}

@@ -213,7 +213,7 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
         {player.sanctuaryCards && player.sanctuaryCards.length > 0 && (
           <div className="flex-shrink-0 border-l-2 border-amber-500/30 pl-4">
             <div className="text-xs text-amber-400 mb-2 flex items-center gap-2">
-              <span className="font-semibold">庇護區</span>
+              <span className="font-semibold">棲息地</span>
               <span className="bg-amber-500/20 px-2 py-0.5 rounded-full">
                 {player.sanctuaryCards.length}
               </span>

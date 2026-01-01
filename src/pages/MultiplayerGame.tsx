@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 5.23.0 - Add Seven-League Boots UI integration
+ * @version 5.26.0 - Display selected artifacts in LeftSidebar above draw card button
  */
-console.log('[pages/MultiplayerGame.tsx] v5.23.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v5.26.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -254,8 +254,8 @@ function HuntingPhaseUI({
         title: '七里靴效果',
         description: isInSevenLeagueBootsSelection
           ? sevenLeagueBootsState?.selectedCardId
-            ? '已選擇卡片，點擊「確認庇護」將卡片加入庇護區'
-            : '選擇一張卡片加入庇護區'
+            ? '已選擇卡片，點擊「確認庇護」將卡片加入棲息地'
+            : '選擇一張卡片加入棲息地'
           : `等待 ${currentPlayerName} 選擇庇護卡片...`,
         headerColor: 'text-purple-400',
       }
@@ -299,7 +299,7 @@ function HuntingPhaseUI({
         <div className="mb-4 p-3 bg-purple-900/30 border border-purple-500/50 rounded-lg flex-shrink-0">
           <p className="text-sm text-purple-300 text-center">
             {isInSevenLeagueBootsSelection
-              ? '點擊市場上的一張卡片，將其加入你的庇護區（不需支付費用）'
+              ? '點擊市場上的一張卡片，將其加入你的棲息地（不需支付費用）'
               : '等待其他玩家完成七里靴選擇...'}
           </p>
         </div>
@@ -390,7 +390,7 @@ function HuntingPhaseUI({
               </div>
             )
             })}
-          </div>
+        </div>
 
         {/* Artifact Selection at Bottom - Show only during artifact selection phase */}
         {showArtifactSelection && availableArtifacts && onSelectArtifact && (
@@ -577,7 +577,11 @@ export function MultiplayerGame() {
     const handleGameUpdate = (snapshot: any) => {
       if (snapshot.exists()) {
         const data = snapshot.val() as GameRoom
-        console.log('[MultiplayerGame] Game update:', data.status)
+        console.log('[MultiplayerGame] Game update:', {
+          status: data.status,
+          currentPlayerIndex: data.artifactSelectionPhase?.currentPlayerIndex,
+          isComplete: data.artifactSelectionPhase?.isComplete,
+        })
         setGameRoom(data)
 
         if (data.status === 'ENDED' && !showGameOverModal) {
@@ -707,12 +711,6 @@ export function MultiplayerGame() {
       .map(convertToCardInstance)
       .filter((c): c is CardInstance => c !== null)
   }, [gameRoom, convertToCardInstance])
-
-  // Get latest discarded card (last in array)
-  const latestDiscardedCard = useMemo(() => {
-    if (discardedCards.length === 0) return null
-    return discardedCards[discardedCards.length - 1]
-  }, [discardedCards])
 
   // Get current turn player
   const currentTurnPlayerId = useMemo(() => {
@@ -1191,20 +1189,33 @@ export function MultiplayerGame() {
     [gameId, playerId]
   )
 
-  // Calculate used artifacts for current player (previous rounds only)
+  // Calculate used artifacts for current player (only previous round)
   const usedArtifacts = useMemo(() => {
     if (!gameRoom?.artifactSelections || !playerId) return []
     const playerSelections = gameRoom.artifactSelections[playerId] || {}
     const used: string[] = []
     for (const [roundStr, artifactId] of Object.entries(playerSelections)) {
       const selectionRound = parseInt(roundStr, 10)
-      // Include all previous round selections (current round's selection is already used)
-      if (selectionRound < gameRoom.currentRound) {
+      // Only include artifacts from the previous round (上一回合)
+      // Artifacts from earlier rounds (下下回合之前) can be used again
+      if (selectionRound === gameRoom.currentRound - 1) {
         used.push(artifactId)
       }
     }
+    console.log('[MultiplayerGame] usedArtifacts calculation:', {
+      currentRound: gameRoom.currentRound,
+      allSelections: playerSelections,
+      usedFromPreviousRound: used,
+    })
     return used
   }, [gameRoom?.artifactSelections, gameRoom?.currentRound, playerId])
+
+  // Calculate ALL selected artifacts for current player (including current round) - v5.26.0
+  const mySelectedArtifacts = useMemo(() => {
+    if (!gameRoom?.artifactSelections || !playerId) return []
+    const playerSelections = gameRoom.artifactSelections[playerId] || {}
+    return Object.values(playerSelections).filter((id): id is string => !!id)
+  }, [gameRoom?.artifactSelections, playerId])
 
   // Determine if artifact selection is needed
   const isArtifactSelectionActive = useMemo(() => {
@@ -1212,22 +1223,38 @@ export function MultiplayerGame() {
     if (gameRoom.status !== 'HUNTING') return false
     if (!gameRoom.artifactSelectionPhase) return false
     return !gameRoom.artifactSelectionPhase.isComplete
-  }, [gameRoom?.isExpansionMode, gameRoom?.status, gameRoom?.artifactSelectionPhase])
+  }, [gameRoom?.isExpansionMode, gameRoom?.status, gameRoom?.artifactSelectionPhase?.isComplete])
 
   // Get current artifact selector player
   const artifactSelectorPlayerId = useMemo(() => {
     if (!isArtifactSelectionActive || !gameRoom?.artifactSelectionPhase) return ''
     const playerIndex = gameRoom.artifactSelectionPhase.currentPlayerIndex
-    return gameRoom.playerIds[playerIndex] ?? ''
-  }, [isArtifactSelectionActive, gameRoom?.artifactSelectionPhase, gameRoom?.playerIds])
+    const playerId = gameRoom.playerIds[playerIndex] ?? ''
+    console.log('[MultiplayerGame] artifactSelectorPlayerId recalculated:', {
+      currentPlayerIndex: playerIndex,
+      artifactSelectorPlayerId: playerId,
+      allPlayerIds: gameRoom.playerIds,
+    })
+    return playerId
+  }, [isArtifactSelectionActive, gameRoom?.artifactSelectionPhase?.currentPlayerIndex, gameRoom?.playerIds])
 
-  // Kept for future use (e.g., displaying artifact selector name)
-  const _artifactSelectorPlayer = useMemo(() => {
+  // Get artifact selector player for display
+  const artifactSelectorPlayer = useMemo(() => {
     return players.find((p) => p.playerId === artifactSelectorPlayerId)
   }, [players, artifactSelectorPlayerId])
-  void _artifactSelectorPlayer // Suppress unused variable warning
 
   const isYourArtifactTurn = playerId === artifactSelectorPlayerId
+
+  // Debug log for artifact turn changes
+  useEffect(() => {
+    if (isArtifactSelectionActive) {
+      console.log('[MultiplayerGame] Artifact turn check:', {
+        myPlayerId: playerId,
+        artifactSelectorPlayerId,
+        isYourArtifactTurn,
+      })
+    }
+  }, [isArtifactSelectionActive, playerId, artifactSelectorPlayerId, isYourArtifactTurn])
 
   // Seven-League Boots state (v5.22.0)
   const sevenLeagueBootsState = useMemo(() => {
@@ -1369,11 +1396,10 @@ export function MultiplayerGame() {
             phase={gameRoom.status}
             deckCount={gameRoom.deckIds?.length ?? 0}
             onDrawCard={handleDrawCard}
-            marketDiscardCount={gameRoom.discardIds?.length ?? 0}
-            latestDiscardedCard={latestDiscardedCard}
-            onDiscardClick={() => setShowMarketDiscardModal(true)}
             onToggleZoneBonus={handleToggleZoneBonus}
             currentRound={gameRoom.currentRound}
+            mySelectedArtifacts={mySelectedArtifacts}
+            allArtifactSelections={gameRoom.artifactSelections || {}}
           />
         }
         rightSidebar={
@@ -1389,6 +1415,8 @@ export function MultiplayerGame() {
             onEndTurn={handlePassTurn}
             isInSevenLeagueBootsSelection={isInSevenLeagueBootsSelection}
             hasSelectedShelterCard={!!sevenLeagueBootsState?.selectedCardId}
+            isYourArtifactTurn={isYourArtifactTurn}
+            isArtifactSelectionActive={isArtifactSelectionActive}
           />
         }
         scoreBar={
@@ -1396,6 +1424,8 @@ export function MultiplayerGame() {
             players={scoreBarData}
             currentPlayerId={playerId ?? ''}
             maxScore={60}
+            discardCount={gameRoom.discardIds?.length ?? 0}
+            onDiscardClick={() => setShowMarketDiscardModal(true)}
           />
         }
         mainContent={
@@ -1414,7 +1444,11 @@ export function MultiplayerGame() {
               <HuntingPhaseUI
                 marketCards={marketCards}
                 isYourTurn={isYourTurn}
-                currentPlayerName={currentTurnPlayer?.name ?? 'Unknown'}
+                currentPlayerName={
+                  isArtifactSelectionActive
+                    ? artifactSelectorPlayer?.name ?? 'Unknown'
+                    : currentTurnPlayer?.name ?? 'Unknown'
+                }
                 currentPlayerId={playerId ?? ''}
                 currentRound={gameRoom.currentRound}
                 onToggleCard={handleToggleCardSelection}
@@ -1541,10 +1575,10 @@ export function MultiplayerGame() {
         isOpen={showSanctuaryModal}
         onClose={() => setShowSanctuaryModal(false)}
         size="wide"
-        title="所有玩家的庇護區"
+        title="所有玩家的棲息地"
       >
-        <div className="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
-          <div className="space-y-4" style={{ transform: `scale(${cardScale / 100})`, transformOrigin: 'top center' }}>
+        <div className="p-4 max-h-[75vh] overflow-y-auto custom-scrollbar">
+          <div className="space-y-4">
             {players.map(player => {
               const sanctuaryCards = (player.sanctuary || [])
                 .map(cardId => cards[cardId])
@@ -1553,10 +1587,10 @@ export function MultiplayerGame() {
               return (
                 <div
                   key={player.playerId}
-                  className="bg-slate-800/40 rounded-xl border-2 border-slate-700/30 p-4"
+                  className="bg-slate-800/40 rounded-xl border-2 border-slate-700/30 p-3"
                 >
                   {/* Player Header */}
-                  <div className="flex items-center gap-3 mb-3">
+                  <div className="flex items-center gap-2 mb-3">
                     <PlayerMarker
                       color={player.color}
                       size="sm"
@@ -1572,31 +1606,51 @@ export function MultiplayerGame() {
                     </span>
                   </div>
 
-                  {/* Sanctuary Cards - Staggered Stack Display */}
+                  {/* Sanctuary Cards - Compact Grid Layout */}
                   {sanctuaryCards.length === 0 ? (
-                    <div className="flex items-center justify-center h-24 text-slate-600 text-sm">
-                      <span>庇護區為空</span>
+                    <div className="flex items-center justify-center h-20 text-slate-600 text-sm">
+                      <span>棲息地為空</span>
                     </div>
                   ) : (
-                    <div className="relative" style={{ minHeight: '180px' }}>
-                      {sanctuaryCards.map((card, index) => (
-                        <div
-                          key={card.instanceId}
-                          className="absolute transition-all duration-200 hover:z-10 hover:scale-105"
-                          style={{
-                            left: `${index * 20}px`,
-                            top: `${index * 8}px`,
-                            zIndex: index,
-                          }}
-                        >
-                          <Card
-                            card={card}
-                            index={index}
-                            compact={true}
-                            className="shadow-lg"
-                          />
-                        </div>
-                      ))}
+                    <div
+                      className="grid gap-2"
+                      style={{
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
+                      }}
+                    >
+                      {sanctuaryCards.map((card, index) => {
+                        const isOwnSanctuary = player.playerId === playerId
+                        const canMoveBack = isOwnSanctuary && isYourTurn
+
+                        return (
+                          <div
+                            key={card.instanceId}
+                            className="relative flex flex-col items-center"
+                          >
+                            <Card
+                              card={card}
+                              index={index}
+                              compact={true}
+                              className="shadow-lg hover:scale-105 transition-transform"
+                            />
+                            {/* Move to Hand Button - Only for own sanctuary during own turn */}
+                            {canMoveBack && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  console.log('[Sanctuary] Moving card from sanctuary:', card.instanceId)
+                                  console.log('[Sanctuary] isYourTurn:', isYourTurn, 'playerId:', playerId, 'player.playerId:', player.playerId)
+                                  handleMoveFromSanctuary(card.instanceId)
+                                }}
+                                className="mt-1 px-3 py-1 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-full shadow-lg transition-colors"
+                                title="將此卡片移回手牌"
+                              >
+                                回到手牌
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
                   )}
                 </div>

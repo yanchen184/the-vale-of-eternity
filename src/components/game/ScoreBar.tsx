@@ -2,9 +2,9 @@
  * ScoreBar Component
  * Bottom score progress bar for multiplayer game
  * Shows all players' scores with progress bars
- * @version 1.0.0
+ * @version 1.1.0 - Added discard pile button
  */
-console.log('[components/game/ScoreBar.tsx] v1.0.0 loaded')
+console.log('[components/game/ScoreBar.tsx] v1.1.0 loaded')
 
 import { memo } from 'react'
 import { cn } from '@/lib/utils'
@@ -32,6 +32,10 @@ export interface ScoreBarProps {
   currentPlayerId: string
   /** Max score for progress calculation (default: 60) */
   maxScore?: number
+  /** Number of cards in discard pile */
+  discardCount?: number
+  /** Callback when discard pile button is clicked */
+  onDiscardClick?: () => void
   /** Additional CSS classes */
   className?: string
 }
@@ -131,6 +135,8 @@ export const ScoreBar = memo(function ScoreBar({
   players,
   currentPlayerId,
   maxScore = 60,
+  discardCount = 0,
+  onDiscardClick,
   className,
 }: ScoreBarProps) {
   // Sort players by score (descending)
@@ -166,6 +172,28 @@ export const ScoreBar = memo(function ScoreBar({
           />
         ))}
       </div>
+
+      {/* Discard Pile Button */}
+      {onDiscardClick && (
+        <button
+          type="button"
+          onClick={onDiscardClick}
+          className={cn(
+            'flex items-center gap-2 px-3 py-1.5 rounded-lg',
+            'bg-slate-800/80 border border-slate-600/50',
+            'hover:bg-slate-700/80 hover:border-slate-500',
+            'transition-all duration-200',
+            'flex-shrink-0'
+          )}
+          data-testid="discard-pile-button"
+        >
+          <span className="text-sm text-slate-300">棄置牌堆</span>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-amber-400 font-bold">{discardCount}</span>
+            <span className="text-xs text-slate-500">張</span>
+          </div>
+        </button>
+      )}
     </div>
   )
 })

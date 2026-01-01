@@ -1,9 +1,9 @@
 /**
  * PlayerHand Component
  * Displays player's hand cards with enhanced fan layout, animations, and drag-drop support
- * @version 2.3.1 - Changed "Playable" indicator to "可召喚"
+ * @version 2.4.0 - Added horizontal scrolling for many cards
  */
-console.log('[components/game/PlayerHand.tsx] v2.3.1 loaded')
+console.log('[components/game/PlayerHand.tsx] v2.4.0 loaded')
 
 import { useState, useCallback, useMemo, memo, useRef, useEffect } from 'react'
 import gsap from 'gsap'
@@ -484,7 +484,10 @@ export const PlayerHand = memo(function PlayerHand({
 
       {/* Cards Fan Layout */}
       <div
-        className="flex items-end justify-center min-h-[200px] py-2 px-12"
+        className="flex items-end justify-start min-h-[200px] py-2 px-12 overflow-x-auto overflow-y-visible custom-scrollbar"
+        style={{
+          minWidth: `${visibleCards.length * 80}px`, // Ensure enough width for all cards
+        }}
         data-testid="hand-cards-container"
       >
         {visibleCards.map((card, index) => (

@@ -1,9 +1,9 @@
 /**
  * RightSidebar Component
  * Right sidebar for multiplayer game - displays bank coins and player coins
- * @version 1.6.0 - Add Seven-League Boots confirm button support
+ * @version 1.7.0 - Add artifact selection confirm button support
  */
-console.log('[components/game/RightSidebar.tsx] v1.6.0 loaded')
+console.log('[components/game/RightSidebar.tsx] v1.7.0 loaded')
 
 import { memo } from 'react'
 import { cn } from '@/lib/utils'
@@ -42,6 +42,11 @@ export interface RightSidebarProps {
   isInSevenLeagueBootsSelection?: boolean
   /** Whether a card has been selected for shelter */
   hasSelectedShelterCard?: boolean
+  // Artifact selection props (v1.7.0)
+  /** Whether it's the current player's artifact selection turn */
+  isYourArtifactTurn?: boolean
+  /** Whether artifact selection is currently active */
+  isArtifactSelectionActive?: boolean
 }
 
 // ============================================
@@ -334,13 +339,18 @@ export const RightSidebar = memo(function RightSidebar({
   // Seven-League Boots props (v1.6.0)
   isInSevenLeagueBootsSelection,
   hasSelectedShelterCard,
+  // Artifact selection props (v1.7.0)
+  isYourArtifactTurn,
+  isArtifactSelectionActive,
 }: RightSidebarProps) {
   void _playerName // Reserved for future use
   void _bankCoins // Bank is infinite, no need to track
 
   // Show confirm selection button only during HUNTING phase and player's turn
+  // v1.7.0: During artifact selection, use isYourArtifactTurn instead of isYourTurn
   // Also show during Seven-League Boots selection when player is active
-  const showConfirmSelection = (isYourTurn && phase === 'HUNTING' && onConfirmSelection) ||
+  const showConfirmSelection =
+    ((isArtifactSelectionActive ? isYourArtifactTurn : isYourTurn) && phase === 'HUNTING' && onConfirmSelection) ||
     (isInSevenLeagueBootsSelection && onConfirmSelection)
 
   // Show end turn button during ACTION or RESOLUTION phase and player's turn

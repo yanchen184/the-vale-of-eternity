@@ -282,7 +282,7 @@ export const GameHeader = memo(function GameHeader({
             className="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-600/80 hover:bg-amber-500/80 text-amber-100 transition-colors"
             data-testid="view-sanctuary-btn"
           >
-            查看庇護區
+            查看棲息地
           </button>
         )}
 

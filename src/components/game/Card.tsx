@@ -242,7 +242,7 @@ const CardActions = memo(function CardActions({
           }}
           className="flex-1 text-xs bg-amber-700 hover:bg-amber-600 text-amber-100 py-1 px-2 rounded transition-colors"
           type="button"
-          title="移至庇護區（擴充模式）"
+          title="移至棲息地（擴充模式）"
         >
           庇護
         </button>
