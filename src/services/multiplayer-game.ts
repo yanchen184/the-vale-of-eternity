@@ -129,6 +129,20 @@ export interface ArtifactSelectionPhase {
     /** Whether player has selected a card to shelter */
     selectedCardId?: string
   }
+  /** Pied Piper's Pipe special state */
+  piedPiperPipe?: {
+    /** Player ID who selected Pied Piper's Pipe */
+    activePlayerId: string
+    /** Whether waiting for player's choice */
+    awaitingChoice: boolean
+  }
+  /** Philosopher's Stone special state */
+  philosopherStone?: {
+    /** Player ID who selected Philosopher's Stone */
+    activePlayerId: string
+    /** Whether waiting for player's action */
+    awaitingAction: boolean
+  }
 }
 
 export type GamePhase = 'WAITING' | 'HUNTING' | 'ACTION' | 'RESOLUTION' | 'ENDED'
@@ -1976,7 +1990,7 @@ export class MultiplayerGameService {
           // All players passed in ACTION → Move to RESOLUTION phase
           game.status = 'RESOLUTION'
           // Start resolution from this round's starting player
-          const startingPlayerIndex = game.huntingPhase.startingPlayerIndex
+          const startingPlayerIndex = game.huntingPhase?.startingPlayerIndex ?? 0
           game.currentPlayerIndex = startingPlayerIndex
           game.passedPlayerIds = []  // Reset for tracking who finished resolution
           console.log(`[MultiplayerGame] All players passed, moving to RESOLUTION phase - starting from player ${startingPlayerIndex} for game ${game.gameId}`)
@@ -3115,10 +3129,13 @@ export class MultiplayerGameService {
       throw new Error('You are not the active player for Pied Piper\'s Pipe')
     }
 
-    const player = game.players[playerId]
-    if (!player) {
+    // Get player state
+    const playerSnapshot = await get(ref(database, `games/${gameId}/players/${playerId}`))
+    if (!playerSnapshot.exists()) {
       throw new Error('Player not found')
     }
+
+    const player: PlayerState = playerSnapshot.val()
 
     console.log(`[MultiplayerGame] executePiedPiperPipe: ${playerId} chose ${choice}`)
 
@@ -3220,11 +3237,13 @@ export class MultiplayerGameService {
       throw new Error('You are not the active player for Philosopher\'s Stone')
     }
 
-    const player = game.players[playerId]
-    if (!player) {
+    // Get player state
+    const playerSnapshot = await get(ref(database, `games/${gameId}/players/${playerId}`))
+    if (!playerSnapshot.exists()) {
       throw new Error('Player not found')
     }
 
+    const player: PlayerState = playerSnapshot.val()
     const sanctuary = player.sanctuary || []
 
     console.log(`[MultiplayerGame] executePhilosopherStone: ${playerId} recall=${recallCardId} discard=${discardCardId}`)
@@ -3260,24 +3279,24 @@ export class MultiplayerGameService {
         throw new Error('Cannot recall and discard the same card')
       }
 
-      // Add 1 purple stone (6-point)
+      // Add 1 six-point stone
       const updatedStones = {
         ...player.stones,
-        [StoneType.PURPLE]: (player.stones[StoneType.PURPLE] || 0) + 1,
+        [StoneType.SIX]: (player.stones[StoneType.SIX] || 0) + 1,
       }
 
       // Move card from sanctuary to discard pile
       const currentSanctuary = updates[`players/${playerId}/sanctuary`] || sanctuary
       const updatedSanctuary = currentSanctuary.filter((id: string) => id !== discardCardId)
-      const updatedDiscardPile = [...(game.discardPileIds || []), discardCardId]
+      const updatedDiscardPile = [...(game.discardIds || []), discardCardId]
 
       updates[`players/${playerId}/sanctuary`] = updatedSanctuary
       updates[`players/${playerId}/stones`] = updatedStones
-      updates[`discardPileIds`] = updatedDiscardPile
-      updates[`cards/${discardCardId}/location`] = CardLocation.DISCARD_PILE
+      updates[`discardIds`] = updatedDiscardPile
+      updates[`cards/${discardCardId}/location`] = CardLocation.DISCARD
       updates[`cards/${discardCardId}/ownerId`] = null
 
-      console.log(`[MultiplayerGame] ${playerId} discarded card ${discardCardId} from sanctuary for 1 purple stone`)
+      console.log(`[MultiplayerGame] ${playerId} discarded card ${discardCardId} from sanctuary for 1 six-point stone`)
     }
 
     // Clear Philosopher's Stone state

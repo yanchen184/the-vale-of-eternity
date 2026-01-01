@@ -564,7 +564,7 @@ export function MultiplayerGame() {
   const isHost = state?.isHost ?? false
 
   // Dev mode: Allow switching player perspective (v6.1.0)
-  const [devModePlayerId, setDevModePlayerId] = useState<string | null>(null)
+  const [devModePlayerId] = useState<string | null>(null)
   const playerId = devModePlayerId || originalPlayerId
   const playerName = devModePlayerId
     ? players.find(p => p.playerId === devModePlayerId)?.name || originalPlayerName

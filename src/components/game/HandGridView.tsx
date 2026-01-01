@@ -137,8 +137,6 @@ export const HandGridView = memo(function HandGridView({
                 `animate-stagger-${Math.min(index + 1, 9)}`
               )}
               onClick={() => handleCardClick(card)}
-              onMouseEnter={() => setHoveredCardId(card.instanceId)}
-              onMouseLeave={() => setHoveredCardId(null)}
               data-testid={`grid-card-${card.instanceId}`}
             >
               <Card card={card} compact isSelected={isSelected} />

@@ -32,7 +32,7 @@ import {
 } from '@/components/game'
 import type { PlayerSidebarData } from '@/components/game/LeftSidebar'
 import type { PlayerFieldData } from '@/components/game/PlayersFieldArea'
-import { PlayerColor } from '@/types/player-color'
+// import { PlayerColor } from '@/types/player-color'
 
 // ============================================
 // MAIN COMPONENT
@@ -57,8 +57,8 @@ export default function SinglePlayerGame() {
     startGame,
     drawCard,
     tameCreature,
-    pass,
-    endGame,
+    // pass,
+    // endGame,
     resetGame,
     canTameCard,
     error,
@@ -89,7 +89,7 @@ export default function SinglePlayerGame() {
   const playerData: PlayerSidebarData = useMemo(() => ({
     playerId: 'single-player',
     name: playerName || 'Player',
-    color: PlayerColor.BLUE,
+    color: 'blue' as any, // PlayerColor.BLUE
     index: 0,
     stones: stones || {
       [StoneType.ONE]: 0,
@@ -111,11 +111,13 @@ export default function SinglePlayerGame() {
   const fieldData: PlayerFieldData = useMemo(() => ({
     playerId: 'single-player',
     name: playerName || 'Player',
-    color: PlayerColor.BLUE,
+    color: 'blue' as any, // PlayerColor.BLUE
     handCards: hand || [],
     fieldCards: field || [],
     sanctuaryCards: [],
     isCurrentPlayer: true,
+    isCurrentTurn: true,
+    hasPassed: false,
   }), [playerName, hand, field])
 
   // Handle card click from hand
@@ -138,11 +140,11 @@ export default function SinglePlayerGame() {
     drawCard()
   }, [phase, drawCard])
 
-  // Handle pass action
-  const handlePass = useCallback(() => {
-    if (phase !== SinglePlayerPhase.ACTION) return
-    pass()
-  }, [phase, pass])
+  // Handle pass action (currently unused - keeping for future use)
+  // const handlePass = useCallback(() => {
+  //   if (phase !== SinglePlayerPhase.ACTION) return
+  //   pass()
+  // }, [phase, pass])
 
   // Handle back to menu
   const handleBackToMenu = useCallback(() => {
@@ -205,9 +207,12 @@ export default function SinglePlayerGame() {
     <GameLayout
       header={
         <GameHeader
-          roomName={`單人遊戲 - 第 ${round} 回合`}
-          onExit={handleBackToMenu}
-          showExitButton={true}
+          roomCode="單人遊戲"
+          phase={multiplayerPhase}
+          round={round}
+          currentPlayerName={playerName || 'Player'}
+          isYourTurn={true}
+          onLeave={handleBackToMenu}
         />
       }
       leftSidebar={
@@ -225,19 +230,23 @@ export default function SinglePlayerGame() {
       }
       rightSidebar={
         <RightSidebar
-          currentPlayerStones={stones}
-          currentRound={round}
-          phase={multiplayerPhase}
+          playerCoins={stones || {
+            [StoneType.ONE]: 0,
+            [StoneType.THREE]: 0,
+            [StoneType.SIX]: 0,
+            [StoneType.WATER]: 0,
+            [StoneType.FIRE]: 0,
+            [StoneType.EARTH]: 0,
+            [StoneType.WIND]: 0,
+          }}
+          playerName={playerName || 'Player'}
           isYourTurn={true}
-          canPass={phase === SinglePlayerPhase.ACTION}
-          onPass={handlePass}
-          onEndGame={handlePass}
-          showScoreBreakdown={true}
+          phase={multiplayerPhase}
         />
       }
-    >
-      {/* Main Game Area */}
-      <div className="flex flex-col gap-4 h-full">
+      mainContent={
+        /* Main Game Area */
+        <div className="flex flex-col gap-4 h-full">
         {/* Market Area */}
         <div className="flex-shrink-0">
           <div className="bg-slate-800/30 rounded-xl border border-slate-700/50 p-4">
@@ -273,12 +282,12 @@ export default function SinglePlayerGame() {
           <PlayersFieldArea
             players={[fieldData]}
             currentPlayerId="single-player"
-            onCardClick={(cardId) => {
+            phase={multiplayerPhase}
+            currentRound={round}
+            onCardClick={(_playerId, cardId) => {
               const card = hand?.find(c => c.instanceId === cardId)
               if (card) handleHandCardClick(card)
             }}
-            allowCardSelection={phase === SinglePlayerPhase.ACTION}
-            showSanctuaryCards={false}
           />
         </div>
 
@@ -297,6 +306,7 @@ export default function SinglePlayerGame() {
           </div>
         </div>
       </div>
-    </GameLayout>
+      }
+    />
   )
 }
