@@ -1,9 +1,9 @@
 /**
  * DraggableHandWindow Component
  * Floating, draggable, resizable window for displaying player's hand
- * @version 1.7.0 - Added draggable zoom slider control
+ * @version 1.8.0 - Fixed card clipping by allowing vertical overflow
  */
-console.log('[components/game/DraggableHandWindow.tsx] v1.7.0 loaded')
+console.log('[components/game/DraggableHandWindow.tsx] v1.8.0 loaded')
 
 import { memo, useState, useRef, useCallback, useEffect } from 'react'
 import { GripHorizontal, Maximize, GripVertical } from 'lucide-react'
@@ -62,7 +62,7 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
   const initialWidth = typeof window !== 'undefined'
     ? Math.min(1400, window.innerWidth - (sidebarWidth * 2) - 32)
     : 800
-  const initialHeight = 380 // 減小預設視窗高度，內容區域會有更多padding提供卡片移動空間
+  const initialHeight = 120 // 最小化視窗高度以適應緊湊的網格佈局
   const initialX = sidebarWidth + 16
   const initialY = typeof window !== 'undefined'
     ? window.innerHeight - initialHeight - 100 // 100px from bottom (留出分數條空間)
@@ -187,7 +187,7 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
       const newWidth = Math.max(400, resizeStart.width + deltaX)
 
       // Top: expand height when dragging up (negative deltaY means dragging up)
-      const newHeight = Math.max(280, resizeStart.height - deltaY)
+      const newHeight = Math.max(100, resizeStart.height - deltaY)
 
       setSize({
         width: newWidth,
@@ -307,7 +307,7 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
         left: `${position.x}px`,
         top: `${position.y}px`,
         width: `${size.width}px`,
-        height: `${size.height}px`,
+        maxHeight: `${size.height}px`,
       }}
       onMouseDown={handleMouseDown}
     >
@@ -364,9 +364,8 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
       {/* Content */}
       <div
         ref={contentRef}
-        className="overflow-auto select-none"
+        className="overflow-visible select-none"
         style={{
-          height: 'calc(100% - 48px)', // Full height minus header
           cursor: isPanning ? 'grabbing' : 'grab',
         }}
         onMouseDown={handleContentMouseDown}
@@ -375,7 +374,6 @@ export const DraggableHandWindow = memo(function DraggableHandWindow({
           style={{
             transform: `scale(${zoom})`,
             transformOrigin: 'top center',
-            padding: '80px 12px', // 上下增加更多padding讓卡片有空間移動和懸停
             transition: 'transform 0.1s ease-out',
           }}
         >

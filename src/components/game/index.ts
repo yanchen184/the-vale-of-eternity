@@ -1,9 +1,9 @@
 /**
  * Game components exports
  * Core UI components for The Vale of Eternity game
- * @version 4.2.0 - Added DraggableHandWindow for floating hand display
+ * @version 5.0.0 - Added new fixed hand panel system with grid/strip layouts
  */
-console.log('[components/game/index.ts] v4.2.0 loaded')
+console.log('[components/game/index.ts] v5.0.0 loaded')
 
 // Card components
 export { Card, CardBack } from './Card'
@@ -89,3 +89,13 @@ export { ArtifactSelector } from './ArtifactSelector'
 export { CompactArtifactSelector } from './CompactArtifactSelector'
 export type { ArtifactSelectorProps } from './ArtifactSelector'
 export type { CompactArtifactSelectorProps } from './CompactArtifactSelector'
+
+// New Hand Panel System (v5.0.0)
+export { FixedHandPanel } from './FixedHandPanel'
+export type { FixedHandPanelProps, HandViewMode } from './FixedHandPanel'
+export { HandGridView } from './HandGridView'
+export type { HandGridViewProps } from './HandGridView'
+export { HorizontalCardStrip } from './HorizontalCardStrip'
+export type { HorizontalCardStripProps } from './HorizontalCardStrip'
+export { CardActionPanel } from './CardActionPanel'
+export type { CardActionPanelProps } from './CardActionPanel'

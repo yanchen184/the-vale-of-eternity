@@ -1,13 +1,14 @@
 /**
  * PlayersFieldArea Component
  * Displays all players' field cards - each player gets a horizontal row
- * @version 1.3.0 - Cards wrap to new row after 5 cards
+ * @version 1.5.0 - Allow returning field cards to hand during RESOLUTION phase
  */
-console.log('[components/game/PlayersFieldArea.tsx] v1.3.0 loaded')
+console.log('[components/game/PlayersFieldArea.tsx] v1.5.0 loaded')
 
-import { memo, useMemo, useCallback } from 'react'
+import { memo, useMemo, useCallback, useState } from 'react'
 import { Card } from './Card'
 import { PlayerMarker } from './PlayerMarker'
+import { CardPreviewModal } from './CardPreviewModal'
 import { type PlayerColor, PLAYER_COLORS } from '@/types/player-color'
 import type { CardInstance } from '@/types/cards'
 import { cn } from '@/lib/utils'
@@ -31,6 +32,8 @@ export interface PlayersFieldAreaProps {
   players: PlayerFieldData[]
   /** Current player's ID (self) */
   currentPlayerId: string
+  /** Current game phase */
+  phase?: 'WAITING' | 'HUNTING' | 'ACTION' | 'RESOLUTION' | 'ENDED'
   /** Current round number (for showing "new this round" badge) */
   currentRound?: number
   /** Callback when a card is clicked (optional) */
@@ -51,6 +54,7 @@ interface PlayerFieldSectionProps {
   player: PlayerFieldData
   isCurrentPlayer: boolean
   position: 'top' | 'bottom' | 'left' | 'right' | 'grid'
+  phase?: 'WAITING' | 'HUNTING' | 'ACTION' | 'RESOLUTION' | 'ENDED'
   currentRound?: number
   onCardClick?: (cardId: string) => void
   onCardReturn?: (cardId: string) => void
@@ -61,6 +65,7 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
   player,
   isCurrentPlayer,
   position,
+  phase,
   currentRound,
   onCardClick,
   onCardReturn,
@@ -145,14 +150,27 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
               {player.fieldCards.map((card, index) => (
                 <div
                   key={card.instanceId}
-                  className="relative group transform transition-transform duration-200 hover:scale-105 hover:z-10"
+                  className="relative group transform transition-transform duration-200 hover:scale-105"
+                  style={{
+                    zIndex: index
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.zIndex = '999'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.zIndex = String(index)
+                  }}
+                  onClick={(e) => {
+                    // 點擊時也提升到最上層
+                    e.currentTarget.style.zIndex = '999'
+                  }}
                 >
                   <Card
                     card={card}
                     index={index}
                     compact={true}
                     currentRound={currentRound}
-                    onClick={() => handleCardClick(card.instanceId)}
+                    onClick={onCardClick ? () => handleCardClick(card.instanceId) : undefined}
                     className={cn(
                       'shadow-md',
                       player.isCurrentTurn && 'ring-1 ring-vale-500/30'
@@ -162,8 +180,8 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
                   {/* Action buttons - only show for current player's own cards */}
                   {isCurrentPlayer && (
                     <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
-                      {/* Return to Hand button - show during player's own turn */}
-                      {player.isCurrentTurn && !player.hasPassed && onCardReturn && (
+                      {/* Return to Hand button - show during player's own turn in ACTION or RESOLUTION phase */}
+                      {player.isCurrentTurn && !player.hasPassed && (phase === 'ACTION' || phase === 'RESOLUTION') && onCardReturn && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
@@ -262,12 +280,16 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
 export const PlayersFieldArea = memo(function PlayersFieldArea({
   players,
   currentPlayerId,
+  phase,
   currentRound,
   onCardClick,
   onCardReturn,
   onCardDiscard,
   className,
 }: PlayersFieldAreaProps) {
+  // Card preview state
+  const [previewCard, setPreviewCard] = useState<CardInstance | null>(null)
+
   // Sort players: self first, then others by index
   const sortedPlayers = useMemo(() => {
     const self = players.find(p => p.playerId === currentPlayerId)
@@ -281,8 +303,18 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
   }, [players])
 
   const handlePlayerCardClick = useCallback((playerId: string, cardId: string) => {
+    // Find the clicked card
+    const player = players.find(p => p.playerId === playerId)
+    const card = player?.fieldCards.find(c => c.instanceId === cardId)
+
+    if (card) {
+      // Show preview modal
+      setPreviewCard(card)
+    }
+
+    // Also call the original callback if provided
     onCardClick?.(playerId, cardId)
-  }, [onCardClick])
+  }, [players, onCardClick])
 
   const handlePlayerCardReturn = useCallback((playerId: string, cardId: string) => {
     onCardReturn?.(playerId, cardId)
@@ -293,39 +325,49 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
   }, [onCardDiscard])
 
   return (
-    <section
-      className={cn(
-        'bg-slate-800/20 rounded-xl border border-slate-700/30 p-2',
-        className
-      )}
-      data-testid="players-field-area"
-    >
-      {/* Header - Removed to save space */}
+    <>
+      <section
+        className={cn(
+          'bg-slate-800/20 rounded-xl border border-slate-700/30 p-2',
+          className
+        )}
+        data-testid="players-field-area"
+      >
+        {/* Header - Removed to save space */}
 
-      {/* Players' Fields - Stacked Rows (每個玩家一列) */}
-      <div className="space-y-1">
-        {sortedPlayers.map((player) => (
-          <PlayerFieldSection
-            key={player.playerId}
-            player={player}
-            isCurrentPlayer={player.playerId === currentPlayerId}
-            position="grid"
-            currentRound={currentRound}
-            onCardClick={(cardId) => handlePlayerCardClick(player.playerId, cardId)}
-            onCardReturn={(cardId) => handlePlayerCardReturn(player.playerId, cardId)}
-            onCardDiscard={(cardId) => handlePlayerCardDiscard(player.playerId, cardId)}
-          />
-        ))}
-      </div>
-
-      {/* Empty State */}
-      {totalFieldCards === 0 && (
-        <div className="text-center py-8 text-slate-500">
-          <div className="text-4xl mb-2 opacity-30">-</div>
-          <span>目前沒有玩家放置怪獸</span>
+        {/* Players' Fields - Stacked Rows (每個玩家一列) */}
+        <div className="space-y-1">
+          {sortedPlayers.map((player) => (
+            <PlayerFieldSection
+              key={player.playerId}
+              player={player}
+              isCurrentPlayer={player.playerId === currentPlayerId}
+              position="grid"
+              phase={phase}
+              currentRound={currentRound}
+              onCardClick={(cardId) => handlePlayerCardClick(player.playerId, cardId)}
+              onCardReturn={(cardId) => handlePlayerCardReturn(player.playerId, cardId)}
+              onCardDiscard={(cardId) => handlePlayerCardDiscard(player.playerId, cardId)}
+            />
+          ))}
         </div>
-      )}
-    </section>
+
+        {/* Empty State */}
+        {totalFieldCards === 0 && (
+          <div className="text-center py-8 text-slate-500">
+            <div className="text-4xl mb-2 opacity-30">-</div>
+            <span>目前沒有玩家放置怪獸</span>
+          </div>
+        )}
+      </section>
+
+      {/* Card Preview Modal */}
+      <CardPreviewModal
+        card={previewCard}
+        isOpen={!!previewCard}
+        onClose={() => setPreviewCard(null)}
+      />
+    </>
   )
 })
 

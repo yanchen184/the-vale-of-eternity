@@ -1,9 +1,9 @@
 /**
  * Card Component with Image Display
  * Renders a game card with its image and stats
- * @version 2.19.0 - Added large mode for hand window display
+ * @version 2.22.0 - Removed black background overlay, show card name only at bottom
  */
-console.log('[components/game/Card.tsx] v2.19.0 loaded')
+console.log('[components/game/Card.tsx] v2.22.0 loaded')
 
 import { useState, useCallback, memo } from 'react'
 import { Flame, Droplets, TreePine, Wind, Crown, Gem } from 'lucide-react'
@@ -13,6 +13,7 @@ import { Element } from '@/types/cards'
 import { PlayerMarker } from './PlayerMarker'
 import type { PlayerColor } from '@/types/player-color'
 import { getElementSellCoins } from '@/services/multiplayer-game'
+import { Modal } from '@/components/ui/Modal'
 
 // ============================================
 // ELEMENT ICON COMPONENTS
@@ -166,13 +167,26 @@ const CardActions = memo(function CardActions({
 }: CardActionsProps) {
   // Calculate coins for sell button based on element
   const coins = getElementSellCoins(cardElement)
-  const coinText = [
-    coins.six > 0 ? `${coins.six}×6` : null,
-    coins.three > 0 ? `${coins.three}×3` : null,
-    coins.one > 0 ? `${coins.one}×1` : null,
-  ]
-    .filter(Boolean)
-    .join(' ')
+
+  // Build coin descriptions (short for button, long for tooltip)
+  const coinParts: string[] = []
+  const shortCoinParts: string[] = []
+
+  if (coins.six > 0) {
+    coinParts.push(`${coins.six}個6分`)
+    shortCoinParts.push(`${coins.six}×6`)
+  }
+  if (coins.three > 0) {
+    coinParts.push(`${coins.three}個3分`)
+    shortCoinParts.push(`${coins.three}×3`)
+  }
+  if (coins.one > 0) {
+    coinParts.push(`${coins.one}個1分`)
+    shortCoinParts.push(`${coins.one}×1`)
+  }
+
+  const coinText = shortCoinParts.join('+')
+  const coinTooltip = coinParts.length > 0 ? `獲得${coinParts.join('和')}石頭` : ''
 
   return (
     <div className="absolute bottom-0 left-0 right-0 p-1 bg-slate-900/80 flex gap-1">
@@ -213,7 +227,7 @@ const CardActions = memo(function CardActions({
           }}
           className="flex-1 text-xs bg-amber-600 hover:bg-amber-500 text-white py-1 px-2 rounded transition-colors"
           type="button"
-          title={`賣出獲得: ${coinText}`}
+          title={coinTooltip}
         >
           <div className="flex flex-col items-center">
             <span>賣出</span>
@@ -303,16 +317,44 @@ export const Card = memo(function Card({
   className = '',
 }: CardProps) {
   const [imageError, setImageError] = useState(false)
+  const [scrollOffset, setScrollOffset] = useState(0)
+  const [isHovered, setIsHovered] = useState(false)
+  const [showFullCard, setShowFullCard] = useState(false)
 
   const handleImageError = useCallback(() => {
     setImageError(true)
   }, [])
 
   const handleClick = useCallback(() => {
+    // 如果有外部 onClick,優先執行
     if (onClick) {
       onClick()
+    } else {
+      // 否則打開完整卡片 Modal
+      setShowFullCard(true)
     }
   }, [onClick])
+
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (isHovered) {
+      e.stopPropagation()
+      e.preventDefault()
+      setScrollOffset(prev => {
+        const newOffset = prev - e.deltaY * 0.5
+        // 限制滾動範圍: 最多向上移動 200px, 不能向下移動
+        return Math.max(-200, Math.min(0, newOffset))
+      })
+    }
+  }, [isHovered])
+
+  const handleMouseEnter = useCallback(() => {
+    setIsHovered(true)
+  }, [])
+
+  const handleMouseLeave = useCallback(() => {
+    setIsHovered(false)
+    setScrollOffset(0)  // 離開時重置位置
+  }, [])
 
   const borderClass = getElementBorderClass(card.element)
   const bgClass = getElementBgClass(card.element)
@@ -336,53 +378,128 @@ export const Card = memo(function Card({
     )
   }
 
-  // Compact card (for field display) - 1.5x size (was 0.5x, now 1.5x = 3x larger)
+  // Compact card (for field display) - reduced height for better layout
   if (compact) {
     return (
-      <div
-        className={`
-          relative rounded-lg overflow-hidden border-2
-          ${borderClass} ${bgClass}
-          flex-shrink-0 cursor-pointer
-          transition-all duration-200
-          ${isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900' : ''}
-          ${className}
-        `}
-        style={{ width: '15.75rem', height: '23.625rem' }}
-        onClick={handleClick}
-        data-testid={`card-compact-${card.instanceId}`}
-      >
-        {/* Image */}
-        <div className="absolute inset-0">
-          <CardImage
-            cardId={card.cardId}
-            cardName={card.name}
-            onError={handleImageError}
-            hasError={imageError}
-          />
-        </div>
-
-        {/* Overlay with stats */}
-        <div className="absolute inset-0 flex flex-col justify-between p-1.5 bg-gradient-to-t from-black/80 via-transparent to-black/40">
-          {/* Cost badge with icon */}
-          <div className="flex justify-between items-start">
-            <div className="flex items-center gap-0.5 bg-slate-900/90 text-amber-400 text-xs font-bold px-1.5 py-0.5 rounded-md border border-amber-500/30">
-              <Gem className="w-3 h-3" />
-              <span>{card.cost}</span>
-            </div>
-            <div className="bg-slate-900/70 p-0.5 rounded-md">
-              <ElementIcon element={card.element} size="sm" />
-            </div>
+      <>
+        <div
+          className={`
+            relative rounded-lg overflow-hidden border-2
+            ${borderClass} ${bgClass}
+            flex-shrink-0 cursor-pointer
+            transition-all duration-200
+            ${isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900' : ''}
+            ${className}
+          `}
+          style={{
+            width: '10.5rem',
+            height: '15.75rem',
+            transform: `translateY(${scrollOffset}px)`,
+            transition: scrollOffset === 0 ? 'transform 0.3s ease-out' : 'none'
+          }}
+          onClick={handleClick}
+          onWheel={handleWheel}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          data-testid={`card-compact-${card.instanceId}`}
+        >
+          {/* Image */}
+          <div className="absolute inset-0">
+            <CardImage
+              cardId={card.cardId}
+              cardName={card.name}
+              onError={handleImageError}
+              hasError={imageError}
+            />
           </div>
 
-          {/* Score */}
-          <div className="text-center">
-            <span className="text-lg font-bold text-white drop-shadow-lg">
-              {card.baseScore + card.scoreModifier}
-            </span>
+          {/* Content overlay */}
+          <div className="absolute inset-0 flex flex-col justify-between p-2 bg-gradient-to-t from-black/90 via-black/20 to-black/60">
+            {/* Header: Cost and Element */}
+            <div className="flex justify-between items-start">
+              {/* Cost badge */}
+              <div className="flex items-center gap-1 bg-gradient-to-r from-amber-900/90 to-amber-950/90 px-2 py-1 rounded-lg border-2 border-amber-500/60 shadow-lg">
+                <Gem className="w-5 h-5 text-amber-300 drop-shadow-lg" />
+                <span className="text-lg font-bold text-amber-100 leading-none drop-shadow-lg">{card.cost}</span>
+              </div>
+              {/* Element icon */}
+              <div className="bg-slate-900/80 p-1.5 rounded-lg border border-slate-600/50 shadow-lg">
+                <ElementIcon element={card.element} size="lg" />
+              </div>
+            </div>
+
+            {/* Footer: Name only */}
+            <div className="text-[10px] font-semibold text-white text-center drop-shadow-lg">
+              {card.nameTw}
+            </div>
           </div>
         </div>
-      </div>
+
+        {/* Full Card Modal for compact cards */}
+        <Modal
+          isOpen={showFullCard}
+          onClose={() => setShowFullCard(false)}
+          title=""
+          size="lg"
+          className="bg-slate-900/95"
+          showCloseButton={true}
+        >
+          <div className="flex flex-col items-center gap-6 py-4">
+            {/* 完整卡片圖片 - 使用超大尺寸確保完全顯示 */}
+            <div
+              className={`
+                relative rounded-lg overflow-visible border-2
+                ${borderClass} ${bgClass}
+                flex-shrink-0
+              `}
+              style={{ width: '35rem', height: '52.5rem' }}
+            >
+              {/* Image */}
+              <div className="absolute inset-0">
+                <CardImage
+                  cardId={card.cardId}
+                  cardName={card.name}
+                  onError={handleImageError}
+                  hasError={imageError}
+                />
+              </div>
+
+              {/* Content overlay */}
+              <div className="absolute inset-0 flex flex-col justify-between p-3 bg-gradient-to-t from-black/90 via-black/20 to-black/60">
+                {/* Header: Cost and Element */}
+                <div className="flex justify-between items-start">
+                  {/* Cost badge */}
+                  <div className="flex items-center gap-1.5 bg-gradient-to-r from-amber-900/90 to-amber-950/90 px-3 py-1.5 rounded-lg border-2 border-amber-500/60 shadow-lg">
+                    <Gem className="w-6 h-6 text-amber-300 drop-shadow-lg" />
+                    <span className="text-2xl font-bold text-amber-100 leading-none drop-shadow-lg">{card.cost}</span>
+                  </div>
+                  {/* Element icon */}
+                  <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-600/50 shadow-lg">
+                    <ElementIcon element={card.element} size="xl" />
+                  </div>
+                </div>
+
+                {/* Footer: Name, Effect, Score */}
+                <div className="space-y-2">
+                  <div className="text-xl font-bold text-white text-center drop-shadow-lg bg-slate-900/50 rounded py-2">
+                    {card.nameTw}
+                  </div>
+                  {card.effectDescriptionTw && (
+                    <div className="text-sm text-slate-200 leading-relaxed bg-slate-900/70 rounded p-3">
+                      {card.effectDescriptionTw}
+                    </div>
+                  )}
+                  <div className="text-center">
+                    <span className="text-3xl font-bold text-white drop-shadow-lg bg-slate-900/50 rounded px-4 py-2 inline-block">
+                      分數: {card.baseScore + card.scoreModifier}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      </>
     )
   }
 
@@ -398,8 +515,16 @@ export const Card = memo(function Card({
         ${selectedByColor ? 'opacity-80' : ''}
         ${className}
       `}
-      style={{ width: '22.4rem', height: '33.6rem' }}
+      style={{
+        width: '22.4rem',
+        height: '33.6rem',
+        transform: `translateY(${scrollOffset}px)`,
+        transition: scrollOffset === 0 ? 'transform 0.3s ease-out' : 'none'
+      }}
       onClick={handleClick}
+      onWheel={handleWheel}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       data-testid={`card-${index}`}
     >
       {/* Image */}
@@ -432,16 +557,9 @@ export const Card = memo(function Card({
           {/* Empty - let the image shine through */}
         </div>
 
-        {/* Footer: Name and Effect */}
-        <div className="space-y-1">
-          <div className="text-xs font-semibold text-white truncate text-center drop-shadow">
-            {card.nameTw}
-          </div>
-          {card.effectDescriptionTw && (
-            <div className="text-[10px] text-slate-300 text-center line-clamp-2 leading-tight">
-              {card.effectDescriptionTw}
-            </div>
-          )}
+        {/* Footer: Name only */}
+        <div className="text-[9px] font-semibold text-white truncate text-center drop-shadow-lg">
+          {card.nameTw}
         </div>
       </div>
 
@@ -485,6 +603,70 @@ export const Card = memo(function Card({
           cardElement={card.element}
         />
       )}
+
+      {/* Full Card Modal */}
+      <Modal
+        isOpen={showFullCard}
+        onClose={() => setShowFullCard(false)}
+        title={card.nameTw}
+        size="sm"
+        className="bg-slate-900/95"
+      >
+        <div className="flex flex-col items-center gap-4">
+          {/* 完整卡片圖片 - 使用大尺寸 */}
+          <div
+            className={`
+              relative rounded-lg overflow-hidden border-2
+              ${borderClass} ${bgClass}
+              flex-shrink-0
+            `}
+            style={{ width: '28rem', height: '42rem' }}
+          >
+            {/* Image */}
+            <div className="absolute inset-0">
+              <CardImage
+                cardId={card.cardId}
+                cardName={card.name}
+                onError={handleImageError}
+                hasError={imageError}
+              />
+            </div>
+
+            {/* Content overlay */}
+            <div className="absolute inset-0 flex flex-col justify-between p-3 bg-gradient-to-t from-black/90 via-black/20 to-black/60">
+              {/* Header: Cost and Element */}
+              <div className="flex justify-between items-start">
+                {/* Cost badge */}
+                <div className="flex items-center gap-1.5 bg-gradient-to-r from-amber-900/90 to-amber-950/90 px-3 py-1.5 rounded-lg border-2 border-amber-500/60 shadow-lg">
+                  <Gem className="w-6 h-6 text-amber-300 drop-shadow-lg" />
+                  <span className="text-2xl font-bold text-amber-100 leading-none drop-shadow-lg">{card.cost}</span>
+                </div>
+                {/* Element icon */}
+                <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-600/50 shadow-lg">
+                  <ElementIcon element={card.element} size="xl" />
+                </div>
+              </div>
+
+              {/* Footer: Name, Effect, Score */}
+              <div className="space-y-2">
+                <div className="text-xl font-bold text-white text-center drop-shadow-lg bg-slate-900/50 rounded py-2">
+                  {card.nameTw}
+                </div>
+                {card.effectDescriptionTw && (
+                  <div className="text-sm text-slate-200 leading-relaxed bg-slate-900/70 rounded p-3">
+                    {card.effectDescriptionTw}
+                  </div>
+                )}
+                <div className="text-center">
+                  <span className="text-3xl font-bold text-white drop-shadow-lg bg-slate-900/50 rounded px-4 py-2 inline-block">
+                    分數: {card.baseScore + card.scoreModifier}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 })

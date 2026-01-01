@@ -131,24 +131,6 @@ const MyInfoCard = memo(function MyInfoCard({
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-2">
-          <div className="bg-slate-900/50 rounded-lg p-2 text-center">
-            <div className="text-lg leading-none mb-1">手</div>
-            <div className="text-xs text-slate-400">手牌</div>
-            <div className="text-lg font-bold text-amber-400">
-              {player.handCount}
-            </div>
-          </div>
-          <div className="bg-slate-900/50 rounded-lg p-2 text-center">
-            <div className="text-lg leading-none mb-1">場</div>
-            <div className="text-xs text-slate-400">場上</div>
-            <div className="text-lg font-bold text-emerald-400">
-              {player.fieldCount}
-            </div>
-          </div>
-        </div>
-
         {/* Zone Bonus Indicator */}
         <div
           className={cn(
@@ -191,56 +173,6 @@ const MyInfoCard = memo(function MyInfoCard({
             </div>
           )}
         </div>
-
-        {/* Coins Breakdown */}
-        <div className="bg-slate-900/50 rounded-lg p-2">
-          <div className="text-xs text-slate-400 mb-2 text-center">錢幣</div>
-          <div className="flex items-center justify-around">
-            <div className="flex items-center gap-1">
-              <img
-                src={`${import.meta.env.BASE_URL}assets/stones/stone-1.png`}
-                alt="1元"
-                className="w-5 h-5"
-              />
-              <span className="text-sm font-bold text-amber-400">
-                x{player.stones[StoneType.ONE] || 0}
-              </span>
-            </div>
-            <div className="flex items-center gap-1">
-              <img
-                src={`${import.meta.env.BASE_URL}assets/stones/stone-3.png`}
-                alt="3元"
-                className="w-5 h-5"
-              />
-              <span className="text-sm font-bold text-amber-400">
-                x{player.stones[StoneType.THREE] || 0}
-              </span>
-            </div>
-            <div className="flex items-center gap-1">
-              <img
-                src={`${import.meta.env.BASE_URL}assets/stones/stone-6.png`}
-                alt="6元"
-                className="w-5 h-5"
-              />
-              <span className="text-sm font-bold text-amber-400">
-                x{player.stones[StoneType.SIX] || 0}
-              </span>
-            </div>
-          </div>
-          <div className="text-center mt-2 text-xs text-cyan-400">
-            總計: {totalStoneValue}
-          </div>
-        </div>
-
-        {/* Score (if > 0) */}
-        {player.score > 0 && (
-          <div className="bg-gradient-to-r from-amber-900/30 to-yellow-900/30 rounded-lg p-2 text-center border border-amber-500/30">
-            <div className="text-xs text-amber-400">當前分數</div>
-            <div className="text-2xl font-bold text-amber-300">
-              {player.score}
-            </div>
-          </div>
-        )}
 
         {/* My Selected Artifact - Current Round Only (v1.8.0) */}
         {mySelectedArtifacts.length > 0 && (
@@ -300,19 +232,19 @@ const MyInfoCard = memo(function MyInfoCard({
           onClick={canDrawCard && deckCount > 0 ? onDrawCard : undefined}
           hoverable={canDrawCard && deckCount > 0}
         >
-          <div className="space-y-2">
+          <div className="space-y-0.5">
             {/* Deck Card Display */}
             <div className="relative">
-              <div className="w-full aspect-[2/3] bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 rounded-lg border-2 border-slate-600 flex flex-col items-center justify-center shadow-lg relative overflow-hidden">
+              <div className="w-full aspect-square bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 rounded-lg border-2 border-slate-600 flex flex-col items-center justify-center shadow-lg relative overflow-hidden">
                 {/* Glow effect when active */}
                 {canDrawCard && deckCount > 0 && (
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 via-transparent to-blue-500/20 animate-pulse" />
                 )}
 
-                <span className="relative text-slate-300 text-5xl font-bold mb-2">?</span>
+                <span className="relative text-slate-300 text-3xl font-bold mb-1">?</span>
 
                 {canDrawCard && deckCount > 0 && (
-                  <span className="relative text-blue-400 text-sm font-bold animate-pulse">
+                  <span className="relative text-blue-400 text-xs font-bold animate-pulse">
                     點擊抽牌
                   </span>
                 )}
@@ -357,16 +289,18 @@ interface OtherPlayerCardProps {
   player: PlayerSidebarData
   isCurrentTurn: boolean
   phase: LeftSidebarProps['phase']
-  artifactCount?: number
+  currentRound?: number
 }
 
 const OtherPlayerCard = memo(function OtherPlayerCard({
   player,
   isCurrentTurn,
   phase,
-  artifactCount = 0,
+  currentRound = 1,
 }: OtherPlayerCardProps) {
   const totalStoneValue = calculateStonePoolValue(player.stones)
+  const zoneBonus = player.zoneBonus || 0
+  const maxFieldSize = currentRound + zoneBonus
 
   return (
     <GlassCard
@@ -402,11 +336,9 @@ const OtherPlayerCard = memo(function OtherPlayerCard({
           <span className="flex items-center gap-1">
             <span className="text-emerald-400">場</span> {player.fieldCount}
           </span>
-          {artifactCount > 0 && (
-            <span className="flex items-center gap-1">
-              <span className="text-purple-400">⚡</span> {artifactCount}
-            </span>
-          )}
+          <span className="flex items-center gap-1">
+            <span className="text-cyan-400">區域</span> {currentRound}+{zoneBonus}
+          </span>
           {player.score > 0 && (
             <span className="flex items-center gap-1 ml-auto text-amber-300">
               {player.score} 分
@@ -553,15 +485,13 @@ export const LeftSidebar = memo(function LeftSidebar({
         {/* Other Players */}
         <div className="space-y-2">
           {otherPlayers.map((player) => {
-            const playerArtifacts = allArtifactSelections[player.playerId] || {}
-            const artifactCount = Object.keys(playerArtifacts).length
             return (
               <OtherPlayerCard
                 key={player.playerId}
                 player={player}
                 isCurrentTurn={player.playerId === currentTurnPlayerId}
                 phase={phase}
-                artifactCount={artifactCount}
+                currentRound={currentRound}
               />
             )
           })}

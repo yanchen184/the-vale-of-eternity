@@ -1,14 +1,13 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 5.26.0 - Display selected artifacts in LeftSidebar above draw card button
+ * @version 6.0.0 - New fixed hand panel system with grid/strip layouts
  */
-console.log('[pages/MultiplayerGame.tsx] v5.26.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v6.0.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import { ref, onValue, off } from 'firebase/database'
-import { Maximize2, Minimize2 } from 'lucide-react'
 import { database } from '@/lib/firebase'
 import {
   multiplayerGameService,
@@ -27,10 +26,11 @@ import {
   RightSidebar,
   ScoreBar,
 } from '@/components/game'
-import { DraggableHandWindow } from '@/components/game/DraggableHandWindow'
+import { FixedHandPanel } from '@/components/game/FixedHandPanel'
 // ArtifactSelector imported but not used - kept for potential future use
 // import { ArtifactSelector } from '@/components/game/ArtifactSelector'
 import { CompactArtifactSelector } from '@/components/game/CompactArtifactSelector'
+import { DevTestPanel } from '@/components/dev/DevTestPanel'
 import type { PlayerScoreInfo, PlayerFieldData, PlayerSidebarData, ScoreBarPlayerData } from '@/components/game'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
@@ -82,9 +82,11 @@ interface HuntingPhaseProps {
   isExpansionMode?: boolean
   availableArtifacts?: string[]
   usedArtifacts?: string[]
+  disabledArtifacts?: string[]  // v5.27.0 - Artifacts disabled due to requirements not met
   artifactSelectionMap?: Map<string, { color: PlayerColor; playerName: string; isConfirmed: boolean }>
   onSelectArtifact?: (artifactId: string) => void
   playerName?: string
+  artifactSelectorPlayerName?: string  // v5.23.0 - Name of player whose turn it is to select artifact
   isYourArtifactTurn?: boolean
   isArtifactSelectionActive?: boolean  // v5.20.0
   // Seven-League Boots props (v5.21.0)
@@ -228,9 +230,11 @@ function HuntingPhaseUI({
   isExpansionMode,
   availableArtifacts,
   usedArtifacts,
+  disabledArtifacts,
   artifactSelectionMap,
   onSelectArtifact,
   playerName,
+  artifactSelectorPlayerName,
   isYourArtifactTurn,
   isArtifactSelectionActive,
   // Seven-League Boots props (v5.22.0)
@@ -400,9 +404,10 @@ function HuntingPhaseUI({
               usedArtifacts={usedArtifacts || []}
               artifactSelections={artifactSelectionMap}
               round={currentRound || 1}
-              playerName={playerName || '玩家'}
+              playerName={artifactSelectorPlayerName || playerName || '玩家'}
               onSelectArtifact={onSelectArtifact}
               isActive={isYourArtifactTurn ?? false}
+              disabledArtifacts={disabledArtifacts}
             />
           </div>
         )}
@@ -421,6 +426,7 @@ interface ActionPhaseUIProps {
   playerScores: PlayerScoreInfo[]
   currentPlayerId: string
   currentRound: number
+  gameStatus: 'WAITING' | 'HUNTING' | 'ACTION' | 'RESOLUTION' | 'ENDED'
   isYourTurn: boolean
   onCardPlay: (cardId: string) => void
   onCardSell: (cardId: string) => void
@@ -440,6 +446,7 @@ function ActionPhaseUI({
   playerScores: _playerScores,
   currentPlayerId,
   currentRound,
+  gameStatus,
   isYourTurn: _isYourTurn,
   onCardPlay: _onCardPlay,
   onCardSell: _onCardSell,
@@ -467,14 +474,15 @@ function ActionPhaseUI({
   const otherPlayers = playersFieldData.filter(p => p.playerId !== currentPlayerId)
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden" data-testid={resolutionMode ? "resolution-phase" : "action-phase"}>
+    <div className="flex-1 flex flex-col" data-testid={resolutionMode ? "resolution-phase" : "action-phase"}>
       {/* Top Section - Field Area & Hand */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar min-h-0">
+      <div className="flex-1 overflow-y-auto overflow-x-visible p-2 space-y-1 custom-scrollbar min-h-0">
         {/* Self Player's Field Area */}
         {selfPlayer && (
           <PlayersFieldArea
             players={[selfPlayer]}
             currentPlayerId={currentPlayerId}
+            phase={gameStatus}
             currentRound={currentRound}
             onCardReturn={onCardReturn}
             onCardDiscard={onCardDiscard}
@@ -488,6 +496,7 @@ function ActionPhaseUI({
           <PlayersFieldArea
             players={otherPlayers}
             currentPlayerId={currentPlayerId}
+            phase={gameStatus}
             currentRound={currentRound}
             onCardReturn={onCardReturn}
             onCardDiscard={onCardDiscard}
@@ -547,13 +556,20 @@ export function MultiplayerGame() {
   const [showAllFieldsModal, setShowAllFieldsModal] = useState(false)
   const [showSanctuaryModal, setShowSanctuaryModal] = useState(false)
   const [scores, setScores] = useState<{ playerId: string; name: string; score: number }[]>([])
-  const [cardScale, setCardScale] = useState(70) // Card size: 50% to 150% (step 10%), default 70%
+  // cardScale removed - now using FixedHandPanel with自適應 sizing
 
   // Extract state from location or redirect
-  const playerId = state?.playerId
-  const playerName = state?.playerName
+  const originalPlayerId = state?.playerId
+  const originalPlayerName = state?.playerName
   const roomCode = state?.roomCode
   const isHost = state?.isHost ?? false
+
+  // Dev mode: Allow switching player perspective (v6.1.0)
+  const [devModePlayerId, setDevModePlayerId] = useState<string | null>(null)
+  const playerId = devModePlayerId || originalPlayerId
+  const playerName = devModePlayerId
+    ? players.find(p => p.playerId === devModePlayerId)?.name || originalPlayerName
+    : originalPlayerName
 
   // Validate required state
   useEffect(() => {
@@ -579,7 +595,7 @@ export function MultiplayerGame() {
         const data = snapshot.val() as GameRoom
         console.log('[MultiplayerGame] Game update:', {
           status: data.status,
-          currentPlayerIndex: data.artifactSelectionPhase?.currentPlayerIndex,
+          currentPlayerIndex: data.currentPlayerIndex,
           isComplete: data.artifactSelectionPhase?.isComplete,
         })
         setGameRoom(data)
@@ -716,9 +732,17 @@ export function MultiplayerGame() {
   const currentTurnPlayerId = useMemo(() => {
     if (!gameRoom || !players.length) return ''
 
-    if (gameRoom.status === 'HUNTING' && gameRoom.huntingPhase) {
-      const playerIndex = gameRoom.huntingPhase.currentPlayerIndex
-      return gameRoom.playerIds[playerIndex] ?? ''
+    if (gameRoom.status === 'HUNTING') {
+      // During artifact selection phase, use global currentPlayerIndex
+      if (gameRoom.artifactSelectionPhase && !gameRoom.artifactSelectionPhase.isComplete) {
+        const playerIndex = gameRoom.currentPlayerIndex
+        return gameRoom.playerIds[playerIndex] ?? ''
+      }
+      // During hunting phase (card selection), use huntingPhase.currentPlayerIndex
+      if (gameRoom.huntingPhase) {
+        const playerIndex = gameRoom.huntingPhase.currentPlayerIndex
+        return gameRoom.playerIds[playerIndex] ?? ''
+      }
     }
 
     if (gameRoom.status === 'ACTION') {
@@ -1189,6 +1213,47 @@ export function MultiplayerGame() {
     [gameId, playerId]
   )
 
+  // Pied Piper's Pipe handlers
+  const handlePiedPiperPipeChoice = useCallback(
+    async (choice: 'draw' | 'recall') => {
+      if (!gameId || !playerId) return
+      try {
+        await multiplayerGameService.executePiedPiperPipe(gameId, playerId, choice)
+      } catch (err: any) {
+        setError(err.message || 'Failed to execute Pied Piper\'s Pipe')
+      }
+    },
+    [gameId, playerId]
+  )
+
+  // Philosopher's Stone handlers
+  const [philosopherStoneRecallCard, setPhilosopherStoneRecallCard] = useState<string | null>(null)
+  const [philosopherStoneDiscardCard, setPhilosopherStoneDiscardCard] = useState<string | null>(null)
+  const [selectedHandCardId, setSelectedHandCardId] = useState<string | null>(null)
+
+  const handlePhilosopherStoneConfirm = useCallback(
+    async () => {
+      if (!gameId || !playerId) return
+      if (!philosopherStoneRecallCard && !philosopherStoneDiscardCard) {
+        setError('請至少選擇一個動作')
+        return
+      }
+      try {
+        await multiplayerGameService.executePhilosopherStone(
+          gameId,
+          playerId,
+          philosopherStoneRecallCard || undefined,
+          philosopherStoneDiscardCard || undefined
+        )
+        setPhilosopherStoneRecallCard(null)
+        setPhilosopherStoneDiscardCard(null)
+      } catch (err: any) {
+        setError(err.message || 'Failed to execute Philosopher\'s Stone')
+      }
+    },
+    [gameId, playerId, philosopherStoneRecallCard, philosopherStoneDiscardCard]
+  )
+
   // Calculate used artifacts for current player (only previous round)
   const usedArtifacts = useMemo(() => {
     if (!gameRoom?.artifactSelections || !playerId) return []
@@ -1210,6 +1275,26 @@ export function MultiplayerGame() {
     return used
   }, [gameRoom?.artifactSelections, gameRoom?.currentRound, playerId])
 
+  // Calculate disabled artifacts based on requirements
+  const disabledArtifacts = useMemo(() => {
+    const disabled: string[] = []
+
+    // Philosopher's Stone requires at least 1 card in sanctuary
+    // (can recall from sanctuary OR discard from sanctuary)
+    const hasSanctuaryCards = (currentPlayer?.sanctuary?.length ?? 0) > 0
+    if (!hasSanctuaryCards) {
+      disabled.push('philosopher_stone')
+    }
+
+    console.log('[MultiplayerGame] disabledArtifacts calculation:', {
+      sanctuaryCount: currentPlayer?.sanctuary?.length ?? 0,
+      hasSanctuaryCards,
+      disabled,
+    })
+
+    return disabled
+  }, [currentPlayer?.sanctuary])
+
   // Calculate ALL selected artifacts for current player (including current round) - v5.26.0
   const mySelectedArtifacts = useMemo(() => {
     if (!gameRoom?.artifactSelections || !playerId) return []
@@ -1228,7 +1313,7 @@ export function MultiplayerGame() {
   // Get current artifact selector player
   const artifactSelectorPlayerId = useMemo(() => {
     if (!isArtifactSelectionActive || !gameRoom?.artifactSelectionPhase) return ''
-    const playerIndex = gameRoom.artifactSelectionPhase.currentPlayerIndex
+    const playerIndex = gameRoom.currentPlayerIndex
     const playerId = gameRoom.playerIds[playerIndex] ?? ''
     console.log('[MultiplayerGame] artifactSelectorPlayerId recalculated:', {
       currentPlayerIndex: playerIndex,
@@ -1236,11 +1321,19 @@ export function MultiplayerGame() {
       allPlayerIds: gameRoom.playerIds,
     })
     return playerId
-  }, [isArtifactSelectionActive, gameRoom?.artifactSelectionPhase?.currentPlayerIndex, gameRoom?.playerIds])
+  }, [isArtifactSelectionActive, gameRoom?.currentPlayerIndex, gameRoom?.playerIds])
 
   // Get artifact selector player for display
   const artifactSelectorPlayer = useMemo(() => {
-    return players.find((p) => p.playerId === artifactSelectorPlayerId)
+    const player = players.find((p) => p.playerId === artifactSelectorPlayerId)
+    console.log('[MultiplayerGame] artifactSelectorPlayer lookup:', {
+      artifactSelectorPlayerId,
+      playersCount: players.length,
+      playerIds: players.map((p) => p.playerId),
+      foundPlayer: player,
+      playerName: player?.name,
+    })
+    return player
   }, [players, artifactSelectorPlayerId])
 
   const isYourArtifactTurn = playerId === artifactSelectorPlayerId
@@ -1264,6 +1357,24 @@ export function MultiplayerGame() {
   const isInSevenLeagueBootsSelection = useMemo(() => {
     return sevenLeagueBootsState?.activePlayerId === playerId
   }, [sevenLeagueBootsState, playerId])
+
+  // Pied Piper's Pipe state
+  const piedPiperPipeState = useMemo(() => {
+    return gameRoom?.artifactSelectionPhase?.piedPiperPipe ?? null
+  }, [gameRoom?.artifactSelectionPhase?.piedPiperPipe])
+
+  const isInPiedPiperPipeSelection = useMemo(() => {
+    return piedPiperPipeState?.activePlayerId === playerId
+  }, [piedPiperPipeState, playerId])
+
+  // Philosopher's Stone state
+  const philosopherStoneState = useMemo(() => {
+    return gameRoom?.artifactSelectionPhase?.philosopherStone ?? null
+  }, [gameRoom?.artifactSelectionPhase?.philosopherStone])
+
+  const isInPhilosopherStoneSelection = useMemo(() => {
+    return philosopherStoneState?.activePlayerId === playerId
+  }, [philosopherStoneState, playerId])
 
   // Confirm card or artifact or Seven-League Boots selection
   const handleConfirmCardSelection = useCallback(async () => {
@@ -1363,29 +1474,6 @@ export function MultiplayerGame() {
             onViewSanctuary={() => setShowSanctuaryModal(true)}
             onPassTurn={handlePassTurn}
             showPassTurn={gameRoom.status === 'ACTION'}
-            cardScaleControls={
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-700/50 border border-slate-600/50">
-                <button
-                  onClick={() => setCardScale(Math.max(50, cardScale - 10))}
-                  className="p-1 rounded hover:bg-slate-600/50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                  disabled={cardScale <= 50}
-                  title="縮小 (10%)"
-                >
-                  <Minimize2 className="w-3.5 h-3.5 text-slate-300" />
-                </button>
-                <span className="text-xs font-medium text-slate-300 min-w-[2.5rem] text-center">
-                  {cardScale}%
-                </span>
-                <button
-                  onClick={() => setCardScale(Math.min(150, cardScale + 10))}
-                  className="p-1 rounded hover:bg-slate-600/50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                  disabled={cardScale >= 150}
-                  title="放大 (10%)"
-                >
-                  <Maximize2 className="w-3.5 h-3.5 text-slate-300" />
-                </button>
-              </div>
-            }
           />
         }
         leftSidebar={
@@ -1429,15 +1517,7 @@ export function MultiplayerGame() {
           />
         }
         mainContent={
-          <div className="w-full h-full overflow-auto custom-scrollbar flex items-center justify-center">
-            <div
-              style={{
-                transform: `scale(${cardScale / 100})`,
-                transformOrigin: 'center center',
-                width: `${100 / (cardScale / 100)}%`,
-                height: `${100 / (cardScale / 100)}%`,
-              }}
-            >
+          <div className="w-full h-full overflow-auto custom-scrollbar">
             {/* Hunting Phase - Card Selection with Artifact Selection at Bottom (v5.11.0) */}
             {/* Seven-League Boots integration added in v5.22.0 */}
             {gameRoom.status === 'HUNTING' && (
@@ -1459,9 +1539,11 @@ export function MultiplayerGame() {
                 isExpansionMode={gameRoom.isExpansionMode}
                 availableArtifacts={gameRoom.availableArtifacts}
                 usedArtifacts={usedArtifacts}
+                disabledArtifacts={disabledArtifacts}
                 artifactSelectionMap={artifactSelectionMap}
                 onSelectArtifact={handleArtifactSelect}
                 playerName={currentPlayer?.name ?? playerName ?? 'Unknown'}
+                artifactSelectorPlayerName={artifactSelectorPlayer?.name}
                 isYourArtifactTurn={isYourArtifactTurn}
                 isArtifactSelectionActive={isArtifactSelectionActive}
                 sevenLeagueBootsState={sevenLeagueBootsState}
@@ -1479,6 +1561,7 @@ export function MultiplayerGame() {
                 playerScores={playerScores}
                 currentPlayerId={playerId ?? ''}
                 currentRound={gameRoom.currentRound}
+                gameStatus={gameRoom.status}
                 isYourTurn={isYourTurn}
                 onCardPlay={handleTameCard}
                 onCardSell={handleSellCard}
@@ -1499,6 +1582,7 @@ export function MultiplayerGame() {
                 playerScores={playerScores}
                 currentPlayerId={playerId ?? ''}
                 currentRound={gameRoom.currentRound}
+                gameStatus={gameRoom.status}
                 isYourTurn={isYourTurn}
                 onCardPlay={handleTameCard}
                 onCardSell={() => {}} // Disabled in resolution phase
@@ -1519,7 +1603,6 @@ export function MultiplayerGame() {
                 }}
               />
             )}
-            </div>
           </div>
         }
       />
@@ -1560,13 +1643,12 @@ export function MultiplayerGame() {
         title="所有玩家的怪獸區"
       >
         <div className="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
-          <div style={{ transform: `scale(${cardScale / 100})`, transformOrigin: 'top center' }}>
-            <PlayersFieldArea
-              players={playersFieldData}
-              currentPlayerId={playerId ?? ''}
-              currentRound={gameRoom.currentRound}
-            />
-          </div>
+          <PlayersFieldArea
+            players={playersFieldData}
+            currentPlayerId={playerId ?? ''}
+            phase={gameRoom.status}
+            currentRound={gameRoom.currentRound}
+          />
         </div>
       </Modal>
 
@@ -1795,24 +1877,178 @@ export function MultiplayerGame() {
         </div>
       </Modal>
 
-      {/* Draggable Hand Window - Floating */}
-      <DraggableHandWindow
+      {/* Pied Piper's Pipe Modal */}
+      <Modal
+        isOpen={!!piedPiperPipeState}
+        onClose={() => {}} // Cannot close until choice is made
+        size="md"
+        title="吹笛人之笛效果"
+      >
+        <div className="p-6">
+          <p className="text-slate-300 mb-6 text-center">
+            選擇一個效果：
+          </p>
+
+          <div className="space-y-4">
+            <button
+              onClick={() => handlePiedPiperPipeChoice('draw')}
+              disabled={!isInPiedPiperPipeSelection}
+              className={cn(
+                'w-full p-4 rounded-lg border-2 transition-all',
+                isInPiedPiperPipeSelection
+                  ? 'border-blue-500 bg-blue-900/20 hover:bg-blue-900/40 cursor-pointer'
+                  : 'border-slate-600 bg-slate-800/40 cursor-not-allowed opacity-50'
+              )}
+            >
+              <div className="text-left">
+                <div className="text-lg font-bold text-blue-400 mb-1">從牌庫抽 1 張卡</div>
+                <div className="text-sm text-slate-400">將牌庫頂的卡片加入你的手牌</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => handlePiedPiperPipeChoice('recall')}
+              disabled={!isInPiedPiperPipeSelection}
+              className={cn(
+                'w-full p-4 rounded-lg border-2 transition-all',
+                isInPiedPiperPipeSelection
+                  ? 'border-purple-500 bg-purple-900/20 hover:bg-purple-900/40 cursor-pointer'
+                  : 'border-slate-600 bg-slate-800/40 cursor-not-allowed opacity-50'
+              )}
+            >
+              <div className="text-left">
+                <div className="text-lg font-bold text-purple-400 mb-1">召回棲息地所有卡</div>
+                <div className="text-sm text-slate-400">將棲息地的所有卡片返回手牌</div>
+              </div>
+            </button>
+          </div>
+
+          {!isInPiedPiperPipeSelection && (
+            <p className="text-amber-400 text-sm mt-4 text-center">
+              等待其他玩家選擇...
+            </p>
+          )}
+        </div>
+      </Modal>
+
+      {/* Philosopher's Stone Modal */}
+      <Modal
+        isOpen={!!philosopherStoneState}
+        onClose={() => {}} // Cannot close until action is done
+        size="lg"
+        title="賢者之石效果"
+      >
+        <div className="p-6">
+          <p className="text-slate-300 mb-4 text-center">
+            從棲息地選擇卡片（可選擇一個或兩個動作）：
+          </p>
+
+          {isInPhilosopherStoneSelection && (
+            <div className="space-y-6">
+              {/* Recall Action - Select from sanctuary */}
+              <div className="bg-purple-900/20 border border-purple-500/50 rounded-lg p-4">
+                <h3 className="text-purple-400 font-bold mb-3 flex items-center gap-2">
+                  <span>📥</span>
+                  <span>拿回 1 張卡到手牌</span>
+                </h3>
+                <div className="grid grid-cols-4 gap-2">
+                  {(currentPlayer?.sanctuary || []).map((cardId) => {
+                    const card = cards[cardId]
+                    if (!card) return null
+                    const isSelected = philosopherStoneRecallCard === cardId
+                    return (
+                      <button
+                        key={cardId}
+                        onClick={() => setPhilosopherStoneRecallCard(isSelected ? null : cardId)}
+                        className={cn(
+                          'p-2 rounded border-2 transition-all',
+                          isSelected
+                            ? 'border-purple-400 bg-purple-900/40'
+                            : 'border-slate-600 hover:border-purple-500'
+                        )}
+                      >
+                        <div className="text-xs font-bold text-amber-300">{card.nameTw}</div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Discard Action - Select from sanctuary */}
+              <div className="bg-amber-900/20 border border-amber-500/50 rounded-lg p-4">
+                <h3 className="text-amber-400 font-bold mb-3 flex items-center gap-2">
+                  <span>💎</span>
+                  <span>從棲息地棄掉 1 張卡獲得 1 顆紫石（6分）</span>
+                </h3>
+                <div className="grid grid-cols-4 gap-2">
+                  {(currentPlayer?.sanctuary || []).map((cardId) => {
+                    const card = cards[cardId]
+                    if (!card) return null
+                    const isSelected = philosopherStoneDiscardCard === cardId
+                    return (
+                      <button
+                        key={cardId}
+                        onClick={() => setPhilosopherStoneDiscardCard(isSelected ? null : cardId)}
+                        className={cn(
+                          'p-2 rounded border-2 transition-all',
+                          isSelected
+                            ? 'border-amber-400 bg-amber-900/40'
+                            : 'border-slate-600 hover:border-amber-500'
+                        )}
+                      >
+                        <div className="text-xs font-bold text-amber-300">{card.nameTw}</div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <button
+                onClick={handlePhilosopherStoneConfirm}
+                disabled={!philosopherStoneRecallCard && !philosopherStoneDiscardCard}
+                className={cn(
+                  'w-full py-3 rounded-lg font-bold transition-all',
+                  philosopherStoneRecallCard || philosopherStoneDiscardCard
+                    ? 'bg-green-600 hover:bg-green-500 text-white cursor-pointer'
+                    : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                )}
+              >
+                確認執行
+              </button>
+            </div>
+          )}
+
+          {!isInPhilosopherStoneSelection && (
+            <p className="text-amber-400 text-center">
+              等待其他玩家執行...
+            </p>
+          )}
+        </div>
+      </Modal>
+
+      {/* Fixed Hand Panel - Bottom of screen */}
+      <FixedHandPanel
         cards={handCards}
+        selectedCardId={selectedHandCardId}
         onCardClick={(card) => {
-          // Handle card selection if needed
-          console.log('Hand card clicked:', card)
+          // Toggle selection: if already selected, deselect; otherwise select
+          setSelectedHandCardId(prev => prev === card.instanceId ? null : card.instanceId)
         }}
         onTameCard={(cid) => {
           handleTameCard(cid)
+          setSelectedHandCardId(null) // Clear selection after action
         }}
         onSellCard={(cardId) => {
           handleSellCard(cardId)
+          setSelectedHandCardId(null) // Clear selection after action
         }}
         onDiscardCard={(cardId) => {
           handleDiscardCard(cardId)
+          setSelectedHandCardId(null) // Clear selection after action
         }}
         onMoveToSanctuary={(cardId) => {
           handleMoveToSanctuary(cardId)
+          setSelectedHandCardId(null) // Clear selection after action
         }}
         showCardActions={isYourTurn}
         canTameCard={(_cardId) => {

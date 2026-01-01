@@ -1,9 +1,9 @@
 /**
  * PlayerHand Component
- * Displays player's hand cards with enhanced fan layout, animations, and drag-drop support
- * @version 2.4.0 - Added horizontal scrolling for many cards
+ * Displays player's hand cards with grid layout (same as field cards)
+ * @version 3.0.0 - Changed to simple grid layout like field cards for complete display
  */
-console.log('[components/game/PlayerHand.tsx] v2.4.0 loaded')
+console.log('[components/game/PlayerHand.tsx] v3.0.0 loaded')
 
 import { useState, useCallback, useMemo, memo, useRef, useEffect } from 'react'
 import gsap from 'gsap'
@@ -73,7 +73,7 @@ function getCardTransform(
 
   // Calculate rotation with max limit and smooth curve
   const baseRotation = offset * FAN_ANGLE
-  const rotation = Math.max(-MAX_FAN_ANGLE, Math.min(MAX_FAN_ANGLE, baseRotation))
+  let rotation = Math.max(-MAX_FAN_ANGLE, Math.min(MAX_FAN_ANGLE, baseRotation))
 
   // Calculate Y position for arc effect with enhanced curve
   const arcDepth = Math.abs(offset) * Math.abs(offset) * 4
@@ -88,10 +88,12 @@ function getCardTransform(
     translateY = -HOVER_LIFT
     scale = 1.12 // Increased hover scale
     zIndex = 100
+    rotation = 0 // Straighten card on hover
   } else if (isSelected) {
     translateY = -HOVER_LIFT - 8
     scale = 1.08 // Increased selection scale
     zIndex = 99
+    rotation = 0 // Straighten card when selected
   }
 
   return {
@@ -299,12 +301,12 @@ const HandCardItem = memo(function HandCardItem({
     <div
       ref={cardRef}
       className={cn(
-        'relative flex-shrink-0 cursor-pointer',
-        isDragging && 'opacity-50'
+        'relative cursor-pointer transform transition-transform duration-200',
+        isDragging && 'opacity-50',
+        !isDragging && 'hover:scale-105'
       )}
       style={{
-        ...cardStyle,
-        marginLeft: index === 0 ? 0 : `-${CARD_OVERLAP_RATIO * 50}px`,
+        zIndex: isHovered ? 999 : index
       }}
       onMouseEnter={onHover}
       onMouseLeave={onHoverEnd}
@@ -457,37 +459,33 @@ export const PlayerHand = memo(function PlayerHand({
     <section
       ref={containerRef}
       className={cn(
-        'relative overflow-hidden',
+        'relative',
         'bg-gradient-to-b from-slate-800/40 to-slate-900/60',
-        'rounded-2xl border-2 border-purple-900/30 px-6 py-3',
+        'rounded-2xl border-2 border-purple-900/30 px-2 py-0.5',
         'shadow-xl shadow-purple-950/20',
         className
       )}
+      style={{ height: 'fit-content' }}
       data-testid="player-hand"
     >
-      <HandRunes />
-      {/* No hand limit - removed warning */}
 
       {/* Header - Show card count only (no limit) */}
-      <div className="flex items-center justify-end mb-1 relative z-10">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-end mb-0.5 relative z-10">
+        <div className="flex items-center gap-1.5">
           {hiddenCount > 0 && (
-            <span className="text-xs text-amber-400 bg-amber-500/10 px-2 py-1 rounded-full border border-amber-500/20">
+            <span className="text-xs text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full border border-amber-500/20">
               +{hiddenCount} more
             </span>
           )}
-          <span className="text-sm px-2 py-1 rounded-lg bg-slate-700/50 text-slate-400 border border-slate-600/30">
+          <span className="text-xs px-1.5 py-0.5 rounded bg-slate-700/50 text-slate-400 border border-slate-600/30">
             {cards.length} 張
           </span>
         </div>
       </div>
 
-      {/* Cards Fan Layout */}
+      {/* Cards Grid Layout - Same as field cards */}
       <div
-        className="flex items-end justify-start min-h-[200px] py-2 px-12 overflow-x-auto overflow-y-visible custom-scrollbar"
-        style={{
-          minWidth: `${visibleCards.length * 80}px`, // Ensure enough width for all cards
-        }}
+        className="flex flex-wrap gap-2"
         data-testid="hand-cards-container"
       >
         {visibleCards.map((card, index) => (
@@ -515,14 +513,6 @@ export const PlayerHand = memo(function PlayerHand({
           />
         ))}
       </div>
-
-      {/* Drag hint */}
-      {enableDrag && cards.length > 0 && (
-        <p className="text-center text-xs text-slate-500 mt-2 relative z-10">
-          <span className="text-purple-400">Drag</span> cards to field to play them, or{' '}
-          <span className="text-purple-400">click</span> for actions
-        </p>
-      )}
     </section>
   )
 })

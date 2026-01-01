@@ -1,9 +1,9 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 4.6.0 - Implement Seven-League Boots artifact effect
+ * @version 4.8.0 - Fix market size: playerCount × 2 (Seven-League Boots +1)
  */
-console.log('[services/multiplayer-game.ts] v4.6.0 loaded')
+console.log('[services/multiplayer-game.ts] v4.8.0 loaded')
 
 import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -927,46 +927,56 @@ export class MultiplayerGameService {
       card => card.location === CardLocation.MARKET && !card.confirmedBy
     )
 
-    // Special case: If only 1 card remains, auto-assign to first player and skip to ACTION
-    if (unconfirmedMarketCards.length === 1 && !huntingComplete) {
-      const lastCard = unconfirmedMarketCards[0]
-      const firstPlayerId = game.playerIds[0]
+    console.log('[MultiplayerGame] confirmCardSelection debug:', {
+      playerId,
+      currentPlayerIndex,
+      round: game.huntingPhase.round,
+      selectionLimit,
+      selectedCardsCount: selectedCards.length,
+      unconfirmedMarketCardsCount: unconfirmedMarketCards.length,
+      huntingComplete,
+      finalNextIndex,
+      finalNextRound,
+      finalIsComplete,
+    })
 
-      // Mark last card as confirmed by first player
-      await update(ref(database, `games/${gameId}/cards/${lastCard.instanceId}`), {
-        confirmedBy: firstPlayerId,
-        selectedBy: null,
+    // Check if we're transitioning from Round 1 to Round 2
+    const isTransitionToRound2 = game.huntingPhase.round === 1 && finalNextRound === 2
+
+    if (isTransitionToRound2) {
+      // Refill market to playerCount × 2 cards before starting Round 2
+      const targetMarketSize = game.playerIds.length * 2
+      const currentMarketSize = (game.marketIds || []).length
+      const cardsNeeded = targetMarketSize - currentMarketSize
+
+      console.log('[MultiplayerGame] Transitioning to Round 2, refilling market:', {
+        currentMarketSize,
+        targetMarketSize,
+        cardsNeeded,
+        deckSize: game.deckIds?.length || 0,
       })
 
-      // Add to first player's confirmed selections
-      if (!confirmedSelections[firstPlayerId]) {
-        confirmedSelections[firstPlayerId] = []
+      if (cardsNeeded > 0 && game.deckIds && game.deckIds.length >= cardsNeeded) {
+        // Take cards from deck
+        const newCards = game.deckIds.slice(0, cardsNeeded)
+        const remainingDeck = game.deckIds.slice(cardsNeeded)
+
+        // Update card locations to MARKET
+        for (const cardId of newCards) {
+          await update(ref(database, `games/${gameId}/cards/${cardId}`), {
+            location: CardLocation.MARKET,
+          })
+        }
+
+        // Update market and deck
+        const updatedMarketIds = [...(game.marketIds || []), ...newCards]
+        await update(gameRef, {
+          marketIds: updatedMarketIds,
+          deckIds: remainingDeck,
+        })
+
+        console.log(`[MultiplayerGame] Refilled market with ${cardsNeeded} cards for Round 2`)
       }
-      const firstPlayerSelections = Array.isArray(confirmedSelections[firstPlayerId])
-        ? confirmedSelections[firstPlayerId]
-        : [confirmedSelections[firstPlayerId]]
-      confirmedSelections[firstPlayerId] = [...firstPlayerSelections, lastCard.instanceId]
-
-      // Also update selections
-      if (!selections[firstPlayerId]) {
-        selections[firstPlayerId] = []
-      }
-      selections[firstPlayerId].push(lastCard.instanceId)
-
-      // Move to ACTION phase immediately
-      await update(gameRef, {
-        'huntingPhase/confirmedSelections': confirmedSelections,
-        'huntingPhase/selections': selections,
-        'huntingPhase/isComplete': true,
-        status: 'ACTION',
-        currentPlayerIndex: startingPlayerIndex,
-        passedPlayerIds: [],
-        updatedAt: Date.now(),
-      })
-
-      await this.distributeConfirmedCards(gameId)
-      console.log(`[MultiplayerGame] Last card auto-assigned to first player, moving to ACTION phase`)
-      return
     }
 
     // Update game state
@@ -1080,8 +1090,8 @@ export class MultiplayerGameService {
 
     const game: GameRoom = snapshot.val()
 
-    if (game.status !== 'ACTION') {
-      throw new Error('Not in action phase')
+    if (game.status !== 'ACTION' && game.status !== 'RESOLUTION') {
+      throw new Error('Not in action or resolution phase')
     }
 
     const currentPlayerIndex = game.currentPlayerIndex
@@ -1187,8 +1197,8 @@ export class MultiplayerGameService {
 
     const game: GameRoom = snapshot.val()
 
-    if (game.status !== 'ACTION') {
-      throw new Error('Not in action phase')
+    if (game.status !== 'ACTION' && game.status !== 'RESOLUTION') {
+      throw new Error('Not in action or resolution phase')
     }
 
     const currentPlayerIndex = game.currentPlayerIndex
@@ -1303,8 +1313,8 @@ export class MultiplayerGameService {
 
     const game: GameRoom = snapshot.val()
 
-    if (game.status !== 'ACTION') {
-      throw new Error('Not in action phase')
+    if (game.status !== 'ACTION' && game.status !== 'RESOLUTION') {
+      throw new Error('Not in action or resolution phase')
     }
 
     const currentPlayerIndex = game.currentPlayerIndex
@@ -1413,8 +1423,8 @@ export class MultiplayerGameService {
 
     const game: GameRoom = snapshot.val()
 
-    if (game.status !== 'ACTION') {
-      throw new Error('Not in action phase')
+    if (game.status !== 'ACTION' && game.status !== 'RESOLUTION') {
+      throw new Error('Not in action or resolution phase')
     }
 
     const currentPlayerIndex = game.currentPlayerIndex
@@ -1544,9 +1554,9 @@ export class MultiplayerGameService {
     const expectedPlayerId = game.playerIds[currentPlayerIndex]
     const isYourTurn = playerId === expectedPlayerId
 
-    // If it's your turn, must be in ACTION phase
-    if (isYourTurn && game.status !== 'ACTION') {
-      throw new Error('Can only take cards to hand during ACTION phase')
+    // If it's your turn, must be in ACTION or RESOLUTION phase
+    if (isYourTurn && game.status !== 'ACTION' && game.status !== 'RESOLUTION') {
+      throw new Error('Can only take cards to hand during ACTION or RESOLUTION phase')
     }
 
     // Get player state
@@ -2075,7 +2085,7 @@ export class MultiplayerGameService {
         game.currentPlayerIndex = startingPlayerIndex
         game.passedPlayerIds = []
 
-        // Deal new cards to market (playerCount + 2)
+        // Deal new cards to market (playerCount × 2)
         if (!Array.isArray(game.deckIds)) {
           game.deckIds = []
         }
@@ -2083,7 +2093,7 @@ export class MultiplayerGameService {
           game.marketIds = []
         }
 
-        const marketSize = game.playerIds.length + 2
+        const marketSize = game.playerIds.length * 2
         const newMarketCards: string[] = []
         for (let i = 0; i < marketSize && game.deckIds.length > 0; i++) {
           const cardId = game.deckIds.shift()
@@ -2405,9 +2415,9 @@ export class MultiplayerGameService {
 
     const game: GameRoom = gameSnapshot.val()
 
-    // Only allow toggling during ACTION phase
-    if (game.status !== 'ACTION') {
-      throw new Error('只能在行動階段切換區域指示物')
+    // Only allow toggling during ACTION or RESOLUTION phase
+    if (game.status !== 'ACTION' && game.status !== 'RESOLUTION') {
+      throw new Error('只能在行動或結算階段切換區域指示物')
     }
 
     const currentPlayerIndex = game.currentPlayerIndex
@@ -2533,8 +2543,16 @@ export class MultiplayerGameService {
     }
 
     // Validate it's the player's turn (順序跟選卡一樣)
-    const currentPlayerIndex = game.artifactSelectionPhase.currentPlayerIndex
+    const currentPlayerIndex = game.currentPlayerIndex
     const expectedPlayerId = game.playerIds[currentPlayerIndex]
+
+    console.log('[MultiplayerGame] selectArtifact turn validation:', {
+      playerId,
+      currentPlayerIndex,
+      expectedPlayerId,
+      isCorrectTurn: playerId === expectedPlayerId,
+    })
+
     if (playerId !== expectedPlayerId) {
       throw new Error('Not your turn to select artifact')
     }
@@ -2593,8 +2611,16 @@ export class MultiplayerGameService {
     const game: GameRoom = snapshot.val()
 
     // Validate it's the player's turn
-    const currentPlayerIndex = game.artifactSelectionPhase!.currentPlayerIndex
+    const currentPlayerIndex = game.currentPlayerIndex
     const expectedPlayerId = game.playerIds[currentPlayerIndex]
+
+    console.log('[MultiplayerGame] confirmArtifactSelection turn validation:', {
+      playerId,
+      currentPlayerIndex,
+      expectedPlayerId,
+      isCorrectTurn: playerId === expectedPlayerId,
+    })
+
     if (playerId !== expectedPlayerId) {
       throw new Error('Not your turn to confirm artifact selection')
     }
@@ -2619,8 +2645,42 @@ export class MultiplayerGameService {
     }
 
     // ============================================
-    // SEVEN-LEAGUE BOOTS SPECIAL HANDLING
+    // INSTANT ARTIFACT SPECIAL HANDLING
     // ============================================
+
+    // PIED PIPER'S PIPE: Draw 1 card OR recall all sanctuary cards
+    if (selectedArtifact === 'pied_piper_pipe') {
+      // Set state to wait for player's choice
+      await update(gameRef, {
+        artifactSelections: updatedArtifactSelections,
+        'artifactSelectionPhase/confirmations': updatedConfirmations,
+        'artifactSelectionPhase/piedPiperPipe': {
+          activePlayerId: playerId,
+          awaitingChoice: true,
+        },
+        updatedAt: Date.now(),
+      })
+      console.log(`[MultiplayerGame] Pied Piper's Pipe activated by ${playerId}: waiting for choice`)
+      return // Wait for player's choice
+    }
+
+    // PHILOSOPHER'S STONE: Recall 1 from sanctuary AND/OR discard 1 from sanctuary for 1 purple stone
+    if (selectedArtifact === 'philosopher_stone') {
+      // Set state to wait for player's action
+      await update(gameRef, {
+        artifactSelections: updatedArtifactSelections,
+        'artifactSelectionPhase/confirmations': updatedConfirmations,
+        'artifactSelectionPhase/philosopherStone': {
+          activePlayerId: playerId,
+          awaitingAction: true,
+        },
+        updatedAt: Date.now(),
+      })
+      console.log(`[MultiplayerGame] Philosopher's Stone activated by ${playerId}: waiting for action`)
+      return // Wait for player's action
+    }
+
+    // SEVEN-LEAGUE BOOTS SPECIAL HANDLING
     if (selectedArtifact === 'seven_league_boots') {
       // Check if deck has cards to flip
       if (!game.deckIds || game.deckIds.length === 0) {
@@ -2655,7 +2715,7 @@ export class MultiplayerGameService {
         })
 
         console.log(
-          `[MultiplayerGame] Seven-League Boots activated by ${playerId}: flipped card ${extraCardId} to market. Waiting for shelter selection.`
+          `[MultiplayerGame] Seven-League Boots activated by ${playerId}: flipped card ${extraCardId} to market (total: ${updatedMarketIds.length}). Waiting for shelter selection.`
         )
         return // Don't proceed to next player yet - wait for shelter selection
       }
@@ -2673,6 +2733,17 @@ export class MultiplayerGameService {
 
     const currentPositionInOrder = selectionOrder.indexOf(currentPlayerIndex)
     const isLastPlayer = currentPositionInOrder === selectionOrder.length - 1
+
+    console.log('[MultiplayerGame] confirmArtifactSelection debug:', {
+      playerCount,
+      startingPlayerIndex,
+      currentPlayerIndex,
+      selectionOrder,
+      currentPositionInOrder,
+      isLastPlayer,
+      playerId,
+      selectedArtifact,
+    })
 
     if (isLastPlayer) {
       // All players have confirmed - artifact selection complete
@@ -2692,7 +2763,7 @@ export class MultiplayerGameService {
 
       await update(gameRef, {
         artifactSelections: updatedArtifactSelections,
-        'artifactSelectionPhase/currentPlayerIndex': nextPlayerIndex,
+        currentPlayerIndex: nextPlayerIndex,
         'artifactSelectionPhase/confirmations': updatedConfirmations,
         updatedAt: Date.now(),
       })
@@ -2811,9 +2882,15 @@ export class MultiplayerGameService {
     })
 
     // Calculate next player (same logic as normal artifact confirmation)
-    const currentPlayerIndex = game.artifactSelectionPhase!.currentPlayerIndex
+    const currentPlayerIndex = game.currentPlayerIndex
     const playerCount = game.playerIds.length
     const startingPlayerIndex = game.artifactSelectionPhase!.startingPlayerIndex
+
+    console.log('[MultiplayerGame] selectSevenLeagueBootsCard - calculating next player:', {
+      currentPlayerIndex,
+      playerCount,
+      startingPlayerIndex,
+    })
 
     // Get the selection order
     const selectionOrder: number[] = []
@@ -2842,7 +2919,7 @@ export class MultiplayerGameService {
 
       await update(gameRef, {
         marketIds: updatedMarketIds,
-        'artifactSelectionPhase/currentPlayerIndex': nextPlayerIndex,
+        currentPlayerIndex: nextPlayerIndex,
         'artifactSelectionPhase/sevenLeagueBoots': null, // Clear Seven-League Boots state
         updatedAt: Date.now(),
       })
@@ -2852,6 +2929,13 @@ export class MultiplayerGameService {
       )
     }
   }
+
+  /**
+   * Execute Pied Piper's Pipe choice: draw 1 card OR recall all sanctuary cards
+   * @param gameId - Game room ID
+   * @param playerId - Player ID
+   * @param choice - 'draw' or 'recall'
+   */
 
   /**
    * Get artifacts used by a player in previous rounds
@@ -3006,6 +3090,258 @@ export class MultiplayerGameService {
     console.log(
       `[MultiplayerGame] Player ${playerId} moved card ${cardInstanceId} from sanctuary to hand`
     )
+  }
+
+  /**
+   * Execute Pied Piper's Pipe artifact effect
+   * Player chooses: draw 1 card from deck OR recall all sanctuary cards
+   */
+  async executePiedPiperPipe(
+    gameId: string,
+    playerId: string,
+    choice: 'draw' | 'recall'
+  ): Promise<void> {
+    const gameRef = ref(database, `games/${gameId}`)
+    const gameSnapshot = await get(gameRef)
+
+    if (!gameSnapshot.exists()) {
+      throw new Error('Game not found')
+    }
+
+    const game: GameRoom = gameSnapshot.val()
+
+    // Verify this player is the active player for Pied Piper's Pipe
+    if (game.artifactSelectionPhase?.piedPiperPipe?.activePlayerId !== playerId) {
+      throw new Error('You are not the active player for Pied Piper\'s Pipe')
+    }
+
+    const player = game.players[playerId]
+    if (!player) {
+      throw new Error('Player not found')
+    }
+
+    console.log(`[MultiplayerGame] executePiedPiperPipe: ${playerId} chose ${choice}`)
+
+    if (choice === 'draw') {
+      // Draw 1 card from deck to hand
+      if (!game.deckIds || game.deckIds.length === 0) {
+        throw new Error('Deck is empty, cannot draw card')
+      }
+
+      const drawnCardId = game.deckIds[0]
+      const updatedDeck = game.deckIds.slice(1)
+      const updatedHand = [...(player.hand || []), drawnCardId]
+
+      // Update card location to HAND
+      await update(ref(database, `games/${gameId}/cards/${drawnCardId}`), {
+        location: CardLocation.HAND,
+        ownerId: playerId,
+      })
+
+      // Update player's hand
+      await update(ref(database, `games/${gameId}/players/${playerId}`), {
+        hand: updatedHand,
+      })
+
+      // Update game deck
+      await update(gameRef, {
+        deckIds: updatedDeck,
+      })
+
+      console.log(`[MultiplayerGame] ${playerId} drew card ${drawnCardId} from deck`)
+    } else {
+      // Recall all sanctuary cards to hand
+      const sanctuaryCards = player.sanctuary || []
+
+      if (sanctuaryCards.length === 0) {
+        console.log(`[MultiplayerGame] ${playerId} has no sanctuary cards to recall`)
+      } else {
+        const updatedHand = [...(player.hand || []), ...sanctuaryCards]
+
+        // Update all sanctuary cards' location to HAND
+        const cardUpdates: Record<string, any> = {}
+        sanctuaryCards.forEach((cardId: string) => {
+          cardUpdates[`cards/${cardId}/location`] = CardLocation.HAND
+          cardUpdates[`cards/${cardId}/ownerId`] = playerId
+        })
+
+        // Update player's hand and clear sanctuary
+        await update(ref(database, `games/${gameId}`), {
+          ...cardUpdates,
+          [`players/${playerId}/hand`]: updatedHand,
+          [`players/${playerId}/sanctuary`]: [],
+        })
+
+        console.log(`[MultiplayerGame] ${playerId} recalled ${sanctuaryCards.length} cards from sanctuary`)
+      }
+    }
+
+    // Clear Pied Piper's Pipe state and move to next player
+    await update(gameRef, {
+      'artifactSelectionPhase/piedPiperPipe': null,
+      updatedAt: Date.now(),
+    })
+
+    console.log(`[MultiplayerGame] Pied Piper's Pipe effect applied, now calling advanceArtifactSelection`)
+
+    // Move to next player in artifact selection or complete the phase
+    await this.advanceArtifactSelection(gameId, game)
+
+    console.log(`[MultiplayerGame] advanceArtifactSelection completed`)
+
+    console.log(`[MultiplayerGame] Pied Piper's Pipe effect completed for ${playerId}`)
+  }
+
+  /**
+   * Execute Philosopher's Stone artifact effect
+   * Player can: recall 1 from sanctuary to hand AND/OR discard 1 from sanctuary for 1 purple stone
+   */
+  async executePhilosopherStone(
+    gameId: string,
+    playerId: string,
+    recallCardId?: string,
+    discardCardId?: string
+  ): Promise<void> {
+    if (!recallCardId && !discardCardId) {
+      throw new Error('Must select at least one action (recall or discard)')
+    }
+
+    const gameRef = ref(database, `games/${gameId}`)
+    const gameSnapshot = await get(gameRef)
+
+    if (!gameSnapshot.exists()) {
+      throw new Error('Game not found')
+    }
+
+    const game: GameRoom = gameSnapshot.val()
+
+    // Verify this player is the active player for Philosopher's Stone
+    if (game.artifactSelectionPhase?.philosopherStone?.activePlayerId !== playerId) {
+      throw new Error('You are not the active player for Philosopher\'s Stone')
+    }
+
+    const player = game.players[playerId]
+    if (!player) {
+      throw new Error('Player not found')
+    }
+
+    const sanctuary = player.sanctuary || []
+
+    console.log(`[MultiplayerGame] executePhilosopherStone: ${playerId} recall=${recallCardId} discard=${discardCardId}`)
+
+    const updates: Record<string, any> = {}
+
+    // Execute recall action if provided
+    if (recallCardId) {
+      if (!sanctuary.includes(recallCardId)) {
+        throw new Error('Recall card not found in sanctuary')
+      }
+
+      // Move card from sanctuary to hand
+      const updatedSanctuary = sanctuary.filter((id: string) => id !== recallCardId)
+      const updatedHand = [...(player.hand || []), recallCardId]
+
+      updates[`players/${playerId}/sanctuary`] = updatedSanctuary
+      updates[`players/${playerId}/hand`] = updatedHand
+      updates[`cards/${recallCardId}/location`] = CardLocation.HAND
+      updates[`cards/${recallCardId}/ownerId`] = playerId
+
+      console.log(`[MultiplayerGame] ${playerId} recalled card ${recallCardId} from sanctuary`)
+    }
+
+    // Execute discard action for 1 purple stone if provided
+    if (discardCardId) {
+      if (!sanctuary.includes(discardCardId)) {
+        throw new Error('Discard card not found in sanctuary')
+      }
+
+      // If we already removed this card in recall action, throw error
+      if (recallCardId === discardCardId) {
+        throw new Error('Cannot recall and discard the same card')
+      }
+
+      // Add 1 purple stone (6-point)
+      const updatedStones = {
+        ...player.stones,
+        [StoneType.PURPLE]: (player.stones[StoneType.PURPLE] || 0) + 1,
+      }
+
+      // Move card from sanctuary to discard pile
+      const currentSanctuary = updates[`players/${playerId}/sanctuary`] || sanctuary
+      const updatedSanctuary = currentSanctuary.filter((id: string) => id !== discardCardId)
+      const updatedDiscardPile = [...(game.discardPileIds || []), discardCardId]
+
+      updates[`players/${playerId}/sanctuary`] = updatedSanctuary
+      updates[`players/${playerId}/stones`] = updatedStones
+      updates[`discardPileIds`] = updatedDiscardPile
+      updates[`cards/${discardCardId}/location`] = CardLocation.DISCARD_PILE
+      updates[`cards/${discardCardId}/ownerId`] = null
+
+      console.log(`[MultiplayerGame] ${playerId} discarded card ${discardCardId} from sanctuary for 1 purple stone`)
+    }
+
+    // Clear Philosopher's Stone state
+    updates['artifactSelectionPhase/philosopherStone'] = null
+    updates['updatedAt'] = Date.now()
+
+    await update(ref(database, `games/${gameId}`), updates)
+
+    // Move to next player in artifact selection or complete the phase
+    await this.advanceArtifactSelection(gameId, game)
+
+    console.log(`[MultiplayerGame] Philosopher's Stone effect completed for ${playerId}`)
+  }
+
+  /**
+   * Helper method to advance artifact selection to next player or complete the phase
+   */
+  private async advanceArtifactSelection(gameId: string, game: GameRoom): Promise<void> {
+    const gameRef = ref(database, `games/${gameId}`)
+
+    // Calculate next player index
+    const playerCount = game.playerIds.length
+    const startingPlayerIndex = game.artifactSelectionPhase!.startingPlayerIndex
+
+    // Get the selection order
+    const selectionOrder: number[] = []
+    for (let i = 0; i < playerCount; i++) {
+      selectionOrder.push((startingPlayerIndex + i) % playerCount)
+    }
+
+    const currentPlayerIndex = game.currentPlayerIndex
+    const currentPositionInOrder = selectionOrder.indexOf(currentPlayerIndex)
+    const isLastPlayer = currentPositionInOrder === selectionOrder.length - 1
+
+    console.log(`[MultiplayerGame] advanceArtifactSelection DEBUG:`, {
+      playerCount,
+      startingPlayerIndex,
+      selectionOrder,
+      currentPlayerIndex,
+      currentPositionInOrder,
+      isLastPlayer,
+    })
+
+    if (isLastPlayer) {
+      // All players have confirmed - artifact selection complete
+      await update(gameRef, {
+        'artifactSelectionPhase/isComplete': true,
+        updatedAt: Date.now(),
+      })
+      console.log('[MultiplayerGame] Artifact selection phase completed')
+    } else {
+      // Move to next player
+      const nextPositionInOrder = currentPositionInOrder + 1
+      const nextPlayerIndex = selectionOrder[nextPositionInOrder]
+
+      console.log(`[MultiplayerGame] Moving to next player: from index ${currentPlayerIndex} to ${nextPlayerIndex}`)
+
+      await update(gameRef, {
+        currentPlayerIndex: nextPlayerIndex,
+        updatedAt: Date.now(),
+      })
+
+      console.log(`[MultiplayerGame] Firebase update completed: currentPlayerIndex = ${nextPlayerIndex}`)
+    }
   }
 }
 

@@ -182,31 +182,31 @@ const PlayerInfoCard = memo(function PlayerInfoCard({
         </div>
       </div>
 
-      {/* Coins Section */}
-      <div className="mb-3 p-2 rounded-lg bg-slate-900/50">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-slate-500">錢幣</span>
-          <span className="text-sm font-bold text-amber-400">
-            總值: {totalCoinValue}
-          </span>
+      {/* Coins Section - Only show for other players (not self) */}
+      {!isCurrentPlayer && (
+        <div className="mb-3 p-2 rounded-lg bg-slate-900/50">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-slate-500">錢幣</span>
+            <span className="text-sm font-bold text-amber-400">
+              總值: {totalCoinValue}
+            </span>
+          </div>
+          <div className="flex items-center gap-4">
+            <CoinDisplay value={1} count={player.stones.ONE || 0} />
+            <CoinDisplay value={3} count={player.stones.THREE || 0} />
+            <CoinDisplay value={6} count={player.stones.SIX || 0} />
+          </div>
         </div>
-        <div className="flex items-center gap-4">
-          <CoinDisplay value={1} count={player.stones.ONE || 0} />
-          <CoinDisplay value={3} count={player.stones.THREE || 0} />
-          <CoinDisplay value={6} count={player.stones.SIX || 0} />
-        </div>
-      </div>
+      )}
 
       {/* Cards Count */}
       <div className="flex items-center justify-between text-sm">
         <div className="flex items-center gap-2">
-          <span className="text-slate-500">手牌:</span>
           <span className="font-mono font-semibold text-slate-300">
             {player.handCount} 張
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-slate-500">場上:</span>
           <span className="font-mono font-semibold text-slate-300">
             {player.fieldCount} 張
           </span>

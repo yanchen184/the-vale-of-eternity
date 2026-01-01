@@ -57,15 +57,15 @@ export const PIED_PIPER_PIPE: Artifact = {
   nameTw: '吹笛人之笛',
   type: ArtifactType.INSTANT,
   category: ArtifactCategory.CORE,
-  description: 'Instant: Draw 1 card from your deck, OR recall all your cards (from play area and shelter).',
-  descriptionTw: '立即：從牌庫抽1張卡，或是召回你所有的卡牌（場上和棲息地）。',
+  description: 'Instant: Draw 1 card from your deck, OR recall all cards from your sanctuary.',
+  descriptionTw: '立即：從牌庫抽1張卡，或是召回棲息地所有的卡牌。',
   image: '/the-vale-of-eternity/assets/artifacts/2 Player Artifacts/Snipaste_2025-12-31_18-39-55.png',
   implemented: true,
   effectDetails: {
     affectsCardSelection: true,
     affectsRecall: true,
     affectsSheltering: true,
-    implementationNotes: 'Player choice: draw 1 OR recall all cards from play+shelter',
+    implementationNotes: 'Player choice: draw 1 from deck OR recall all cards from sanctuary only',
   },
 }
 
@@ -199,15 +199,15 @@ export const PHILOSOPHER_STONE: Artifact = {
   type: ArtifactType.INSTANT,
   category: ArtifactCategory.RANDOM,
   description:
-    'Instant: Recall 1 card from your play area AND/OR discard 1 card from your shelter to gain 1 purple stone.',
-  descriptionTw: '立即：從場上召回1張卡，以及/或是從棲息地棄掉1張卡以獲得1顆紫石。',
+    'Instant: Recall 1 card from sanctuary to hand AND/OR discard 1 card from sanctuary to gain 1 purple stone (6-point).',
+  descriptionTw: '立即：從棲息地拿回1張卡到手牌，以及/或是從棲息地棄掉1張卡以獲得1顆紫石（6分）。',
   image: '/the-vale-of-eternity/assets/artifacts/Random Artifacts/Snipaste_2025-12-31_18-40-45.png',
   implemented: true,
   effectDetails: {
     affectsStones: true,
     affectsRecall: true,
     affectsSheltering: true,
-    implementationNotes: 'Can do both: recall 1 from play AND discard shelter for 1P (optional)',
+    implementationNotes: 'Can do both: recall 1 from sanctuary to hand AND/OR discard 1 from sanctuary for 1P (6-point stone)',
   },
 }
 

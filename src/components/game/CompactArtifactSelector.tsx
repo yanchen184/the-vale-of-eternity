@@ -32,6 +32,8 @@ export interface CompactArtifactSelectorProps {
   onSelectArtifact: (artifactId: string) => void
   /** Whether selection is currently active */
   isActive: boolean
+  /** Artifact IDs that are disabled due to requirements not met (e.g., no cards in sanctuary) */
+  disabledArtifacts?: string[]
   /** Additional CSS classes */
   className?: string
 }
@@ -88,6 +90,8 @@ interface CompactArtifactCardProps {
   isSelected: boolean
   onSelect: () => void
   disabled: boolean
+  /** Whether this artifact is disabled due to requirements not met */
+  isDisabledByRequirement?: boolean
   /** Player color for selection marker */
   selectedByColor?: PlayerColor | null
   /** Player name for marker tooltip */
@@ -102,12 +106,13 @@ const CompactArtifactCard = memo(function CompactArtifactCard({
   isSelected,
   onSelect,
   disabled,
+  isDisabledByRequirement = false,
   selectedByColor,
   selectedByName,
   isConfirmed = false,
 }: CompactArtifactCardProps) {
   const [isHovered, setIsHovered] = useState(false)
-  const canSelect = !isUsed && !disabled && artifact.implemented
+  const canSelect = !isUsed && !disabled && !isDisabledByRequirement && artifact.implemented
 
   console.log('[CompactArtifactCard] Render:', {
     artifactId: artifact.id,
@@ -175,6 +180,13 @@ const CompactArtifactCard = memo(function CompactArtifactCard({
           <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
             <div className="bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold">
               已使用
+            </div>
+          </div>
+        )}
+        {isDisabledByRequirement && !isUsed && (
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+            <div className="bg-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold text-center">
+              棲息地無卡片
             </div>
           </div>
         )}
@@ -253,8 +265,16 @@ export const CompactArtifactSelector = memo(function CompactArtifactSelector({
   playerName,
   onSelectArtifact,
   isActive,
+  disabledArtifacts = [],
   className,
 }: CompactArtifactSelectorProps) {
+  console.log('[CompactArtifactSelector] Render with props:', {
+    playerName,
+    round,
+    isActive,
+    availableArtifactsCount: availableArtifacts.length,
+  })
+
   // Get artifact objects
   const artifacts = availableArtifacts
     .map((id) => ARTIFACTS_BY_ID[id])
@@ -299,6 +319,7 @@ export const CompactArtifactSelector = memo(function CompactArtifactSelector({
           const selectionInfo = artifactSelections?.get(artifact.id)
           // Card is selected if someone has chosen it (from artifactSelections)
           const isSelected = !!selectionInfo
+          const isDisabledByRequirement = disabledArtifacts.includes(artifact.id)
 
           return (
             <CompactArtifactCard
@@ -308,6 +329,7 @@ export const CompactArtifactSelector = memo(function CompactArtifactSelector({
               isSelected={isSelected}
               onSelect={() => handleSelectArtifact(artifact.id)}
               disabled={!isActive}
+              isDisabledByRequirement={isDisabledByRequirement}
               selectedByColor={selectionInfo?.color}
               selectedByName={selectionInfo?.playerName}
               isConfirmed={selectionInfo?.isConfirmed}

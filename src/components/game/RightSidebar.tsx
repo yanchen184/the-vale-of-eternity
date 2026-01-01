@@ -1,9 +1,9 @@
 /**
  * RightSidebar Component
  * Right sidebar for multiplayer game - displays bank coins and player coins
- * @version 1.7.0 - Add artifact selection confirm button support
+ * @version 1.7.1 - Fix confirm button staying visible after artifact selection completes
  */
-console.log('[components/game/RightSidebar.tsx] v1.7.0 loaded')
+console.log('[components/game/RightSidebar.tsx] v1.7.1 loaded')
 
 import { memo } from 'react'
 import { cn } from '@/lib/utils'
@@ -349,8 +349,10 @@ export const RightSidebar = memo(function RightSidebar({
   // Show confirm selection button only during HUNTING phase and player's turn
   // v1.7.0: During artifact selection, use isYourArtifactTurn instead of isYourTurn
   // Also show during Seven-League Boots selection when player is active
+  // v5.27.1: Fix issue where confirm button stays visible after artifact selection completes
   const showConfirmSelection =
-    ((isArtifactSelectionActive ? isYourArtifactTurn : isYourTurn) && phase === 'HUNTING' && onConfirmSelection) ||
+    (isArtifactSelectionActive && isYourArtifactTurn && phase === 'HUNTING' && onConfirmSelection) ||
+    (!isArtifactSelectionActive && isYourTurn && phase === 'HUNTING' && onConfirmSelection) ||
     (isInSevenLeagueBootsSelection && onConfirmSelection)
 
   // Show end turn button during ACTION or RESOLUTION phase and player's turn

@@ -772,4 +772,278 @@
   .scrollbar-hidden::-webkit-scrollbar {
     display: none;
   }
+
+  /* ============================================
+   * Hand Panel - Fixed Bottom Layout
+   * ============================================ */
+  .hand-panel {
+    @apply fixed bottom-0 z-40;
+    @apply border-t-2 backdrop-blur-lg;
+    @apply transition-all duration-300 ease-out;
+    background: linear-gradient(to top, rgb(15 23 42 / 1), rgb(15 23 42 / 0.98), rgb(15 23 42 / 0.95));
+    border-color: rgb(168 85 247 / 0.3);
+    left: 320px;  /* Left sidebar width */
+    right: 320px; /* Right sidebar width */
+  }
+
+  .hand-panel--minimized {
+    @apply h-12;
+  }
+
+  .hand-panel--standard {
+    height: 380px;
+  }
+
+  .hand-panel--expanded {
+    height: 640px;
+  }
+
+  /* Magic glow border decoration */
+  .hand-panel::before {
+    content: '';
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60%;
+    height: 40px;
+    background: radial-gradient(
+      ellipse at center,
+      rgba(139, 92, 246, 0.15) 0%,
+      transparent 70%
+    );
+    pointer-events: none;
+    opacity: 0.5;
+  }
+
+  /* ============================================
+   * Hand Grid Layout
+   * ============================================ */
+  .hand-grid {
+    @apply grid gap-4;
+    @apply overflow-y-auto custom-scrollbar;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    padding: 2rem 1rem;
+  }
+
+  @media (min-width: 1280px) {
+    .hand-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  @media (min-width: 1600px) {
+    .hand-grid {
+      grid-template-columns: repeat(5, 1fr);
+    }
+  }
+
+  .hand-grid--has-selection .hand-card:not(.hand-card--selected) {
+    @apply opacity-60;
+    transform: scale(0.95);
+  }
+
+  /* ============================================
+   * Hand Card States
+   * ============================================ */
+  .hand-card {
+    @apply relative rounded-xl overflow-hidden;
+    @apply cursor-pointer;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .hand-card:hover {
+    @apply z-30;
+    transform: translateY(-12px) scale(1.05);
+    box-shadow:
+      0 20px 40px rgba(0, 0, 0, 0.4),
+      0 0 30px var(--vale-primary-glow);
+  }
+
+  .hand-card--selected {
+    @apply z-50;
+    transform: translateY(-8px) scale(1.08) !important;
+    box-shadow:
+      0 0 0 4px rgb(168 85 247),
+      0 0 0 8px rgb(168 85 247 / 0.3),
+      0 0 60px rgb(168 85 247 / 0.8),
+      0 25px 50px rgba(0, 0, 0, 0.6) !important;
+    animation: selectedCardPulse 2s ease-in-out infinite !important;
+    filter: brightness(1.15) !important;
+  }
+
+  @keyframes selectedCardPulse {
+    0%, 100% {
+      box-shadow:
+        0 0 0 4px rgb(168 85 247),
+        0 0 0 8px rgb(168 85 247 / 0.3),
+        0 0 60px rgb(168 85 247 / 0.8),
+        0 25px 50px rgba(0, 0, 0, 0.6);
+    }
+    50% {
+      box-shadow:
+        0 0 0 4px rgb(168 85 247),
+        0 0 0 12px rgb(168 85 247 / 0.2),
+        0 0 80px rgb(168 85 247 / 1),
+        0 25px 50px rgba(0, 0, 0, 0.6);
+    }
+  }
+
+  .hand-card--can-tame {
+    box-shadow:
+      inset 0 0 0 2px rgba(16, 185, 129, 0.5),
+      0 0 20px rgba(16, 185, 129, 0.3);
+  }
+
+  .hand-card--dragging {
+    @apply opacity-50 scale-105;
+    cursor: grabbing;
+  }
+
+  /* New this round badge */
+  .hand-card--new-this-round::after {
+    content: 'NEW';
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 2px 8px;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
+    z-index: 10;
+  }
+
+  /* ============================================
+   * Horizontal Card Strip (Standard View)
+   * ============================================ */
+  .hand-strip {
+    @apply flex gap-3 px-4;
+    @apply overflow-x-auto overflow-y-visible;
+    @apply custom-scrollbar;
+    scroll-snap-type: x proximity;
+    scroll-padding: 1rem;
+    padding-top: 1rem;
+    padding-bottom: 2rem;
+    justify-content: flex-start;
+    align-items: flex-start;
+    scroll-behavior: smooth;
+  }
+
+  .hand-strip::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  .hand-strip::-webkit-scrollbar-track {
+    @apply bg-slate-800/50 rounded-full;
+    margin: 0 1rem;
+  }
+
+  .hand-strip::-webkit-scrollbar-thumb {
+    @apply bg-purple-600/60 rounded-full;
+    border: 2px solid transparent;
+  }
+
+  .hand-strip::-webkit-scrollbar-thumb:hover {
+    @apply bg-purple-500/80;
+  }
+
+  .hand-strip .hand-card {
+    @apply flex-shrink-0;
+    scroll-snap-align: start;
+  }
+
+  /* ============================================
+   * Action Panel
+   * ============================================ */
+  .action-panel {
+    @apply absolute z-50;
+    @apply flex flex-col gap-2 p-3;
+    @apply bg-slate-900/95 backdrop-blur-md rounded-xl;
+    @apply border border-purple-500/30;
+    @apply shadow-2xl;
+    @apply animate-scale-up origin-left;
+  }
+
+  .action-button {
+    @apply flex items-center gap-3 px-4 py-2.5 rounded-lg border;
+    @apply transition-all duration-150;
+    @apply text-left min-w-[180px];
+  }
+
+  .action-button--success {
+    @apply bg-emerald-600/20 hover:bg-emerald-600/40;
+    @apply text-emerald-400 border-emerald-500/30;
+  }
+
+  .action-button--warning {
+    @apply bg-amber-600/20 hover:bg-amber-600/40;
+    @apply text-amber-400 border-amber-500/30;
+  }
+
+  .action-button--danger {
+    @apply bg-red-600/20 hover:bg-red-600/40;
+    @apply text-red-400 border-red-500/30;
+  }
+
+  .action-button--info {
+    @apply bg-blue-600/20 hover:bg-blue-600/40;
+    @apply text-blue-400 border-blue-500/30;
+  }
+
+  .action-button:disabled {
+    @apply opacity-40 cursor-not-allowed bg-slate-800;
+  }
+
+  /* ============================================
+   * Pagination Dots
+   * ============================================ */
+  .pagination-dots {
+    @apply flex justify-center gap-2 py-2;
+  }
+
+  .pagination-dot {
+    @apply w-2.5 h-2.5 rounded-full;
+    @apply transition-all duration-200;
+  }
+
+  .pagination-dot--active {
+    @apply bg-purple-400 scale-125;
+    box-shadow: 0 0 10px rgba(124, 58, 237, 0.6);
+  }
+
+  .pagination-dot--inactive {
+    @apply bg-slate-600 hover:bg-slate-500;
+  }
+
+  /* ============================================
+   * Card entrance animation
+   * ============================================ */
+  @keyframes cardSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(30px) scale(0.9);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .animate-card-slide-in {
+    animation: cardSlideIn 0.4s ease-out forwards;
+  }
+
+  /* Staggered animation delays for cards */
+  .animate-stagger-1 { animation-delay: 50ms; }
+  .animate-stagger-2 { animation-delay: 100ms; }
+  .animate-stagger-3 { animation-delay: 150ms; }
+  .animate-stagger-4 { animation-delay: 200ms; }
+  .animate-stagger-5 { animation-delay: 250ms; }
+  .animate-stagger-6 { animation-delay: 300ms; }
+  .animate-stagger-7 { animation-delay: 350ms; }
+  .animate-stagger-8 { animation-delay: 400ms; }
+  .animate-stagger-9 { animation-delay: 450ms; }
 }
