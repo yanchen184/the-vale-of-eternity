@@ -102,6 +102,7 @@ export default function SinglePlayerGame() {
     addStones,
     removeStones,
     getCurrentScore,
+    adjustScore,
     error,
   } = useGameStore()
 
@@ -305,6 +306,22 @@ export default function SinglePlayerGame() {
     console.log('[SinglePlayerGame] Returning coin to bank:', coinType)
     removeStones(coinType, 1)
   }, [removeStones])
+
+  // Handle score adjustment (click on score track)
+  const handleScoreAdjust = useCallback((_playerId: string, newScore: number) => {
+    const currentScoreValue = getCurrentScore()
+    const scoreDiff = newScore - currentScoreValue
+    adjustScore(scoreDiff, `手動調整分數到 ${newScore}`)
+  }, [getCurrentScore, adjustScore])
+
+  // Handle flip toggle (+60/-60)
+  const handleFlipToggle = useCallback((_playerId: string) => {
+    setIsFlipped(prev => !prev)
+  }, [])
+
+  // Reserved for ActionPhaseUI
+  void handleScoreAdjust
+  void handleFlipToggle
 
   // Handle card selection toggle in DRAW phase (after artifact selection)
   const handleToggleCard = useCallback((cardId: string) => {
@@ -567,12 +584,8 @@ export default function SinglePlayerGame() {
                 onCardDiscard={(_playerId, _cardId) => {
                   console.log('[SinglePlayerGame] onCardDiscard: not implemented in single player')
                 }}
-                onScoreAdjust={(_playerId, _score) => {
-                  console.log('[SinglePlayerGame] onScoreAdjust: not implemented in single player')
-                }}
-                onFlipToggle={(_playerId) => {
-                  console.log('[SinglePlayerGame] onFlipToggle: not implemented in single player')
-                }}
+                onScoreAdjust={handleScoreAdjust}
+                onFlipToggle={handleFlipToggle}
                 canTameCard={canTameCard}
               />
             ) : (
