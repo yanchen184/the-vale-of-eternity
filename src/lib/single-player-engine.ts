@@ -1,10 +1,10 @@
 /**
- * Single Player Game Engine for Vale of Eternity v7.0.0
+ * Single Player Game Engine for Vale of Eternity v7.1.0
  * Core game logic for single-player mode with Stone Economy System
  * Based on GAME_FLOW.md specifications
- * @version 7.0.0 - Simplified flow without setup phases (like multiplayer)
+ * @version 7.1.0 - Artifact selection in DRAW phase (like multiplayer hunting phase)
  */
-console.log('[lib/single-player-engine.ts] v7.0.0 loaded - Simplified flow without setup phases')
+console.log('[lib/single-player-engine.ts] v7.1.0 loaded - Artifact selection in DRAW phase')
 
 import type { CardInstance, CardEffect, StoneConfig } from '@/types/cards'
 import { CardLocation, Element, EffectType, EffectTrigger, StoneType } from '@/types/cards'
@@ -203,7 +203,7 @@ export class SinglePlayerEngine {
   private gameEndListeners: Array<(state: SinglePlayerGameState) => void> = []
 
   constructor() {
-    console.log('[SinglePlayerEngine] Initialized v3.0.0')
+    console.log('[SinglePlayerEngine] Initialized v7.1.0')
   }
 
   // ============================================
@@ -264,9 +264,9 @@ export class SinglePlayerEngine {
       updatedAt: Date.now(),
       gameMode: 'AUTOMATIC',
       manualOperations: [],
-      // No expansion mode setup phases - will use HUNTING phase like multiplayer
-      isExpansionMode: false,
-      availableArtifacts: undefined,
+      // Enable expansion mode - show artifact selection in HUNTING phase like multiplayer
+      isExpansionMode: true,
+      availableArtifacts: this.getRandomArtifacts(3),
       selectedArtifact: null,
       initialCards: [],
       selectedInitialCard: null,
@@ -276,7 +276,27 @@ export class SinglePlayerEngine {
     return this.state!
   }
 
-  // NOTE: getRandomArtifacts removed in v7.0.0 - artifact selection phase no longer used
+  /**
+   * Get random artifacts for selection
+   */
+  private getRandomArtifacts(count: number): string[] {
+    // All artifact IDs from the game (matching artifacts.ts)
+    const allArtifactIds = [
+      'incense_burner',        // Core
+      'monkey_king_staff',     // Core
+      'pied_piper_pipe',       // Core
+      'seven_league_boots',    // 3-player
+      'golden_fleece',         // 4-player
+      'book_of_thoth',         // Random
+      'cap_of_hades',          // Random
+      'gem_of_kukulkan',       // Random
+      'imperial_seal',         // Random
+      'philosopher_stone',     // Random
+      'ring_of_wishes',        // Random
+    ]
+    const shuffled = [...allArtifactIds].sort(() => Math.random() - 0.5)
+    return shuffled.slice(0, count)
+  }
 
   /**
    * Get current game state
@@ -297,7 +317,7 @@ export class SinglePlayerEngine {
   // ============================================
 
   /**
-   * Select an artifact during setup
+   * Select an artifact during DRAW/HUNTING phase (like multiplayer)
    * @param artifactId Artifact ID to select
    */
   selectArtifact(artifactId: string): void {
@@ -308,10 +328,11 @@ export class SinglePlayerEngine {
       )
     }
 
-    if (this.state.phase !== SinglePlayerPhase.SETUP_ARTIFACT) {
+    // Allow artifact selection in DRAW phase (like multiplayer's hunting phase)
+    if (this.state.phase !== SinglePlayerPhase.DRAW) {
       throw new SinglePlayerError(
         SinglePlayerErrorCode.ERR_INVALID_PHASE,
-        'Can only select artifact during SETUP_ARTIFACT phase'
+        'Can only select artifact during DRAW (hunting) phase'
       )
     }
 
@@ -322,12 +343,21 @@ export class SinglePlayerEngine {
       )
     }
 
+    // Record action
+    const action: SinglePlayerAction = {
+      type: SinglePlayerActionType.SELECT_ARTIFACT,
+      timestamp: Date.now(),
+      payload: { cardInstanceId: artifactId },
+    }
+
     this.state = {
       ...this.state,
       selectedArtifact: artifactId,
+      actionsThisRound: [...this.state.actionsThisRound, action],
       updatedAt: Date.now(),
     }
 
+    console.log('[SinglePlayerEngine] Artifact selected:', artifactId)
     this.notifyStateChange()
   }
 

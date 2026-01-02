@@ -109,13 +109,13 @@ export const FixedHandPanel = memo(function FixedHandPanel({
   cards,
   onCardClick,
   onTameCard,
-  onSellCard,
+  onSellCard: _onSellCard, // Reserved for future use (currently disabled)
   onDiscardCard,
   onMoveToSanctuary,
   selectedCardId,
   showCardActions,
   canTameCard,
-  currentRound,
+  currentRound, // Still needed for HandGridView and HorizontalCardStrip
 }: FixedHandPanelProps) {
   const [viewMode, setViewMode] = useHandViewPreference()
 
@@ -123,11 +123,7 @@ export const FixedHandPanel = memo(function FixedHandPanel({
   const selectedCard = cards.find(c => c.instanceId === selectedCardId)
   const canTame = selectedCard && canTameCard ? canTameCard(selectedCard.instanceId) : false
 
-  // Check if card can be sold (only cards from current round)
-  const canSell = selectedCard && currentRound !== undefined
-    // @ts-expect-error - acquiredInRound is added at runtime from Firebase
-    ? (selectedCard.acquiredInRound === currentRound || selectedCard.acquiredInRound === undefined)
-    : true
+  // Removed: canSell - hand cards can no longer be sold (v3.1.0)
 
   return (
     <div
@@ -213,11 +209,11 @@ export const FixedHandPanel = memo(function FixedHandPanel({
             <CardActionPanel
               card={selectedCard}
               onTame={onTameCard ? () => onTameCard(selectedCard.instanceId) : undefined}
-              onSell={canSell && onSellCard ? () => onSellCard(selectedCard.instanceId) : undefined}
+              onSell={undefined}
               onDiscard={onDiscardCard ? () => onDiscardCard(selectedCard.instanceId) : undefined}
               onSanctuary={onMoveToSanctuary ? () => onMoveToSanctuary(selectedCard.instanceId) : undefined}
               canTame={canTame}
-              canSell={canSell}
+              canSell={false}
               position="right"
             />
           </div>

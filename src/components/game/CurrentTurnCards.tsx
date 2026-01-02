@@ -2,15 +2,15 @@
  * CurrentTurnCards Component
  * Displays cards drawn/selected in the current turn
  * Shows above the player's field area during their turn
- * @version 1.0.0
+ * @version 2.3.0 - Pass onClick to Card component to prevent Card's internal modal
  */
-console.log('[components/game/CurrentTurnCards.tsx] v1.0.0 loaded')
+console.log('[components/game/CurrentTurnCards.tsx] v2.3.0 loaded')
 
-import { memo, useState } from 'react'
+import { memo } from 'react'
 import { Card } from './Card'
-import { CardPreviewModal } from './CardPreviewModal'
 import { cn } from '@/lib/utils'
 import type { CardInstance } from '@/types/cards'
+import { getElementSellValue } from '@/services/multiplayer-game'
 
 // ============================================
 // TYPES
@@ -27,6 +27,12 @@ export interface CurrentTurnCardsProps {
   currentRound?: number
   /** Phase label (e.g., "選卡階段", "行動階段") */
   phaseLabel?: string
+  /** Callback when "上手" (move to hand) button is clicked */
+  onMoveToHand?: (cardId: string) => void
+  /** Callback when "賣掉" (sell) button is clicked */
+  onSell?: (cardId: string) => void
+  /** Callback when a card is clicked for preview */
+  onCardClick?: (cardId: string) => void
   /** Additional CSS classes */
   className?: string
 }
@@ -41,12 +47,25 @@ export const CurrentTurnCards = memo(function CurrentTurnCards({
   isCurrentTurn,
   currentRound,
   phaseLabel = '本回合卡片',
+  onMoveToHand,
+  onSell,
+  onCardClick,
   className,
 }: CurrentTurnCardsProps) {
-  const [previewCard, setPreviewCard] = useState<CardInstance | null>(null)
-
   if (cards.length === 0) {
     return null
+  }
+
+  const handleMoveToHand = (cardId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    console.log('[CurrentTurnCards] handleMoveToHand clicked:', cardId, 'callback exists:', !!onMoveToHand)
+    onMoveToHand?.(cardId)
+  }
+
+  const handleSell = (cardId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    console.log('[CurrentTurnCards] handleSell clicked:', cardId, 'callback exists:', !!onSell)
+    onSell?.(cardId)
   }
 
   return (
@@ -87,11 +106,8 @@ export const CurrentTurnCards = memo(function CurrentTurnCards({
             <div
               key={card.instanceId}
               className={cn(
-                'relative group transform transition-all duration-200',
-                'hover:scale-105 hover:z-10',
-                isCurrentTurn && 'cursor-pointer'
+                'relative group transition-all duration-200'
               )}
-              onClick={() => isCurrentTurn && setPreviewCard(card)}
               style={{ zIndex: index }}
             >
               <Card
@@ -99,11 +115,15 @@ export const CurrentTurnCards = memo(function CurrentTurnCards({
                 index={index}
                 compact={true}
                 currentRound={currentRound}
+                onClick={isCurrentTurn ? () => {
+                  onCardClick?.(card.instanceId)
+                } : undefined}
                 className={cn(
                   'shadow-md',
                   isCurrentTurn && [
                     'ring-2 ring-blue-400/50',
                     'hover:ring-blue-400',
+                    'cursor-pointer',
                   ]
                 )}
               />
@@ -113,6 +133,48 @@ export const CurrentTurnCards = memo(function CurrentTurnCards({
                 <div
                   className="absolute inset-0 rounded-lg bg-blue-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
                 />
+              )}
+
+              {/* Action buttons - only show for current player's turn */}
+              {isCurrentTurn && (onMoveToHand || onSell) && (
+                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
+                  {/* Move to Hand button */}
+                  {onMoveToHand && (
+                    <button
+                      onClick={(e) => handleMoveToHand(card.instanceId, e)}
+                      className={cn(
+                        'px-2 py-1 text-xs rounded-md',
+                        'bg-green-600 hover:bg-green-500 text-white',
+                        'shadow-lg border border-green-400/50',
+                        'whitespace-nowrap'
+                      )}
+                      type="button"
+                      title="加入手牌"
+                    >
+                      上手
+                    </button>
+                  )}
+
+                  {/* Sell button */}
+                  {onSell && (() => {
+                    const sellValue = getElementSellValue(card.element)
+                    return (
+                      <button
+                        onClick={(e) => handleSell(card.instanceId, e)}
+                        className={cn(
+                          'px-2 py-1 text-xs rounded-md',
+                          'bg-amber-600 hover:bg-amber-500 text-white',
+                          'shadow-lg border border-amber-400/50',
+                          'whitespace-nowrap'
+                        )}
+                        type="button"
+                        title={`賣掉換 ${sellValue} 元`}
+                      >
+                        賣 {sellValue}元
+                      </button>
+                    )
+                  })()}
+                </div>
               )}
             </div>
           ))}
@@ -125,13 +187,6 @@ export const CurrentTurnCards = memo(function CurrentTurnCards({
           </span>
         </div>
       </div>
-
-      {/* Card Preview Modal */}
-      <CardPreviewModal
-        card={previewCard}
-        isOpen={!!previewCard}
-        onClose={() => setPreviewCard(null)}
-      />
     </>
   )
 })

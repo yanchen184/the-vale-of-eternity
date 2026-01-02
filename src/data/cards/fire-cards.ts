@@ -57,9 +57,9 @@ export const FIRE_CARDS: readonly CardTemplate[] = [
       {
         type: EffectType.EARN_STONES,
         trigger: EffectTrigger.ON_TAME,
-        stones: [{ type: StoneType.ONE, amount: 3 }],
-        description: 'Earn 1 1 1.',
-        descriptionTw: '獲得 3 個 1 點石頭。',
+        stones: [{ type: StoneType.ONE, amount: 2 }],
+        description: 'Earn 1 1.',
+        descriptionTw: '獲得 2 個 1 點石頭。',
       },
       {
         type: EffectType.RECOVER_CARD,

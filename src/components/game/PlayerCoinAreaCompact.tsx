@@ -229,7 +229,7 @@ export const PlayerCoinAreaCompact = memo(
                   <img
                     src={slot.config.image}
                     alt={`${slot.config.value} coin`}
-                    className="w-6 h-6 object-contain drop-shadow pointer-events-none"
+                    className="w-full h-full object-contain drop-shadow pointer-events-none p-1"
                   />
                 ) : (
                   <div className="w-4 h-4 rounded-full border border-dashed border-slate-600/40" />

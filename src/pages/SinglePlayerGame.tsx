@@ -1,9 +1,9 @@
 /**
- * Single Player Game Page v7.0.0
- * Main gameplay interface for single-player mode - Simplified flow without setup phases
- * @version 7.0.0 - Simplified flow without setup phases (like multiplayer)
+ * Single Player Game Page v8.0.0
+ * Main gameplay interface for single-player mode - With artifact selection and coin display
+ * @version 8.0.0 - Added artifact selection and coin display
  */
-console.log('[pages/SinglePlayerGame.tsx] v7.0.0 loaded - Simplified flow without setup phases')
+console.log('[pages/SinglePlayerGame.tsx] v8.0.0 loaded - With artifact selection and coin display')
 
 import { useEffect, useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -18,9 +18,13 @@ import {
   useGameOver,
   usePlayerName,
   useRound,
+  useAvailableArtifacts,
+  useSelectedArtifact,
+  useIsExpansionMode,
   SinglePlayerPhase,
 } from '@/stores/useGameStore'
-import { calculateStonePoolValue } from '@/types/game'
+import { calculateStonePoolValue, createEmptyStonePool } from '@/types/game'
+import type { PlayerColor } from '@/types/player-color'
 import type { CardInstance } from '@/types/cards'
 import { StoneType } from '@/types/cards'
 import {
@@ -33,7 +37,9 @@ import {
   ScoreBar,
   ScoreTrack,
   HuntingPhaseUI,
+  MultiplayerCoinSystem,
 } from '@/components/game'
+import type { PlayerCoinInfo } from '@/components/game/MultiplayerCoinSystem'
 import { FixedHandPanel } from '@/components/game/FixedHandPanel'
 import { Modal } from '@/components/ui/Modal'
 import { cn } from '@/lib/utils'
@@ -41,6 +47,13 @@ import type { PlayerSidebarData } from '@/components/game/LeftSidebar'
 import type { PlayerFieldData } from '@/components/game/PlayersFieldArea'
 import type { ScoreBarPlayerData } from '@/components/game/ScoreBar'
 import type { PlayerScoreInfo } from '@/components/game/ScoreTrack'
+
+// ============================================
+// CONSTANTS
+// ============================================
+
+// Cache empty stone pool to prevent infinite re-renders
+const EMPTY_STONE_POOL = createEmptyStonePool()
 
 // ============================================
 // MAIN COMPONENT
@@ -59,6 +72,9 @@ export default function SinglePlayerGame() {
   const gameOver = useGameOver()
   const playerName = usePlayerName()
   const round = useRound()
+  const availableArtifacts = useAvailableArtifacts()
+  const selectedArtifact = useSelectedArtifact()
+  const isExpansionMode = useIsExpansionMode()
 
   // Store actions
   const {
@@ -68,6 +84,8 @@ export default function SinglePlayerGame() {
     pass,
     resetGame,
     canTameCard,
+    selectArtifact,
+    confirmArtifact,
     error,
   } = useGameStore()
 
@@ -83,11 +101,14 @@ export default function SinglePlayerGame() {
     return stones ? calculateStonePoolValue(stones) : 0
   }, [stones])
 
-  // Initialize game if not started - directly to DRAW phase (no expansion mode)
+  // Initialize game if not started - directly to DRAW phase with expansion mode
   useEffect(() => {
+    console.log('[SinglePlayerGame] useEffect - phase:', phase)
     if (!phase) {
+      console.log('[SinglePlayerGame] Starting game...')
       const savedName = localStorage.getItem('playerName') || 'Player'
-      startGame(savedName, false) // false = no expansion mode, starts directly at DRAW
+      startGame(savedName, true) // true = enable expansion mode with artifacts
+      console.log('[SinglePlayerGame] startGame called')
     }
   }, [phase, startGame])
 
@@ -120,6 +141,28 @@ export default function SinglePlayerGame() {
   const discardPile = useMemo(() => {
     return [] as CardInstance[]
   }, [])
+
+  // Artifact selection map for HuntingPhaseUI
+  const artifactSelectionMap = useMemo(() => {
+    const map = new Map<string, { color: PlayerColor; playerName: string; isConfirmed: boolean }>()
+    if (selectedArtifact) {
+      map.set(selectedArtifact, {
+        color: 'green' as PlayerColor,
+        playerName: playerName || 'Player',
+        isConfirmed: false,
+      })
+    }
+    return map
+  }, [selectedArtifact, playerName])
+
+  // Player coin info for MultiplayerCoinSystem
+  const playerCoinInfo: PlayerCoinInfo[] = useMemo(() => [{
+    playerId: 'single-player',
+    playerName: playerName || 'Player',
+    playerColor: 'green' as PlayerColor,
+    playerCoins: stones || EMPTY_STONE_POOL,
+    index: 0,
+  }], [playerName, stones])
 
   // Prepare player data for LeftSidebar
   const playerData: PlayerSidebarData = useMemo(() => ({
@@ -272,10 +315,16 @@ export default function SinglePlayerGame() {
         }
         rightSidebar={
           <RightSidebar
-            playerCoins={stones}
+            playerCoins={stones || EMPTY_STONE_POOL}
             playerName={playerName || 'Player'}
             isYourTurn={true}
             phase={multiplayerPhase}
+            onTakeCoin={() => {}} // Single player doesn't use coin taking
+            onReturnCoin={() => {}}
+            onConfirmSelection={selectedArtifact && phase === SinglePlayerPhase.DRAW ? confirmArtifact : undefined}  // Confirm artifact if selected
+            onEndTurn={() => {}}
+            isYourArtifactTurn={!selectedArtifact && (availableArtifacts?.length || 0) > 0}
+            isArtifactSelectionActive={!selectedArtifact && (availableArtifacts?.length || 0) > 0}
           />
         }
         scoreBar={
@@ -293,25 +342,25 @@ export default function SinglePlayerGame() {
             {phase === SinglePlayerPhase.DRAW ? (
               <HuntingPhaseUI
                 marketCards={market || []}
-                isYourTurn={false}  // DRAW phase: can't select cards yet, need to draw first
+                isYourTurn={true}  // Single player is always your turn
                 currentPlayerName={playerName || 'Player'}
                 currentPlayerId="single-player"
                 currentRound={round}
-                onToggleCard={() => {}}  // Disabled during DRAW phase
+                onToggleCard={() => {}}  // DRAW phase: card selection disabled
                 onConfirmSelection={() => {}}  // Single player doesn't need confirmation
                 cardSelectionMap={new Map()}  // No multiplayer selection
                 mySelectedCardId={null}
                 hasSelectedCard={false}
-                isExpansionMode={false}
-                availableArtifacts={[]}
+                isExpansionMode={isExpansionMode || false}  // Enable expansion mode for artifact selection
+                availableArtifacts={availableArtifacts || []}  // Available artifacts from store
                 usedArtifacts={[]}
                 disabledArtifacts={[]}
-                artifactSelectionMap={new Map()}
-                onSelectArtifact={() => {}}
+                artifactSelectionMap={artifactSelectionMap}  // Artifact selection state
+                onSelectArtifact={selectArtifact}  // Artifact selection handler
                 playerName={playerName || 'Player'}
-                artifactSelectorPlayerName={undefined}
-                isYourArtifactTurn={false}
-                isArtifactSelectionActive={false}
+                artifactSelectorPlayerName={playerName || 'Player'}
+                isYourArtifactTurn={!selectedArtifact}  // Can select artifact if not already selected
+                isArtifactSelectionActive={!selectedArtifact && (availableArtifacts?.length || 0) > 0}  // Show selector if artifacts available and not yet selected
                 sevenLeagueBootsState={null}
                 isInSevenLeagueBootsSelection={false}
                 onSelectSevenLeagueBootsCard={() => {}}
@@ -370,6 +419,20 @@ export default function SinglePlayerGame() {
                       const card = hand?.find(c => c.instanceId === cardId)
                       if (card) handleHandCardClick(card)
                     }}
+                  />
+                </div>
+
+                {/* Coin System - 6-slot coin display */}
+                <div className="mt-8">
+                  <MultiplayerCoinSystem
+                    players={playerCoinInfo}
+                    currentPlayerId="single-player"
+                    currentTurnPlayerId="single-player"
+                    bankCoins={EMPTY_STONE_POOL}  // Single player has no bank
+                    isYourTurn={true}
+                    onTakeCoin={() => {}}
+                    onReturnCoin={() => {}}
+                    enableAnimations={false}
                   />
                 </div>
 

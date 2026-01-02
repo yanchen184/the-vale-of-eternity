@@ -124,6 +124,7 @@ export const useGameStore = create<GameStore>()(
       // Subscribe to engine state changes
       // This is the ONLY place where gameState should be updated
       engine.onStateChange(state => {
+        console.log('[GameStore] onStateChange triggered:', state?.phase, state?.isExpansionMode, 'artifacts:', state?.availableArtifacts?.length)
         set({ gameState: state, error: null })
       })
 
@@ -140,15 +141,23 @@ export const useGameStore = create<GameStore>()(
 
         // === Game Lifecycle ===
         startGame: (playerName: string, expansionMode: boolean = true) => {
+          console.log('[GameStore] startGame called with:', { playerName, expansionMode })
           set({ isLoading: true, error: null })
           try {
             // engine.initGame() will trigger onStateChange callback which will set gameState
-            engine.initGame(playerName, expansionMode)
+            const initialState = engine.initGame(playerName, expansionMode)
+            console.log('[GameStore] initGame returned:', initialState?.phase, initialState?.isExpansionMode)
             set({ isLoading: false })
           } catch (err) {
+            console.error('[GameStore] startGame error:', err)
+            console.error('[GameStore] Error details:', {
+              name: (err as Error)?.name,
+              message: (err as Error)?.message,
+              stack: (err as Error)?.stack
+            })
             const message = err instanceof SinglePlayerError
               ? err.message
-              : 'Failed to start game'
+              : (err as Error)?.message || 'Failed to start game'
             set({ error: message, isLoading: false })
           }
         },
@@ -516,6 +525,17 @@ export const useGameStore = create<GameStore>()(
 )
 
 // ============================================
+// CACHED EMPTY ARRAYS
+// ============================================
+// Cache empty arrays to prevent infinite re-renders
+const EMPTY_ARTIFACT_ARRAY: string[] = []
+const EMPTY_CARD_ARRAY: CardInstance[] = []
+const EMPTY_MARKET_ARRAY: CardInstance[] = []
+const EMPTY_HAND_ARRAY: CardInstance[] = []
+const EMPTY_FIELD_ARRAY: CardInstance[] = []
+const EMPTY_DISCARD_ARRAY: CardInstance[] = []
+
+// ============================================
 // SELECTORS
 // ============================================
 
@@ -535,19 +555,19 @@ export const selectRound = (state: GameStore): number =>
  * Select market cards
  */
 export const selectMarket = (state: GameStore): CardInstance[] =>
-  state.gameState?.market ?? []
+  state.gameState?.market ?? EMPTY_MARKET_ARRAY
 
 /**
  * Select player hand
  */
 export const selectHand = (state: GameStore): CardInstance[] =>
-  state.gameState?.player.hand ?? []
+  state.gameState?.player.hand ?? EMPTY_HAND_ARRAY
 
 /**
  * Select player field
  */
 export const selectField = (state: GameStore): CardInstance[] =>
-  state.gameState?.player.field ?? []
+  state.gameState?.player.field ?? EMPTY_FIELD_ARRAY
 
 /**
  * Select player stones
@@ -565,7 +585,7 @@ export const selectDeckSize = (state: GameStore): number =>
  * Select discard pile
  */
 export const selectDiscardPile = (state: GameStore): CardInstance[] =>
-  state.gameState?.discardPile ?? []
+  state.gameState?.discardPile ?? EMPTY_DISCARD_ARRAY
 
 /**
  * Select if game is over
@@ -601,7 +621,7 @@ export const selectPlayerName = (state: GameStore): string =>
  * Select available artifacts for setup
  */
 export const selectAvailableArtifacts = (state: GameStore): string[] =>
-  state.gameState?.availableArtifacts ?? []
+  state.gameState?.availableArtifacts ?? EMPTY_ARTIFACT_ARRAY
 
 /**
  * Select selected artifact
@@ -613,7 +633,7 @@ export const selectSelectedArtifact = (state: GameStore): string | null =>
  * Select initial cards for selection
  */
 export const selectInitialCards = (state: GameStore): CardInstance[] =>
-  state.gameState?.initialCards ?? []
+  state.gameState?.initialCards ?? EMPTY_CARD_ARRAY
 
 /**
  * Select selected initial card

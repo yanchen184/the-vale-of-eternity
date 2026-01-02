@@ -2,9 +2,9 @@
  * PlayersFieldArea Component
  * Displays all players' field cards - each player gets a horizontal row
  * Integrated with hand preview and current turn cards display
- * @version 2.0.0 - Integrated PlayerHandPreview and CurrentTurnCards
+ * @version 3.0.0 - Added callbacks for currentTurnCards actions (上手/賣掉)
  */
-console.log('[components/game/PlayersFieldArea.tsx] v2.0.0 loaded')
+console.log('[components/game/PlayersFieldArea.tsx] v3.0.0 loaded')
 
 import { memo, useMemo, useCallback, useState } from 'react'
 import { Card } from './Card'
@@ -47,6 +47,10 @@ export interface PlayersFieldAreaProps {
   onCardReturn?: (playerId: string, cardId: string) => void
   /** Callback when a card is discarded from field (optional) */
   onCardDiscard?: (playerId: string, cardId: string) => void
+  /** Callback when a current turn card is moved to hand (optional) */
+  onCurrentCardMoveToHand?: (playerId: string, cardId: string) => void
+  /** Callback when a current turn card is sold (optional) */
+  onCurrentCardSell?: (playerId: string, cardId: string) => void
   /** Additional CSS classes */
   className?: string
 }
@@ -64,6 +68,9 @@ interface PlayerFieldSectionProps {
   onCardClick?: (cardId: string) => void
   onCardReturn?: (cardId: string) => void
   onCardDiscard?: (cardId: string) => void
+  onCurrentCardMoveToHand?: (cardId: string) => void
+  onCurrentCardSell?: (cardId: string) => void
+  onCurrentTurnCardClick?: (cardId: string) => void
 }
 
 const PlayerFieldSection = memo(function PlayerFieldSection({
@@ -75,6 +82,9 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
   onCardClick,
   onCardReturn,
   onCardDiscard,
+  onCurrentCardMoveToHand,
+  onCurrentCardSell,
+  onCurrentTurnCardClick,
 }: PlayerFieldSectionProps) {
   const colorConfig = PLAYER_COLORS[player.color]
 
@@ -89,6 +99,16 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
   const handleCardDiscard = useCallback((cardId: string) => {
     onCardDiscard?.(cardId)
   }, [onCardDiscard])
+
+  const handleCurrentCardMoveToHand = useCallback((cardId: string) => {
+    console.log('[PlayerFieldSection] handleCurrentCardMoveToHand called:', { playerId: player.playerId, cardId })
+    onCurrentCardMoveToHand?.(cardId)
+  }, [onCurrentCardMoveToHand, player.playerId])
+
+  const handleCurrentCardSell = useCallback((cardId: string) => {
+    console.log('[PlayerFieldSection] handleCurrentCardSell called:', { playerId: player.playerId, cardId })
+    onCurrentCardSell?.(cardId)
+  }, [onCurrentCardSell, player.playerId])
 
   // Get phase label for current turn cards
   const getPhaseLabel = () => {
@@ -157,6 +177,9 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
           isCurrentTurn={player.isCurrentTurn}
           currentRound={currentRound}
           phaseLabel={getPhaseLabel()}
+          onMoveToHand={isCurrentPlayer && player.isCurrentTurn ? handleCurrentCardMoveToHand : undefined}
+          onSell={isCurrentPlayer && player.isCurrentTurn ? handleCurrentCardSell : undefined}
+          onCardClick={onCurrentTurnCardClick}
         />
       )}
 
@@ -316,8 +339,15 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
   onCardClick,
   onCardReturn,
   onCardDiscard,
+  onCurrentCardMoveToHand,
+  onCurrentCardSell,
   className,
 }: PlayersFieldAreaProps) {
+  console.log('[PlayersFieldArea] Props received:', {
+    hasOnCurrentCardMoveToHand: !!onCurrentCardMoveToHand,
+    hasOnCurrentCardSell: !!onCurrentCardSell,
+  })
+
   // Card preview state
   const [previewCard, setPreviewCard] = useState<CardInstance | null>(null)
 
@@ -347,6 +377,17 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
     onCardClick?.(playerId, cardId)
   }, [players, onCardClick])
 
+  const handleCurrentTurnCardClick = useCallback((playerId: string, cardId: string) => {
+    // Find the clicked card from current turn cards
+    const player = players.find(p => p.playerId === playerId)
+    const card = player?.currentTurnCards?.find(c => c.instanceId === cardId)
+
+    if (card) {
+      // Show preview modal
+      setPreviewCard(card)
+    }
+  }, [players])
+
   const handlePlayerCardReturn = useCallback((playerId: string, cardId: string) => {
     onCardReturn?.(playerId, cardId)
   }, [onCardReturn])
@@ -354,6 +395,34 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
   const handlePlayerCardDiscard = useCallback((playerId: string, cardId: string) => {
     onCardDiscard?.(playerId, cardId)
   }, [onCardDiscard])
+
+  const handlePlayerCurrentCardMoveToHand = useCallback((playerId: string, cardId: string) => {
+    console.log('[PlayersFieldArea] handlePlayerCurrentCardMoveToHand called:', {
+      playerId,
+      cardId,
+      callbackExists: !!onCurrentCardMoveToHand,
+      callbackType: typeof onCurrentCardMoveToHand
+    })
+    if (onCurrentCardMoveToHand) {
+      onCurrentCardMoveToHand(playerId, cardId)
+    } else {
+      console.error('[PlayersFieldArea] onCurrentCardMoveToHand is undefined!')
+    }
+  }, [onCurrentCardMoveToHand])
+
+  const handlePlayerCurrentCardSell = useCallback((playerId: string, cardId: string) => {
+    console.log('[PlayersFieldArea] handlePlayerCurrentCardSell called:', {
+      playerId,
+      cardId,
+      callbackExists: !!onCurrentCardSell,
+      callbackType: typeof onCurrentCardSell
+    })
+    if (onCurrentCardSell) {
+      onCurrentCardSell(playerId, cardId)
+    } else {
+      console.error('[PlayersFieldArea] onCurrentCardSell is undefined!')
+    }
+  }, [onCurrentCardSell])
 
   return (
     <>
@@ -379,6 +448,9 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
               onCardClick={(cardId) => handlePlayerCardClick(player.playerId, cardId)}
               onCardReturn={(cardId) => handlePlayerCardReturn(player.playerId, cardId)}
               onCardDiscard={(cardId) => handlePlayerCardDiscard(player.playerId, cardId)}
+              onCurrentCardMoveToHand={(cardId) => handlePlayerCurrentCardMoveToHand(player.playerId, cardId)}
+              onCurrentCardSell={(cardId) => handlePlayerCurrentCardSell(player.playerId, cardId)}
+              onCurrentTurnCardClick={(cardId) => handleCurrentTurnCardClick(player.playerId, cardId)}
             />
           ))}
         </div>

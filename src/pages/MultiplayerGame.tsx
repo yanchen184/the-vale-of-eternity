@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 6.2.0 - Using shared HuntingPhaseUI and ActionPhaseUI components
+ * @version 6.4.0 - Sync other players' action sounds via Firebase state changes
  */
-console.log('[pages/MultiplayerGame.tsx] v6.2.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v6.4.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -28,6 +28,7 @@ import {
   HuntingPhaseUI,
   ActionPhaseUI,
 } from '@/components/game'
+import { useSound, SoundType } from '@/hooks/useSound'
 import { FixedHandPanel } from '@/components/game/FixedHandPanel'
 import type { PlayerScoreInfo, PlayerFieldData, PlayerSidebarData, ScoreBarPlayerData } from '@/components/game'
 import { Button } from '@/components/ui/Button'
@@ -56,6 +57,7 @@ interface WaitingRoomProps {
   maxPlayers: number
   onStartGame: () => void
   onLeave: () => void
+  onButtonClick?: () => void
 }
 
 
@@ -63,8 +65,18 @@ interface WaitingRoomProps {
 // WAITING ROOM COMPONENT
 // ============================================
 
-function WaitingRoom({ roomCode, players, isHost, maxPlayers, onStartGame, onLeave }: WaitingRoomProps) {
+function WaitingRoom({ roomCode, players, isHost, maxPlayers, onStartGame, onLeave, onButtonClick }: WaitingRoomProps) {
   const canStart = players.length >= 2
+
+  const handleStartClick = () => {
+    onButtonClick?.()
+    onStartGame()
+  }
+
+  const handleLeaveClick = () => {
+    onButtonClick?.()
+    onLeave()
+  }
 
   return (
     <div
@@ -146,7 +158,7 @@ function WaitingRoom({ roomCode, players, isHost, maxPlayers, onStartGame, onLea
         <div className="flex gap-4">
           <Button
             variant="secondary"
-            onClick={onLeave}
+            onClick={handleLeaveClick}
             className="flex-1"
             data-testid="leave-waiting-btn"
           >
@@ -155,7 +167,7 @@ function WaitingRoom({ roomCode, players, isHost, maxPlayers, onStartGame, onLea
           {isHost && (
             <Button
               variant="primary"
-              onClick={onStartGame}
+              onClick={handleStartClick}
               disabled={!canStart}
               className="flex-1"
               data-testid="start-game-btn"
@@ -186,8 +198,15 @@ export function MultiplayerGame() {
   const navigate = useNavigate()
   const state = location.state as LocationState | null
 
+  // Sound system
+  const { play } = useSound()
+
   // Refs for cleanup
   const unsubscribeRef = useRef<(() => void) | null>(null)
+
+  // Ref for tracking previous game state (for other players' sound effects)
+  const prevPlayersRef = useRef<PlayerState[] | null>(null)
+  const isInitialLoadRef = useRef(true)
 
   // State
   const [gameRoom, setGameRoom] = useState<GameRoom | null>(null)
@@ -307,11 +326,136 @@ export function MultiplayerGame() {
     setShowScoreModal(gameRoom.showScoreModal ?? false)
   }, [gameRoom?.showScoreModal])
 
+  // ============================================
+  // OTHER PLAYERS' SOUND EFFECTS SYNC (v6.4.0)
+  // ============================================
+  // Listen to state changes and play sounds for other players' actions
+  useEffect(() => {
+    // Skip if no players data or still initial loading
+    if (!players.length || !playerId) return
+
+    // Skip initial load to avoid playing sounds when first joining
+    if (isInitialLoadRef.current) {
+      isInitialLoadRef.current = false
+      prevPlayersRef.current = players
+      return
+    }
+
+    const prevPlayers = prevPlayersRef.current
+    if (!prevPlayers) {
+      prevPlayersRef.current = players
+      return
+    }
+
+    // Compare each player's state changes (except current player)
+    players.forEach(currentPlayerState => {
+      // Skip current player - they already hear their own sounds
+      if (currentPlayerState.playerId === playerId) return
+
+      const prevPlayerState = prevPlayers.find(p => p.playerId === currentPlayerState.playerId)
+      if (!prevPlayerState) return
+
+      const prevHandCount = prevPlayerState.hand?.length ?? 0
+      const currHandCount = currentPlayerState.hand?.length ?? 0
+      const prevFieldCount = prevPlayerState.field?.length ?? 0
+      const currFieldCount = currentPlayerState.field?.length ?? 0
+      const prevSanctuaryCount = prevPlayerState.sanctuary?.length ?? 0
+      const currSanctuaryCount = currentPlayerState.sanctuary?.length ?? 0
+
+      // Calculate stone counts
+      const prevStoneCount = prevPlayerState.stones
+        ? Object.values(prevPlayerState.stones).reduce((sum, count) => sum + count, 0)
+        : 0
+      const currStoneCount = currentPlayerState.stones
+        ? Object.values(currentPlayerState.stones).reduce((sum, count) => sum + count, 0)
+        : 0
+
+      // Detect actions based on state changes
+      // Priority order matters - check most specific conditions first
+
+      // 1. Card Buy/Tame: hand decreases AND field increases
+      if (currHandCount < prevHandCount && currFieldCount > prevFieldCount) {
+        play(SoundType.CARD_BUY)
+        return // Only one sound per state change
+      }
+
+      // 2. Card Sell: hand decreases AND stones increase (but field doesn't increase)
+      if (currHandCount < prevHandCount && currStoneCount > prevStoneCount && currFieldCount <= prevFieldCount) {
+        play(SoundType.CARD_SELL)
+        return
+      }
+
+      // 3. Move to Sanctuary: hand decreases AND sanctuary increases
+      if (currHandCount < prevHandCount && currSanctuaryCount > prevSanctuaryCount) {
+        play(SoundType.CARD_SHELTER)
+        return
+      }
+
+      // 4. Recall from Sanctuary: sanctuary decreases AND hand increases
+      if (currSanctuaryCount < prevSanctuaryCount && currHandCount > prevHandCount) {
+        play(SoundType.CARD_RECALL)
+        return
+      }
+
+      // 5. Card Draw: hand increases (without sanctuary decrease)
+      if (currHandCount > prevHandCount && currSanctuaryCount >= prevSanctuaryCount) {
+        play(SoundType.CARD_DRAW)
+        return
+      }
+
+      // 6. Coin Gain: stones increase (without hand decrease - not from selling)
+      if (currStoneCount > prevStoneCount && currHandCount >= prevHandCount) {
+        play(SoundType.COIN_GAIN)
+        return
+      }
+
+      // 7. Coin Return: stones decrease (without field increase - not from buying)
+      if (currStoneCount < prevStoneCount && currFieldCount <= prevFieldCount) {
+        play(SoundType.COIN_RETURN)
+        return
+      }
+
+      // 8. Card Discard from hand: hand decreases but field and sanctuary don't increase
+      // and stones don't increase (not a sell)
+      if (currHandCount < prevHandCount && currFieldCount <= prevFieldCount &&
+          currSanctuaryCount <= prevSanctuaryCount && currStoneCount <= prevStoneCount) {
+        play(SoundType.CARD_FLIP)
+        return
+      }
+    })
+
+    // Update previous state reference
+    prevPlayersRef.current = players
+  }, [players, playerId, play])
+
+  // Track previous phase for sound effects
+  const prevPhaseRef = useRef<string | null>(null)
+
+  // Play phase transition sounds
+  useEffect(() => {
+    if (!gameRoom) return
+
+    const currentPhase = gameRoom.status
+    const prevPhase = prevPhaseRef.current
+
+    // Only play sounds when phase actually changes
+    if (prevPhase !== null && prevPhase !== currentPhase) {
+      if (currentPhase === 'HUNTING') {
+        play(SoundType.PHASE_HUNTING)
+      } else if (currentPhase === 'ACTION') {
+        play(SoundType.PHASE_ACTION)
+      }
+    }
+
+    prevPhaseRef.current = currentPhase
+  }, [gameRoom?.status, play])
+
   // Handle game end
   const handleGameEnd = useCallback(async () => {
     if (!gameId) return
 
     try {
+      play(SoundType.GAME_END)
       const finalScores = await multiplayerGameService.calculateFinalScores(gameId)
       const scoreList = finalScores.map((s) => ({
         playerId: s.playerId,
@@ -321,10 +465,14 @@ export function MultiplayerGame() {
       scoreList.sort((a, b) => b.score - a.score)
       setScores(scoreList)
       setShowGameOverModal(true)
+      // Play victory sound if current player is the winner
+      if (scoreList[0]?.playerId === playerId) {
+        setTimeout(() => play(SoundType.VICTORY), 500)
+      }
     } catch (err) {
       console.error('[MultiplayerGame] Error calculating scores:', err)
     }
-  }, [gameId, players])
+  }, [gameId, players, play, playerId])
 
   // Convert card data to CardInstance format
   const convertToCardInstance = useCallback(
@@ -422,6 +570,24 @@ export function MultiplayerGame() {
   }, [gameRoom, players])
 
   const isYourTurn = playerId === currentTurnPlayerId
+
+  // Track previous turn player for sound effects
+  const prevTurnPlayerIdRef = useRef<string | null>(null)
+
+  // Play turn start sound when it becomes your turn
+  useEffect(() => {
+    if (!gameRoom || !playerId) return
+
+    const currentTurnId = currentTurnPlayerId
+    const prevTurnId = prevTurnPlayerIdRef.current
+
+    // Only play sound when turn changes to you
+    if (prevTurnId !== null && prevTurnId !== currentTurnId && currentTurnId === playerId) {
+      play(SoundType.TURN_START)
+    }
+
+    prevTurnPlayerIdRef.current = currentTurnId
+  }, [currentTurnPlayerId, playerId, play, gameRoom])
 
   // Build card selection map for hunting phase
   const cardSelectionMap = useMemo(() => {
@@ -529,6 +695,10 @@ export function MultiplayerGame() {
         .map(convertToCardInstance)
         .filter((c): c is CardInstance => c !== null)
 
+      const currentTurnCardInstances = (player.currentDrawnCards || [])
+        .map(convertToCardInstance)
+        .filter((c): c is CardInstance => c !== null)
+
       return {
         playerId: player.playerId,
         name: player.name,
@@ -536,6 +706,7 @@ export function MultiplayerGame() {
         handCount: player.hand?.length ?? 0,
         fieldCards: fieldCardInstances,
         sanctuaryCards: sanctuaryCardInstances,
+        currentTurnCards: currentTurnCardInstances,
         isCurrentTurn: player.playerId === currentTurnPlayerId,
         hasPassed: player.hasPassed ?? false,
       }
@@ -547,19 +718,21 @@ export function MultiplayerGame() {
     if (!gameId || !playerId) return
 
     try {
+      play(SoundType.GAME_START)
       await multiplayerGameService.startGame(gameId, playerId)
     } catch (err: any) {
       setError(err.message || 'Failed to start game')
     }
-  }, [gameId, playerId])
+  }, [gameId, playerId, play])
 
   const handleLeaveGame = useCallback(() => {
     setShowLeaveModal(true)
   }, [])
 
   const confirmLeaveGame = useCallback(() => {
+    play(SoundType.BUTTON_CONFIRM)
     navigate('/multiplayer')
-  }, [navigate])
+  }, [navigate, play])
 
   // Handle Score Modal (synchronized for current turn player)
   const handleToggleScoreModal = useCallback(async (show: boolean) => {
@@ -585,12 +758,20 @@ export function MultiplayerGame() {
       if (!gameId || !playerId) return
 
       try {
+        // Check if this card is already selected by us
+        const isCurrentlySelected = mySelectedCardId === cardInstanceId
+        // Play appropriate sound
+        if (isCurrentlySelected) {
+          play(SoundType.CARD_DESELECT)
+        } else {
+          play(SoundType.CARD_SELECT)
+        }
         await multiplayerGameService.toggleCardSelection(gameId, playerId, cardInstanceId)
       } catch (err: any) {
         setError(err.message || 'Failed to toggle card selection')
       }
     },
-    [gameId, playerId]
+    [gameId, playerId, mySelectedCardId, play]
   )
 
   const handleTameCard = useCallback(
@@ -598,12 +779,13 @@ export function MultiplayerGame() {
       if (!gameId || !playerId) return
 
       try {
+        play(SoundType.CARD_BUY)
         await multiplayerGameService.tameCard(gameId, playerId, cardInstanceId)
       } catch (err: any) {
         setError(err.message || 'Failed to tame card')
       }
     },
-    [gameId, playerId]
+    [gameId, playerId, play]
   )
 
   const handleSellCard = useCallback(
@@ -611,12 +793,13 @@ export function MultiplayerGame() {
       if (!gameId || !playerId) return
 
       try {
+        play(SoundType.CARD_SELL)
         await multiplayerGameService.sellCard(gameId, playerId, cardInstanceId)
       } catch (err: any) {
         setError(err.message || 'Failed to sell card')
       }
     },
-    [gameId, playerId]
+    [gameId, playerId, play]
   )
 
   const handleDiscardCard = useCallback(
@@ -624,12 +807,13 @@ export function MultiplayerGame() {
       if (!gameId || !playerId) return
 
       try {
+        play(SoundType.CARD_FLIP)
         await multiplayerGameService.discardHandCard(gameId, playerId, cardInstanceId)
       } catch (err: any) {
         setError(err.message || 'Failed to discard card')
       }
     },
-    [gameId, playerId]
+    [gameId, playerId, play]
   )
 
   const handleReturnCard = useCallback(
@@ -637,12 +821,13 @@ export function MultiplayerGame() {
       if (!gameId || !playerId) return
 
       try {
+        play(SoundType.CARD_RECALL)
         await multiplayerGameService.returnCardToHand(gameId, playerId, cardInstanceId)
       } catch (err: any) {
         setError(err.message || 'Failed to return card')
       }
     },
-    [gameId, playerId]
+    [gameId, playerId, play]
   )
 
   const handleToggleZoneBonus = useCallback(
@@ -690,12 +875,13 @@ export function MultiplayerGame() {
       if (!gameId || !playerId) return
 
       try {
+        play(SoundType.CARD_SHELTER)
         await multiplayerGameService.moveCardToSanctuary(gameId, playerId, cardInstanceId)
       } catch (err: any) {
         setError(err.message || 'Failed to move card to sanctuary')
       }
     },
-    [gameId, playerId]
+    [gameId, playerId, play]
   )
 
   // Handle moving card from sanctuary back to hand (expansion mode)
@@ -704,33 +890,36 @@ export function MultiplayerGame() {
       if (!gameId || !playerId) return
 
       try {
+        play(SoundType.CARD_RECALL)
         await multiplayerGameService.moveCardFromSanctuary(gameId, playerId, cardInstanceId)
       } catch (err: any) {
         setError(err.message || 'Failed to move card from sanctuary')
       }
     },
-    [gameId, playerId]
+    [gameId, playerId, play]
   )
 
   const handlePassTurn = useCallback(async () => {
     if (!gameId || !playerId) return
 
     try {
+      play(SoundType.TURN_END)
       await multiplayerGameService.passTurn(gameId, playerId)
     } catch (err: any) {
       setError(err.message || 'Failed to pass turn')
     }
-  }, [gameId, playerId])
+  }, [gameId, playerId, play])
 
   const handleDrawCard = useCallback(async () => {
     if (!gameId || !playerId) return
 
     try {
+      play(SoundType.CARD_DRAW)
       await multiplayerGameService.drawCardFromDeck(gameId, playerId)
     } catch (err: any) {
       setError(err.message || 'Failed to draw card from deck')
     }
-  }, [gameId, playerId])
+  }, [gameId, playerId, play])
 
   const handleScoreAdjust = useCallback(
     async (targetPlayerId: string, newScore: number) => {
@@ -763,12 +952,13 @@ export function MultiplayerGame() {
       if (!gameId || !playerId) return
 
       try {
+        play(SoundType.COIN_GAIN)
         await multiplayerGameService.takeCoinFromBank(gameId, playerId, coinType)
       } catch (err: any) {
         setError(err.message || 'Failed to take coin from bank')
       }
     },
-    [gameId, playerId]
+    [gameId, playerId, play]
   )
 
   const handleReturnCoinToBank = useCallback(
@@ -776,12 +966,13 @@ export function MultiplayerGame() {
       if (!gameId || !playerId) return
 
       try {
+        play(SoundType.COIN_RETURN)
         await multiplayerGameService.returnCoinToBank(gameId, playerId, coinType)
       } catch (err: any) {
         setError(err.message || 'Failed to return coin to bank')
       }
     },
-    [gameId, playerId]
+    [gameId, playerId, play]
   )
 
   const handleReturnCardFromDiscard = useCallback(
@@ -811,6 +1002,37 @@ export function MultiplayerGame() {
     [gameId, playerId]
   )
 
+  // Current turn card handlers (move to hand / sell)
+  const handleMoveCurrentDrawnCardToHand = useCallback(
+    async (_playerId: string, cardInstanceId: string) => {
+      console.log('[MultiplayerGame] handleMoveCurrentDrawnCardToHand called:', { _playerId, cardInstanceId, gameId, playerId })
+      if (!gameId || !playerId) return
+
+      try {
+        play(SoundType.CARD_DRAW)
+        await multiplayerGameService.moveCurrentDrawnCardToHand(gameId, playerId, cardInstanceId)
+      } catch (err: any) {
+        setError(err.message || 'Failed to move card to hand')
+      }
+    },
+    [gameId, playerId, play]
+  )
+
+  const handleSellCurrentDrawnCard = useCallback(
+    async (_playerId: string, cardInstanceId: string) => {
+      console.log('[MultiplayerGame] handleSellCurrentDrawnCard called:', { _playerId, cardInstanceId, gameId, playerId })
+      if (!gameId || !playerId) return
+
+      try {
+        play(SoundType.CARD_SELL)
+        await multiplayerGameService.sellCurrentDrawnCard(gameId, playerId, cardInstanceId)
+      } catch (err: any) {
+        setError(err.message || 'Failed to sell current drawn card')
+      }
+    },
+    [gameId, playerId, play]
+  )
+
   // Artifact selection handler (Expansion Mode)
   const handleArtifactSelect = useCallback(
     async (artifactId: string) => {
@@ -832,6 +1054,7 @@ export function MultiplayerGame() {
       }
 
       try {
+        play(SoundType.ARTIFACT_SELECT)
         console.log('[MultiplayerGame] Calling selectArtifact service...')
         await multiplayerGameService.selectArtifact(
           gameId,
@@ -845,7 +1068,7 @@ export function MultiplayerGame() {
         setError(err.message || 'Failed to select artifact')
       }
     },
-    [gameId, playerId, gameRoom]
+    [gameId, playerId, gameRoom, play]
   )
 
   // Seven-League Boots handlers (v5.22.0)
@@ -878,12 +1101,18 @@ export function MultiplayerGame() {
     async (choice: 'draw' | 'recall') => {
       if (!gameId || !playerId) return
       try {
+        play(SoundType.ARTIFACT_ACTIVATE)
+        if (choice === 'draw') {
+          play(SoundType.CARD_DRAW)
+        } else {
+          play(SoundType.CARD_RECALL)
+        }
         await multiplayerGameService.executePiedPiperPipe(gameId, playerId, choice)
       } catch (err: any) {
         setError(err.message || 'Failed to execute Pied Piper\'s Pipe')
       }
     },
-    [gameId, playerId]
+    [gameId, playerId, play]
   )
 
   // Philosopher's Stone handlers
@@ -899,6 +1128,7 @@ export function MultiplayerGame() {
         return
       }
       try {
+        play(SoundType.ARTIFACT_ACTIVATE)
         await multiplayerGameService.executePhilosopherStone(
           gameId,
           playerId,
@@ -911,7 +1141,7 @@ export function MultiplayerGame() {
         setError(err.message || 'Failed to execute Philosopher\'s Stone')
       }
     },
-    [gameId, playerId, philosopherStoneRecallCard, philosopherStoneDiscardCard]
+    [gameId, playerId, philosopherStoneRecallCard, philosopherStoneDiscardCard, play]
   )
 
   // Calculate used artifacts for current player (only previous round)
@@ -1041,12 +1271,15 @@ export function MultiplayerGame() {
     if (!gameId || !playerId) return
 
     try {
+      play(SoundType.BUTTON_CONFIRM)
       // If in Seven-League Boots selection phase, confirm shelter selection
       if (sevenLeagueBootsState && isInSevenLeagueBootsSelection) {
+        play(SoundType.CARD_SHELTER)
         await multiplayerGameService.confirmSevenLeagueBootsSelection(gameId, playerId)
       }
       // If in artifact selection phase, confirm artifact selection instead
       else if (isArtifactSelectionActive && isYourArtifactTurn) {
+        play(SoundType.ARTIFACT_ACTIVATE)
         await multiplayerGameService.confirmArtifactSelection(gameId, playerId, gameRoom!.currentRound)
       } else {
         // Normal card selection confirmation
@@ -1055,7 +1288,7 @@ export function MultiplayerGame() {
     } catch (err: any) {
       setError(err.message || 'Failed to confirm selection')
     }
-  }, [gameId, playerId, sevenLeagueBootsState, isInSevenLeagueBootsSelection, isArtifactSelectionActive, isYourArtifactTurn, gameRoom])
+  }, [gameId, playerId, sevenLeagueBootsState, isInSevenLeagueBootsSelection, isArtifactSelectionActive, isYourArtifactTurn, gameRoom, play])
 
   // Clear error after timeout
   useEffect(() => {
@@ -1105,6 +1338,7 @@ export function MultiplayerGame() {
         maxPlayers={gameRoom.maxPlayers}
         onStartGame={handleStartGame}
         onLeave={handleLeaveGame}
+        onButtonClick={() => play(SoundType.BUTTON_CLICK)}
       />
     )
   }
@@ -1244,6 +1478,8 @@ export function MultiplayerGame() {
                 onScoreAdjust={handleScoreAdjust}
                 onFlipToggle={handleFlipToggle}
                 canTameCard={() => true}
+                onCurrentCardMoveToHand={handleMoveCurrentDrawnCardToHand}
+                onCurrentCardSell={handleSellCurrentDrawnCard}
               />
             )}
 
@@ -1258,6 +1494,8 @@ export function MultiplayerGame() {
                 gameStatus={gameRoom.status}
                 isYourTurn={isYourTurn}
                 onCardPlay={handleTameCard}
+                onCurrentCardMoveToHand={handleMoveCurrentDrawnCardToHand}
+                onCurrentCardSell={handleSellCurrentDrawnCard}
                 onCardSell={() => {}} // Disabled in resolution phase
                 onHandCardDiscard={handleDiscardCard}
                 onCardReturn={handleReturnCard}
@@ -1316,12 +1554,24 @@ export function MultiplayerGame() {
         title="所有玩家的怪獸區"
       >
         <div className="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
-          <PlayersFieldArea
-            players={playersFieldData}
-            currentPlayerId={playerId ?? ''}
-            phase={gameRoom.status}
-            currentRound={gameRoom.currentRound}
-          />
+          {(() => {
+            console.log('[MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks:', {
+              hasHandleMoveCurrentDrawnCardToHand: !!handleMoveCurrentDrawnCardToHand,
+              hasHandleSellCurrentDrawnCard: !!handleSellCurrentDrawnCard,
+            })
+            return (
+              <PlayersFieldArea
+                players={playersFieldData}
+                currentPlayerId={playerId ?? ''}
+                phase={gameRoom.status}
+                currentRound={gameRoom.currentRound}
+                onCardReturn={handleReturnCard}
+                onCardDiscard={handleDiscardFieldCard}
+                onCurrentCardMoveToHand={handleMoveCurrentDrawnCardToHand}
+                onCurrentCardSell={handleSellCurrentDrawnCard}
+              />
+            )
+          })()}
         </div>
       </Modal>
 

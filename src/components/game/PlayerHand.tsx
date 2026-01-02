@@ -297,12 +297,12 @@ export const PlayerHand = memo(function PlayerHand({
   enableDrag = true,
   onCardSelect,
   onCardPlay,
-  onCardSell,
+  onCardSell: _onCardSell, // Reserved for future use (currently disabled)
   onCardDiscard,
   onDragToField: _onDragToField,
   onMoveToSanctuary,
   canTameCard,
-  currentRound,
+  currentRound: _currentRound, // Reserved for future use
   className,
 }: PlayerHandProps) {
   void _onDragToField
@@ -310,17 +310,7 @@ export const PlayerHand = memo(function PlayerHand({
   const [draggedCardId, setDraggedCardId] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Helper function to check if a card can be sold (only cards from current round)
-  const canSellCard = useCallback((card: CardInstance) => {
-    // If no currentRound is provided, allow selling all cards (backward compatibility)
-    if (currentRound === undefined) return true
-    // @ts-expect-error - acquiredInRound is added at runtime from Firebase
-    const acquiredInRound = card.acquiredInRound
-    // If card doesn't have acquiredInRound (old cards), allow selling (backward compatibility)
-    if (acquiredInRound === undefined) return true
-    // Only allow selling if card was acquired in current round
-    return acquiredInRound === currentRound
-  }, [currentRound])
+  // Removed: canSellCard - hand cards can no longer be sold (v3.1.0)
 
   // Limit visible cards
   const visibleCards = useMemo(() => {
@@ -338,9 +328,7 @@ export const PlayerHand = memo(function PlayerHand({
     onCardPlay?.(cardId)
   }, [onCardPlay])
 
-  const handleCardSell = useCallback((cardId: string) => {
-    onCardSell?.(cardId)
-  }, [onCardSell])
+  // Removed: handleCardSell - hand cards can no longer be sold (v3.1.0)
 
   const handleCardDiscard = useCallback((cardId: string) => {
     onCardDiscard?.(cardId)
@@ -448,10 +436,10 @@ export const PlayerHand = memo(function PlayerHand({
             showActions={showActions}
             enableDrag={enableDrag && draggedCardId !== card.instanceId}
             canTame={canTameCard?.(card.instanceId) ?? false}
-            canSell={canSellCard(card)}
+            canSell={false}
             onSelect={() => handleCardSelect(card.instanceId)}
             onTame={() => handleCardTame(card.instanceId)}
-            onSell={() => handleCardSell(card.instanceId)}
+            onSell={undefined}
             onDiscard={() => handleCardDiscard(card.instanceId)}
             onMoveToSanctuary={onMoveToSanctuary ? () => handleMoveToSanctuary(card.instanceId) : undefined}
             onHover={() => handleHover(index)}

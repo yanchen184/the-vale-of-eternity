@@ -1,11 +1,11 @@
 /**
  * RightSidebar Component
  * Right sidebar for multiplayer game - displays bank coins and player coins
- * @version 3.0.0 - Integrated flying coin animations
+ * @version 5.0.0 - 多人同步金幣飛行動畫
  */
-console.log('[components/game/RightSidebar.tsx] v3.0.0 loaded')
+console.log('[components/game/RightSidebar.tsx] v5.0.0 loaded')
 
-import { memo, useRef, useCallback } from 'react'
+import { memo, useRef, useCallback, useEffect } from 'react' // eslint-disable-line
 import { cn } from '@/lib/utils'
 import type { StonePool } from '@/types/game'
 import { createEmptyStonePool } from '@/types/game'
@@ -13,8 +13,7 @@ import { StoneType } from '@/types/cards'
 import { BankArea } from './BankArea'
 import { PlayerCoinAreaCompact } from './PlayerCoinAreaCompact'
 import type { PlayerCoinAreaCompactRef } from './PlayerCoinAreaCompact'
-import { FlyingCoinContainer } from './FlyingCoinContainer'
-import { useCoinFlyAnimation } from '@/hooks/useCoinFlyAnimation'
+import { useCoinAnimation } from '@/hooks/useCoinAnimation'
 
 // ============================================
 // TYPES
@@ -101,10 +100,61 @@ export const RightSidebar = memo(function RightSidebar({
   void _bankCoins // Bank is infinite, no need to track
   void playerCoins // Now using allPlayers instead
 
-  // Flying animation system (v3.0.0)
-  const { flyingCoins, triggerFly } = useCoinFlyAnimation()
+  // 金幣飛行動畫系統 (v5.0.0 - 多人同步)
+  const { animateCoin } = useCoinAnimation()
   const bankAreaRef = useRef<HTMLDivElement>(null)
   const playerCoinRefs = useRef<Map<string, PlayerCoinAreaCompactRef>>(new Map())
+
+  // 儲存上一次的金幣狀態，用於偵測變化
+  const previousCoinsRef = useRef<Map<string, StonePool>>(new Map()) // Used in useEffect
+
+  // 監聽所有玩家的金幣變化並觸發動畫 (v5.0.0)
+  useEffect(() => {
+    if (!allPlayers || allPlayers.length === 0) return
+
+    allPlayers.forEach((player) => {
+      const previousCoins = previousCoinsRef.current.get(player.playerId)
+      const currentCoins = player.playerCoins
+
+      // 第一次初始化，不觸發動畫
+      if (!previousCoins) {
+        previousCoinsRef.current.set(player.playerId, { ...currentCoins })
+        return
+      }
+
+      // 檢查每種金幣類型的變化
+      const coinTypes: StoneType[] = [StoneType.ONE, StoneType.THREE, StoneType.SIX]
+
+      coinTypes.forEach((coinType) => {
+        const prevCount = previousCoins[coinType] || 0
+        const currCount = currentCoins[coinType] || 0
+        const diff = currCount - prevCount
+
+        if (diff !== 0) {
+          console.log(
+            `[RightSidebar] Player ${player.playerName} coin changed:`,
+            { coinType, prevCount, currCount, diff }
+          )
+
+          const playerRef = playerCoinRefs.current.get(player.playerId)
+          const targetElement = playerRef?.getContainerElement()
+
+          if (diff > 0 && bankAreaRef.current && targetElement) {
+            // 金幣增加 = 從銀行拿取
+            console.log('[RightSidebar] Animating: Bank → Player')
+            void animateCoin(coinType, bankAreaRef.current, targetElement)
+          } else if (diff < 0 && targetElement && bankAreaRef.current) {
+            // 金幣減少 = 歸還銀行
+            console.log('[RightSidebar] Animating: Player → Bank')
+            void animateCoin(coinType, targetElement, bankAreaRef.current)
+          }
+        }
+      })
+
+      // 更新儲存的狀態
+      previousCoinsRef.current.set(player.playerId, { ...currentCoins })
+    })
+  }, [allPlayers, animateCoin])
 
   // Calculate current player's total coins (v3.1.0 - updated to use dynamic limit)
   const currentPlayerCoins = allPlayers?.find((p) => p.playerId === currentPlayerId)?.playerCoins
@@ -115,12 +165,12 @@ export const RightSidebar = memo(function RightSidebar({
     : 0
   const canTakeMoreCoins = currentPlayerTotalCoins < currentPlayerStoneLimit
 
-  // Handle taking coin from bank - play animation then trigger actual logic
+  // 處理從銀行拿取金幣 - 直接執行邏輯，動畫由 useEffect 自動觸發
   const handleTakeCoinFromBank = useCallback(
-    (coinType: StoneType, bankCoinElement: HTMLElement | null) => {
+    (coinType: StoneType, _bankCoinElement: HTMLElement | null) => {
       if (!currentPlayerId || !onTakeCoin) return
 
-      // Check coin limit (default: 4, with Hestia: 6)
+      // 檢查金幣上限
       if (currentPlayerTotalCoins >= currentPlayerStoneLimit) {
         console.warn(
           `[RightSidebar] Cannot take coin: player has ${currentPlayerTotalCoins}/${currentPlayerStoneLimit} coins already`
@@ -128,26 +178,23 @@ export const RightSidebar = memo(function RightSidebar({
         return
       }
 
-      const playerRef = playerCoinRefs.current.get(currentPlayerId)
-      const targetElement = playerRef?.getCoinSlotElement(coinType)
-
-      void triggerFly(coinType, bankCoinElement, targetElement || null, {
-        onComplete: () => onTakeCoin(coinType),
-      })
+      console.log('[RightSidebar] Taking coin from bank:', coinType)
+      // 直接執行遊戲邏輯，動畫會由 useEffect 監聽金幣變化後自動觸發
+      onTakeCoin(coinType)
     },
-    [currentPlayerId, currentPlayerTotalCoins, currentPlayerStoneLimit, onTakeCoin, triggerFly]
+    [currentPlayerId, currentPlayerTotalCoins, currentPlayerStoneLimit, onTakeCoin]
   )
 
-  // Handle returning coin to bank - play animation then trigger actual logic
+  // 處理歸還金幣到銀行 - 直接執行邏輯，動畫由 useEffect 自動觸發
   const handleReturnCoinToBank = useCallback(
-    (coinType: StoneType, playerCoinElement: HTMLElement) => {
+    (coinType: StoneType, _playerCoinElement: HTMLElement) => {
       if (!onReturnCoin) return
 
-      void triggerFly(coinType, playerCoinElement, bankAreaRef.current, {
-        onComplete: () => onReturnCoin(coinType),
-      })
+      console.log('[RightSidebar] Returning coin to bank:', coinType)
+      // 直接執行遊戲邏輯，動畫會由 useEffect 監聽金幣變化後自動觸發
+      onReturnCoin(coinType)
     },
-    [onReturnCoin, triggerFly]
+    [onReturnCoin]
   )
 
   // Show confirm selection button only during HUNTING phase and player's turn
@@ -309,8 +356,6 @@ export const RightSidebar = memo(function RightSidebar({
         </div>
       </div>
 
-      {/* Flying Coin Animation Container */}
-      <FlyingCoinContainer flyingCoins={flyingCoins} />
     </aside>
   )
 })

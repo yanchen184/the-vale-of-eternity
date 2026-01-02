@@ -204,80 +204,37 @@ class SoundGenerator {
   // ============================================
 
   /**
-   * Card Draw - Quick swish sound
+   * Card Draw - Epic card swoosh with shimmer
    */
   private playCardDraw(startTime: number, volume: number): void {
     const ctx = this.audioContext!
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
 
-    osc.connect(gain)
-    gain.connect(ctx.destination)
+    // Main swoosh sound (longer and more dramatic)
+    const swoosh = ctx.createOscillator()
+    const swooshGain = ctx.createGain()
+    swoosh.connect(swooshGain)
+    swooshGain.connect(ctx.destination)
 
-    osc.frequency.setValueAtTime(300, startTime)
-    osc.frequency.exponentialRampToValueAtTime(150, startTime + 0.1)
+    swoosh.type = 'sawtooth'
+    swoosh.frequency.setValueAtTime(400, startTime)
+    swoosh.frequency.exponentialRampToValueAtTime(150, startTime + 0.3)
+    swoosh.frequency.exponentialRampToValueAtTime(100, startTime + 0.5)
 
-    gain.gain.setValueAtTime(volume * 0.3, startTime)
-    gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.1)
+    swooshGain.gain.setValueAtTime(volume * 0.35, startTime)
+    swooshGain.gain.setValueAtTime(volume * 0.3, startTime + 0.1)
+    swooshGain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.5)
 
-    osc.start(startTime)
-    osc.stop(startTime + 0.1)
-  }
+    swoosh.start(startTime)
+    swoosh.stop(startTime + 0.5)
 
-  /**
-   * Card Select - Ascending tone
-   */
-  private playCardSelect(startTime: number, volume: number): void {
-    const ctx = this.audioContext!
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
+    // Shimmer/sparkle effect (three ascending tones)
+    const sparkles = [
+      { freq: 800, delay: 0.15 },
+      { freq: 1000, delay: 0.22 },
+      { freq: 1200, delay: 0.29 },
+    ]
 
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-
-    osc.type = 'triangle'
-    osc.frequency.setValueAtTime(440, startTime)
-    osc.frequency.exponentialRampToValueAtTime(660, startTime + 0.08)
-
-    gain.gain.setValueAtTime(volume * 0.2, startTime)
-    gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.08)
-
-    osc.start(startTime)
-    osc.stop(startTime + 0.08)
-  }
-
-  /**
-   * Card Deselect - Descending tone
-   */
-  private playCardDeselect(startTime: number, volume: number): void {
-    const ctx = this.audioContext!
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-
-    osc.type = 'triangle'
-    osc.frequency.setValueAtTime(660, startTime)
-    osc.frequency.exponentialRampToValueAtTime(440, startTime + 0.08)
-
-    gain.gain.setValueAtTime(volume * 0.2, startTime)
-    gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.08)
-
-    osc.start(startTime)
-    osc.stop(startTime + 0.08)
-  }
-
-  /**
-   * Card Buy - Success chime
-   */
-  private playCardBuy(startTime: number, volume: number): void {
-    const ctx = this.audioContext!
-
-    // Three-note ascending chord
-    const frequencies = [523.25, 659.25, 783.99] // C5, E5, G5
-
-    frequencies.forEach((freq, i) => {
+    sparkles.forEach(({ freq, delay }) => {
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
 
@@ -285,14 +242,171 @@ class SoundGenerator {
       gain.connect(ctx.destination)
 
       osc.type = 'sine'
-      osc.frequency.setValueAtTime(freq, startTime + i * 0.05)
+      osc.frequency.setValueAtTime(freq, startTime + delay)
 
-      gain.gain.setValueAtTime(volume * 0.15, startTime + i * 0.05)
-      gain.gain.exponentialRampToValueAtTime(0.01, startTime + i * 0.05 + 0.3)
+      gain.gain.setValueAtTime(volume * 0.15, startTime + delay)
+      gain.gain.exponentialRampToValueAtTime(0.01, startTime + delay + 0.25)
 
-      osc.start(startTime + i * 0.05)
-      osc.stop(startTime + i * 0.05 + 0.3)
+      osc.start(startTime + delay)
+      osc.stop(startTime + delay + 0.25)
     })
+
+    // Deep bass thump for satisfaction
+    const bass = ctx.createOscillator()
+    const bassGain = ctx.createGain()
+    bass.connect(bassGain)
+    bassGain.connect(ctx.destination)
+
+    bass.type = 'sine'
+    bass.frequency.setValueAtTime(80, startTime)
+    bass.frequency.exponentialRampToValueAtTime(40, startTime + 0.2)
+
+    bassGain.gain.setValueAtTime(volume * 0.4, startTime)
+    bassGain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.2)
+
+    bass.start(startTime)
+    bass.stop(startTime + 0.2)
+
+    // High-end crisp finish
+    const crisp = ctx.createOscillator()
+    const crispGain = ctx.createGain()
+    crisp.connect(crispGain)
+    crispGain.connect(ctx.destination)
+
+    crisp.type = 'triangle'
+    crisp.frequency.setValueAtTime(2000, startTime + 0.35)
+    crisp.frequency.exponentialRampToValueAtTime(1500, startTime + 0.5)
+
+    crispGain.gain.setValueAtTime(volume * 0.12, startTime + 0.35)
+    crispGain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.5)
+
+    crisp.start(startTime + 0.35)
+    crisp.stop(startTime + 0.5)
+  }
+
+  /**
+   * Card Select - Ascending tone
+   */
+  private playCardSelect(startTime: number, volume: number): void {
+    const ctx = this.audioContext!
+
+    // Main ascending tone
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.type = 'triangle'
+    osc.frequency.setValueAtTime(440, startTime)
+    osc.frequency.exponentialRampToValueAtTime(880, startTime + 0.15)
+    gain.gain.setValueAtTime(volume * 0.3, startTime)
+    gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.15)
+    osc.start(startTime)
+    osc.stop(startTime + 0.15)
+
+    // Bright ping
+    const ping = ctx.createOscillator()
+    const pingGain = ctx.createGain()
+    ping.connect(pingGain)
+    pingGain.connect(ctx.destination)
+    ping.type = 'sine'
+    ping.frequency.setValueAtTime(1200, startTime + 0.08)
+    pingGain.gain.setValueAtTime(volume * 0.2, startTime + 0.08)
+    pingGain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.2)
+    ping.start(startTime + 0.08)
+    ping.stop(startTime + 0.2)
+  }
+
+  /**
+   * Card Deselect - Descending tone
+   */
+  private playCardDeselect(startTime: number, volume: number): void {
+    const ctx = this.audioContext!
+
+    // Main descending tone
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.type = 'triangle'
+    osc.frequency.setValueAtTime(880, startTime)
+    osc.frequency.exponentialRampToValueAtTime(440, startTime + 0.15)
+    gain.gain.setValueAtTime(volume * 0.3, startTime)
+    gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.15)
+    osc.start(startTime)
+    osc.stop(startTime + 0.15)
+
+    // Soft thud
+    const thud = ctx.createOscillator()
+    const thudGain = ctx.createGain()
+    thud.connect(thudGain)
+    thudGain.connect(ctx.destination)
+    thud.type = 'sine'
+    thud.frequency.setValueAtTime(200, startTime + 0.08)
+    thudGain.gain.setValueAtTime(volume * 0.15, startTime + 0.08)
+    thudGain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.2)
+    thud.start(startTime + 0.08)
+    thud.stop(startTime + 0.2)
+  }
+
+  /**
+   * Card Buy - Epic success chime with celebration
+   */
+  private playCardBuy(startTime: number, volume: number): void {
+    const ctx = this.audioContext!
+
+    // Ascending chord (C5, E5, G5, C6) - fuller sound
+    const chord = [523.25, 659.25, 783.99, 1046.5]
+
+    chord.forEach((freq, i) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(freq, startTime + i * 0.06)
+
+      gain.gain.setValueAtTime(volume * 0.2, startTime + i * 0.06)
+      gain.gain.exponentialRampToValueAtTime(0.01, startTime + i * 0.06 + 0.4)
+
+      osc.start(startTime + i * 0.06)
+      osc.stop(startTime + i * 0.06 + 0.4)
+    })
+
+    // Victory shimmer
+    const shimmer = [1200, 1400, 1600, 1800]
+    shimmer.forEach((freq, i) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+
+      osc.type = 'triangle'
+      osc.frequency.setValueAtTime(freq, startTime + 0.15 + i * 0.04)
+
+      gain.gain.setValueAtTime(volume * 0.1, startTime + 0.15 + i * 0.04)
+      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.15 + i * 0.04 + 0.2)
+
+      osc.start(startTime + 0.15 + i * 0.04)
+      osc.stop(startTime + 0.15 + i * 0.04 + 0.2)
+    })
+
+    // Bass punch for impact
+    const bass = ctx.createOscillator()
+    const bassGain = ctx.createGain()
+    bass.connect(bassGain)
+    bassGain.connect(ctx.destination)
+
+    bass.type = 'sine'
+    bass.frequency.setValueAtTime(100, startTime)
+
+    bassGain.gain.setValueAtTime(volume * 0.35, startTime)
+    bassGain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.15)
+
+    bass.start(startTime)
+    bass.stop(startTime + 0.15)
   }
 
   /**

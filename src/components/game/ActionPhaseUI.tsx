@@ -34,6 +34,9 @@ export interface ActionPhaseUIProps {
   canTameCard: (cardId: string) => boolean
   resolutionMode?: boolean
   onFinishResolution?: () => void
+  // Current turn card handlers (v2.0.0)
+  onCurrentCardMoveToHand?: (playerId: string, cardId: string) => void
+  onCurrentCardSell?: (playerId: string, cardId: string) => void
 }
 
 // ============================================
@@ -58,6 +61,8 @@ export function ActionPhaseUI({
   canTameCard: _canTameCard,
   resolutionMode = false,
   onFinishResolution,
+  onCurrentCardMoveToHand,
+  onCurrentCardSell,
 }: ActionPhaseUIProps) {
   // Reserved for future use
   void _handCards
@@ -87,6 +92,8 @@ export function ActionPhaseUI({
             currentRound={currentRound}
             onCardReturn={onCardReturn}
             onCardDiscard={onCardDiscard}
+            onCurrentCardMoveToHand={onCurrentCardMoveToHand}
+            onCurrentCardSell={onCurrentCardSell}
           />
         )}
 
@@ -101,6 +108,8 @@ export function ActionPhaseUI({
             currentRound={currentRound}
             onCardReturn={onCardReturn}
             onCardDiscard={onCardDiscard}
+            onCurrentCardMoveToHand={onCurrentCardMoveToHand}
+            onCurrentCardSell={onCurrentCardSell}
           />
         )}
       </div>

@@ -55,6 +55,15 @@ export function getElementSellCoins(element: Element): { six: number; three: num
   return result
 }
 
+/**
+ * Calculate total coin value for selling a card based on its element
+ * Returns total value in 1-coin units
+ */
+export function getElementSellValue(element: Element): number {
+  const coins = getElementSellCoins(element)
+  return coins.six * 6 + coins.three * 3 + coins.one * 1
+}
+
 // ============================================
 // TYPES
 // ============================================
@@ -1057,12 +1066,14 @@ export class MultiplayerGameService {
       const player: PlayerState = playerSnapshot.val()
       const currentHand = Array.isArray(player.hand) ? player.hand : []
       const currentField = Array.isArray(player.field) ? player.field : []
-      const updatedHand = [...currentHand, ...cardIds]
+      // Put selected cards in currentDrawnCards instead of hand
+      const currentDrawnCards = cardIds
 
-      // Update player's hand
+      // Update player's currentDrawnCards (not hand)
       await update(ref(database, `games/${gameId}/players/${playerId}`), {
-        hand: updatedHand,
+        hand: currentHand,
         field: currentField,
+        currentDrawnCards: currentDrawnCards,
       })
 
       // Update each card's location and clear markers
@@ -1542,6 +1553,174 @@ export class MultiplayerGameService {
   }
 
   /**
+   * Move a card from currentDrawnCards to hand (ACTION phase)
+   * Used when player chooses to keep a drawn card instead of selling it
+   */
+  async moveCurrentDrawnCardToHand(
+    gameId: string,
+    playerId: string,
+    cardInstanceId: string
+  ): Promise<void> {
+    const gameRef = ref(database, `games/${gameId}`)
+    const snapshot = await get(gameRef)
+
+    if (!snapshot.exists()) {
+      throw new Error('Game not found')
+    }
+
+    const game: GameRoom = snapshot.val()
+
+    if (game.status !== 'ACTION' && game.status !== 'RESOLUTION') {
+      throw new Error('Not in action or resolution phase')
+    }
+
+    const currentPlayerIndex = game.currentPlayerIndex
+    const expectedPlayerId = game.playerIds[currentPlayerIndex]
+
+    if (playerId !== expectedPlayerId) {
+      throw new Error('Not your turn')
+    }
+
+    // Get player state
+    const playerSnapshot = await get(ref(database, `games/${gameId}/players/${playerId}`))
+    if (!playerSnapshot.exists()) {
+      throw new Error('Player not found')
+    }
+
+    const player: PlayerState = playerSnapshot.val()
+
+    // Ensure currentDrawnCards array exists
+    const currentDrawnCards = Array.isArray(player.currentDrawnCards) ? player.currentDrawnCards : []
+    if (!currentDrawnCards.includes(cardInstanceId)) {
+      throw new Error('Card not in currentDrawnCards')
+    }
+
+    // Move card from currentDrawnCards to hand
+    const updatedCurrentDrawnCards = currentDrawnCards.filter(id => id !== cardInstanceId)
+    const currentHand = Array.isArray(player.hand) ? player.hand : []
+    const updatedHand = [...currentHand, cardInstanceId]
+
+    // Update player state
+    await update(ref(database, `games/${gameId}/players/${playerId}`), {
+      currentDrawnCards: updatedCurrentDrawnCards,
+      hand: updatedHand,
+    })
+
+    // Update card location (still HAND, just moving between arrays)
+    await update(ref(database, `games/${gameId}/cards/${cardInstanceId}`), {
+      location: CardLocation.HAND,
+    })
+
+    console.log(`[MultiplayerGame] Player ${playerId} moved card ${cardInstanceId} from currentDrawnCards to hand`)
+  }
+
+  /**
+   * Sell a card directly from currentDrawnCards for coins (ACTION phase)
+   * Same as sellCard() but takes from currentDrawnCards instead of hand
+   */
+  async sellCurrentDrawnCard(
+    gameId: string,
+    playerId: string,
+    cardInstanceId: string
+  ): Promise<void> {
+    const gameRef = ref(database, `games/${gameId}`)
+    const snapshot = await get(gameRef)
+
+    if (!snapshot.exists()) {
+      throw new Error('Game not found')
+    }
+
+    const game: GameRoom = snapshot.val()
+
+    if (game.status !== 'ACTION' && game.status !== 'RESOLUTION') {
+      throw new Error('Not in action or resolution phase')
+    }
+
+    const currentPlayerIndex = game.currentPlayerIndex
+    const expectedPlayerId = game.playerIds[currentPlayerIndex]
+
+    if (playerId !== expectedPlayerId) {
+      throw new Error('Not your turn')
+    }
+
+    // Get player state
+    const playerSnapshot = await get(ref(database, `games/${gameId}/players/${playerId}`))
+    if (!playerSnapshot.exists()) {
+      throw new Error('Player not found')
+    }
+
+    const player: PlayerState = playerSnapshot.val()
+
+    // Ensure currentDrawnCards array exists
+    const currentDrawnCards = Array.isArray(player.currentDrawnCards) ? player.currentDrawnCards : []
+    if (!currentDrawnCards.includes(cardInstanceId)) {
+      throw new Error('Card not in currentDrawnCards')
+    }
+
+    // Get card data
+    const cardSnapshot = await get(ref(database, `games/${gameId}/cards/${cardInstanceId}`))
+    if (!cardSnapshot.exists()) {
+      throw new Error('Card not found')
+    }
+
+    const card: CardInstanceData = cardSnapshot.val()
+
+    // Check if card can be sold (only cards acquired in current round)
+    if (card.acquiredInRound !== game.currentRound) {
+      throw new Error('只能賣出本回合獲得的卡片')
+    }
+
+    // Get card template to find element
+    const allCards = getAllBaseCards()
+    const cardTemplate = allCards.find(c => c.id === card.cardId)
+    if (!cardTemplate) {
+      throw new Error(`Card template not found for ${card.cardId}`)
+    }
+
+    // Get coins based on element
+    const coinsToGive = ELEMENT_SELL_COINS[cardTemplate.element]
+    if (!coinsToGive) {
+      throw new Error(`No sell coins defined for element ${cardTemplate.element}`)
+    }
+
+    // Calculate new stone amounts
+    const updatedStones = { ...player.stones }
+    coinsToGive.forEach(({ type, amount }) => {
+      updatedStones[type] = (updatedStones[type] || 0) + amount
+    })
+
+    // Move card from currentDrawnCards to discard
+    const updatedCurrentDrawnCards = currentDrawnCards.filter(id => id !== cardInstanceId)
+
+    // Update player state (remove card from currentDrawnCards AND give coins)
+    await update(ref(database, `games/${gameId}/players/${playerId}`), {
+      currentDrawnCards: updatedCurrentDrawnCards,
+      stones: updatedStones,
+    })
+
+    // Update card location
+    await update(ref(database, `games/${gameId}/cards/${cardInstanceId}`), {
+      location: CardLocation.DISCARD,
+    })
+
+    // Add to game discard pile
+    const currentDiscardIds = Array.isArray(game.discardIds) ? game.discardIds : []
+    await update(ref(database, `games/${gameId}`), {
+      discardIds: [...currentDiscardIds, cardInstanceId],
+      updatedAt: Date.now(),
+    })
+
+    // Format coins for logging
+    const coinsDescription = coinsToGive
+      .map(({ type, amount }) => `${amount}×${type}`)
+      .join(' + ')
+
+    console.log(
+      `[MultiplayerGame] Player ${playerId} sold ${cardTemplate.element} card ${cardInstanceId} (${card.name}) from currentDrawnCards and received ${coinsDescription}`
+    )
+  }
+
+  /**
    * Take a card from market discard pile
    * - If your turn: take to hand (ACTION phase only)
    * - If not your turn: take to field (any phase except WAITING/ENDED)
@@ -1908,14 +2087,6 @@ export class MultiplayerGameService {
       throw new Error('Deck is empty')
     }
 
-    // Get player state
-    const playerSnapshot = await get(ref(database, `games/${gameId}/players/${playerId}`))
-    if (!playerSnapshot.exists()) {
-      throw new Error('Player not found')
-    }
-
-    const player: PlayerState = playerSnapshot.val()
-
     // Draw top card (first card in deckIds array)
     const drawnCardId = currentDeckIds[0]
     const remainingDeckIds = currentDeckIds.slice(1)
@@ -1931,8 +2102,15 @@ export class MultiplayerGameService {
       console.log(`[MultiplayerGame] ✅ Drew: ${drawnCard.nameTw || drawnCard.name} (${drawnCardId})`)
     }
 
-    // Add to player's hand
+    // Get player's current hand
+    const playerSnapshot = await get(ref(database, `games/${gameId}/players/${playerId}`))
+    if (!playerSnapshot.exists()) {
+      throw new Error('Player not found')
+    }
+    const player: PlayerState = playerSnapshot.val()
     const currentHand = Array.isArray(player.hand) ? player.hand : []
+
+    // Add to player's hand directly (not currentDrawnCards)
     const updatedHand = [...currentHand, drawnCardId]
 
     await update(ref(database, `games/${gameId}/players/${playerId}`), {
@@ -1954,13 +2132,18 @@ export class MultiplayerGameService {
     })
 
     console.log(`[MultiplayerGame] Deck after draw: ${remainingDeckIds.length} cards remaining`)
-    console.log(`[MultiplayerGame] Player ${playerId} now has ${updatedHand.length} cards in hand`)
+    console.log(`[MultiplayerGame] Player ${playerId} drew card to currentDrawnCards (not hand yet)`)
   }
 
   /**
    * Pass turn (Action Phase)
    */
   async passTurn(gameId: string, playerId: string): Promise<void> {
+    // Clear currentDrawnCards when player ends their turn
+    await update(ref(database, `games/${gameId}/players/${playerId}`), {
+      currentDrawnCards: [],
+    })
+
     await runTransaction(ref(database, `games/${gameId}`), (game: GameRoom | null) => {
       if (!game) return game
 
