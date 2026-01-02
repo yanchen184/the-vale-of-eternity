@@ -202,7 +202,11 @@ export const ScoreTrack = memo(function ScoreTrack({
                   allowAdjustment && 'hover:bg-slate-700/70 cursor-pointer'
                 )}
                 onClick={(e) => {
-                  if (!allowAdjustment || !currentPlayerId) return
+                  console.log('[ScoreTrack] Cell clicked:', { score, allowAdjustment, currentPlayerId, hasCallback: !!onScoreAdjust })
+                  if (!allowAdjustment || !currentPlayerId) {
+                    console.log('[ScoreTrack] Click ignored - no adjustment allowed or no current player')
+                    return
+                  }
 
                   // Check if clicked on a specific player marker
                   const marker = e.target as HTMLElement
@@ -211,11 +215,13 @@ export const ScoreTrack = memo(function ScoreTrack({
                   if (playerMarker) {
                     // Clicked on a specific player marker - adjust that player's score
                     const playerId = playerMarker.getAttribute('data-player-id')
+                    console.log('[ScoreTrack] Clicked on player marker:', playerId)
                     if (playerId) {
                       onScoreAdjust?.(playerId, score)
                     }
                   } else {
                     // Clicked on empty space or score number - adjust current player's score
+                    console.log('[ScoreTrack] Clicked on empty cell, adjusting current player:', currentPlayerId)
                     onScoreAdjust?.(currentPlayerId, score)
                   }
                 }}

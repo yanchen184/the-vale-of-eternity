@@ -1,0 +1,11 @@
+--- a/src/pages/SinglePlayerGame.tsx
++++ b/src/pages/SinglePlayerGame.tsx
+@@ -585,6 +585,8 @@
+                 })
+                 onScoreAdjust={handleScoreAdjust}
+                 onFlipToggle={handleFlipToggle}
++                onCurrentCardMoveToHand={handleMoveCurrentCardToHand}
++                onCurrentCardSell={handleSellCurrentCard}
+                 canTameCard={canTameCard}
+               />
+             ) : (

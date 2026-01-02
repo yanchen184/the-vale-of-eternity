@@ -2032,6 +2032,46 @@ export class SinglePlayerEngine {
   }
 
   /**
+   * Toggle area bonus (cycle: 0 → 1 → 2 → 0)
+   * Area bonus adds extra field slots and final score bonus
+   * Can only be toggled during ACTION phase
+   * @returns Updated game state
+   */
+  toggleAreaBonus(): SinglePlayerGameState {
+    if (!this.state) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_NOT_STARTED,
+        'Game not started'
+      )
+    }
+
+    // Only allow toggling during ACTION phase
+    if (this.state.phase !== SinglePlayerPhase.ACTION) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_INVALID_ACTION,
+        '只能在行動階段切換區域指示物'
+      )
+    }
+
+    const currentBonus = this.state.player.areaBonus
+    // Cycle: 0 → 1 → 2 → 0
+    const newBonus = ((currentBonus + 1) % 3) as 0 | 1 | 2
+
+    this.state = {
+      ...this.state,
+      player: {
+        ...this.state.player,
+        areaBonus: newBonus,
+      },
+      updatedAt: Date.now(),
+    }
+
+    console.log(`[SinglePlayerEngine] Area bonus toggled: ${currentBonus} → ${newBonus}`)
+    this.notifyStateChange()
+    return this.state
+  }
+
+  /**
    * Get maximum field size based on current round and area bonus
    * Formula: min(current_round + areaBonus, MAX_FIELD_SIZE)
    * Round 1 → 1 slot (+ areaBonus)

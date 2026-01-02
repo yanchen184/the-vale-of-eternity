@@ -122,6 +122,7 @@ export default function SinglePlayerGame() {
   const [showAllFieldsModal, setShowAllFieldsModal] = useState(false)
   const [showScoreModal, setShowScoreModal] = useState(false)
   const [isFlipped, setIsFlipped] = useState(false)
+  const [zoneBonus, setZoneBonus] = useState(0) // 0, 1, or 2
 
   // Card selection state for DRAW phase (after artifact selection)
   const [selectedMarketCards, setSelectedMarketCards] = useState<Set<string>>(new Set())
@@ -232,8 +233,8 @@ export default function SinglePlayerGame() {
     fieldCount: field?.length || 0,
     score: totalStoneValue,
     hasPassed: false,
-    zoneBonus: 0,
-  }), [playerName, stones, hand, field, totalStoneValue])
+    zoneBonus: zoneBonus as 0 | 1 | 2,
+  }), [playerName, stones, hand, field, totalStoneValue, zoneBonus])
 
   // Prepare field data for PlayersFieldArea
   const fieldData: PlayerFieldData = useMemo(() => {
@@ -271,9 +272,10 @@ export default function SinglePlayerGame() {
     tameCreature(card.instanceId, 'MARKET')
   }, [phase, canTameCard, tameCreature])
 
-  // Handle draw action
+  // Handle draw action - 允許在 DRAW、ACTION 階段抽牌
   const handleDraw = useCallback(() => {
-    if (phase !== SinglePlayerPhase.DRAW) return
+    if (phase !== SinglePlayerPhase.DRAW &&
+        phase !== SinglePlayerPhase.ACTION) return
     drawCard()
   }, [phase, drawCard])
 
@@ -317,6 +319,11 @@ export default function SinglePlayerGame() {
   // Handle flip toggle (+60/-60)
   const handleFlipToggle = useCallback((_playerId: string) => {
     setIsFlipped(prev => !prev)
+  }, [])
+
+  // Handle zone bonus toggle (0→1→2→0)
+  const handleToggleZoneBonus = useCallback(() => {
+    setZoneBonus(prev => (prev + 1) % 3) // 0→1→2→0
   }, [])
 
   // Reserved for ActionPhaseUI
@@ -463,7 +470,9 @@ export default function SinglePlayerGame() {
             currentTurnPlayerId="single-player"
             phase={multiplayerPhase}
             deckCount={deckSize}
-            onDrawCard={phase === SinglePlayerPhase.DRAW ? handleDraw : undefined}
+            onDrawCard={(phase === SinglePlayerPhase.DRAW ||
+                         phase === SinglePlayerPhase.ACTION) ? handleDraw : undefined}
+            onToggleZoneBonus={handleToggleZoneBonus}
             currentRound={round}
             mySelectedArtifacts={selectedArtifactCard ? [selectedArtifactCard.cardId] : []}
             allArtifactSelections={{}}
@@ -586,6 +595,8 @@ export default function SinglePlayerGame() {
                 }}
                 onScoreAdjust={handleScoreAdjust}
                 onFlipToggle={handleFlipToggle}
+                onCurrentCardMoveToHand={handleMoveCurrentCardToHand}
+                onCurrentCardSell={handleSellCurrentCard}
                 canTameCard={canTameCard}
               />
             ) : (
@@ -747,6 +758,9 @@ export default function SinglePlayerGame() {
             players={playerScores}
             maxScore={60}
             currentPlayerId="single-player"
+            onScoreAdjust={handleScoreAdjust}
+            allowAdjustment={true}
+            onFlipToggle={handleFlipToggle}
           />
         </div>
       </Modal>

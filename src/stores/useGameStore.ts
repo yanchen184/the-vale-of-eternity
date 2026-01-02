@@ -538,7 +538,7 @@ export const useGameStore = create<GameStore>()(
 
         adjustScore: (amount: number, reason: string = '') => {
           const { gameState } = get()
-          if (!gameState || gameState.gameMode !== GameMode.MANUAL) return
+          if (!gameState) return
 
           if (amount === 0) {
             set({ error: '分數調整不能為 0' })
