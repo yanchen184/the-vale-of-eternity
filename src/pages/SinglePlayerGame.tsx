@@ -102,12 +102,8 @@ export default function SinglePlayerGame() {
     addStones,
     removeStones,
     getCurrentScore,
-    adjustScore,
     error,
   } = useGameStore()
-
-  // Flip state for +60/-60 score adjustment
-  const [isFlipped, setIsFlipped] = useState(false)
 
   console.log('[SinglePlayerGame] artifactSelectionPhase:', artifactSelectionPhase)
   console.log('[SinglePlayerGame] selectedArtifact:', selectedArtifact)
@@ -124,6 +120,7 @@ export default function SinglePlayerGame() {
   const [showSanctuaryModal, setShowSanctuaryModal] = useState(false)
   const [showAllFieldsModal, setShowAllFieldsModal] = useState(false)
   const [showScoreModal, setShowScoreModal] = useState(false)
+  const [isFlipped, setIsFlipped] = useState(false)
 
   // Card selection state for DRAW phase (after artifact selection)
   const [selectedMarketCards, setSelectedMarketCards] = useState<Set<string>>(new Set())
@@ -172,13 +169,13 @@ export default function SinglePlayerGame() {
     playerName: playerName || 'Player',
     color: 'green' as const,
     score: currentScore,
-    isFlipped: false,
-  }], [playerName, currentScore])
+    isFlipped: isFlipped,
+  }], [playerName, currentScore, isFlipped])
 
   // Discard pile (single player doesn't have discard pile yet)
   const discardPile = useMemo(() => {
-    return [] as CardInstance[]
-  }, [])
+    return gameState?.discardPile || []
+  }, [gameState?.discardPile])
 
   // Artifact selection map for HuntingPhaseUI
   const artifactSelectionMap = useMemo(() => {
@@ -238,18 +235,26 @@ export default function SinglePlayerGame() {
   }), [playerName, stones, hand, field, totalStoneValue])
 
   // Prepare field data for PlayersFieldArea
-  const fieldData: PlayerFieldData = useMemo(() => ({
-    playerId: 'single-player',
-    name: playerName || 'Player',
-    color: 'green' as const,
-    handCount: hand?.length ?? 0,
-    fieldCards: field || [],
-    sanctuaryCards: gameState?.sanctuary || [],
-    currentTurnCards: currentTurnCards || [],
-    selectedArtifact: selectedArtifactCard || undefined,
-    isCurrentTurn: true,
-    hasPassed: false,
-  }), [playerName, hand, field, currentTurnCards, selectedArtifactCard, gameState?.sanctuary])
+  const fieldData: PlayerFieldData = useMemo(() => {
+    // Calculate max field slots: min(round + areaBonus, 12)
+    const areaBonus = gameState?.player.areaBonus ?? 0
+    const currentRound = gameState?.round ?? 1
+    const maxFieldSlots = Math.min(currentRound + areaBonus, 12)
+
+    return {
+      playerId: 'single-player',
+      name: playerName || 'Player',
+      color: 'green' as const,
+      handCount: hand?.length ?? 0,
+      fieldCards: field || [],
+      sanctuaryCards: gameState?.sanctuary || [],
+      currentTurnCards: currentTurnCards || [],
+      selectedArtifact: selectedArtifactCard || undefined,
+      isCurrentTurn: true,
+      hasPassed: false,
+      maxFieldSlots,  // Dynamic field size based on round and area bonus
+    }
+  }, [playerName, hand, field, currentTurnCards, selectedArtifactCard, gameState, round])
 
   // Handle card click from hand
   const handleHandCardClick = useCallback((card: CardInstance) => {
@@ -443,7 +448,7 @@ export default function SinglePlayerGame() {
             deckCount={deckSize}
             onDrawCard={phase === SinglePlayerPhase.DRAW ? handleDraw : undefined}
             currentRound={round}
-            mySelectedArtifacts={[]}
+            mySelectedArtifacts={selectedArtifactCard ? [selectedArtifactCard.cardId] : []}
             allArtifactSelections={{}}
           />
         }
