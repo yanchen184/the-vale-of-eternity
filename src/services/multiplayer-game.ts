@@ -77,6 +77,7 @@ export interface PlayerState {
   hand: string[]  // card instance IDs
   field: string[]  // card instance IDs
   sanctuary: string[]  // card instance IDs in sanctuary (expansion mode)
+  currentDrawnCards?: string[]  // card instance IDs drawn this turn (for visibility)
   stones: StonePool
   score: number
   isReady: boolean

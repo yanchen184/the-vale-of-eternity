@@ -29,12 +29,18 @@ export enum GamePhase {
  * Single player game phase
  */
 export enum SinglePlayerPhase {
+  /** Setup: Artifact Selection */
+  SETUP_ARTIFACT = 'SETUP_ARTIFACT',
+  /** Setup: Initial Card Selection */
+  SETUP_INITIAL_CARDS = 'SETUP_INITIAL_CARDS',
   /** Drawing phase - draw 1 card from deck */
   DRAW = 'DRAW',
   /** Action phase - tame creatures or pass */
   ACTION = 'ACTION',
   /** Scoring phase - calculate final score */
   SCORE = 'SCORE',
+  /** Game Over */
+  GAME_OVER = 'GAME_OVER',
 }
 
 /**
@@ -63,6 +69,14 @@ export enum SinglePlayerActionType {
   END_GAME = 'END_GAME',
   /** Exchange stones */
   EXCHANGE_STONES = 'EXCHANGE_STONES',
+  /** Select an artifact during setup */
+  SELECT_ARTIFACT = 'SELECT_ARTIFACT',
+  /** Confirm artifact selection */
+  CONFIRM_ARTIFACT = 'CONFIRM_ARTIFACT',
+  /** Select initial card during setup */
+  SELECT_INITIAL_CARD = 'SELECT_INITIAL_CARD',
+  /** Confirm initial card selection */
+  CONFIRM_INITIAL_CARD = 'CONFIRM_INITIAL_CARD',
 }
 
 // ============================================
@@ -158,6 +172,18 @@ export interface SinglePlayerGameState {
   gameMode: GameMode
   /** Manual operation history */
   manualOperations: ManualOperation[]
+
+  // === Expansion Mode (v3.2.0) ===
+  /** Expansion mode - enables artifact selection */
+  isExpansionMode?: boolean
+  /** Available artifacts for selection */
+  availableArtifacts?: string[]
+  /** Selected artifact */
+  selectedArtifact?: string | null
+  /** Initial cards for selection (2 cards) */
+  initialCards?: CardInstance[]
+  /** Selected initial card */
+  selectedInitialCard?: string | null
 }
 
 /**

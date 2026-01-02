@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 6.0.0 - New fixed hand panel system with grid/strip layouts
+ * @version 6.2.0 - Using shared HuntingPhaseUI and ActionPhaseUI components
  */
-console.log('[pages/MultiplayerGame.tsx] v6.0.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v6.2.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -25,11 +25,10 @@ import {
   LeftSidebar,
   RightSidebar,
   ScoreBar,
+  HuntingPhaseUI,
+  ActionPhaseUI,
 } from '@/components/game'
 import { FixedHandPanel } from '@/components/game/FixedHandPanel'
-// ArtifactSelector imported but not used - kept for potential future use
-// import { ArtifactSelector } from '@/components/game/ArtifactSelector'
-import { CompactArtifactSelector } from '@/components/game/CompactArtifactSelector'
 import type { PlayerScoreInfo, PlayerFieldData, PlayerSidebarData, ScoreBarPlayerData } from '@/components/game'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
@@ -59,41 +58,6 @@ interface WaitingRoomProps {
   onLeave: () => void
 }
 
-/** Seven-League Boots state from Firebase */
-interface SevenLeagueBootsState {
-  activePlayerId: string
-  extraCardId: string
-  selectedCardId?: string
-}
-
-interface HuntingPhaseProps {
-  marketCards: CardInstance[]
-  isYourTurn: boolean
-  currentPlayerName: string
-  currentPlayerId: string
-  currentRound?: number
-  onToggleCard: (cardId: string) => void
-  onConfirmSelection: () => void
-  cardSelectionMap: Map<string, { color: PlayerColor; playerName: string; isConfirmed: boolean }>
-  mySelectedCardId: string | null
-  hasSelectedCard: boolean
-  // Artifact selection props (v5.11.0 - Expansion mode)
-  isExpansionMode?: boolean
-  availableArtifacts?: string[]
-  usedArtifacts?: string[]
-  disabledArtifacts?: string[]  // v5.27.0 - Artifacts disabled due to requirements not met
-  artifactSelectionMap?: Map<string, { color: PlayerColor; playerName: string; isConfirmed: boolean }>
-  onSelectArtifact?: (artifactId: string) => void
-  playerName?: string
-  artifactSelectorPlayerName?: string  // v5.23.0 - Name of player whose turn it is to select artifact
-  isYourArtifactTurn?: boolean
-  isArtifactSelectionActive?: boolean  // v5.20.0
-  // Seven-League Boots props (v5.21.0)
-  sevenLeagueBootsState?: SevenLeagueBootsState | null
-  isInSevenLeagueBootsSelection?: boolean
-  onSelectSevenLeagueBootsCard?: (cardId: string) => void
-  onConfirmSevenLeagueBootsSelection?: () => void
-}
 
 // ============================================
 // WAITING ROOM COMPONENT
@@ -211,322 +175,6 @@ function WaitingRoom({ roomCode, players, isHost, maxPlayers, onStartGame, onLea
   )
 }
 
-// ============================================
-// HUNTING PHASE UI
-// ============================================
-
-function HuntingPhaseUI({
-  marketCards,
-  isYourTurn,
-  currentPlayerName,
-  currentPlayerId: _currentPlayerId,
-  currentRound,
-  onToggleCard,
-  onConfirmSelection: _onConfirmSelection,
-  cardSelectionMap,
-  mySelectedCardId,
-  hasSelectedCard,
-  isExpansionMode,
-  availableArtifacts,
-  usedArtifacts,
-  disabledArtifacts,
-  artifactSelectionMap,
-  onSelectArtifact,
-  playerName,
-  artifactSelectorPlayerName,
-  isYourArtifactTurn,
-  isArtifactSelectionActive,
-  // Seven-League Boots props (v5.22.0)
-  sevenLeagueBootsState,
-  isInSevenLeagueBootsSelection,
-  onSelectSevenLeagueBootsCard,
-  onConfirmSevenLeagueBootsSelection: _onConfirmSevenLeagueBootsSelection,
-}: HuntingPhaseProps) {
-  void _currentPlayerId
-  void _onConfirmSelection // Reserved for future use
-  void _onConfirmSevenLeagueBootsSelection // Confirm button is in RightSidebar
-
-  // Determine which phase to show
-  const showSevenLeagueBootsSelection = !!sevenLeagueBootsState
-  const showArtifactSelection = isExpansionMode && isArtifactSelectionActive && !showSevenLeagueBootsSelection
-
-  // Get header info based on current state
-  const getHeaderInfo = () => {
-    if (showSevenLeagueBootsSelection) {
-      return {
-        title: '七里靴效果',
-        description: isInSevenLeagueBootsSelection
-          ? sevenLeagueBootsState?.selectedCardId
-            ? '已選擇卡片，點擊「確認棲息地」將卡片加入棲息地'
-            : '選擇一張卡片加入棲息地'
-          : `等待 ${currentPlayerName} 選擇棲息地卡片...`,
-        headerColor: 'text-purple-400',
-      }
-    }
-    if (showArtifactSelection) {
-      return {
-        title: '神器選擇階段',
-        description: isYourArtifactTurn
-          ? '選擇一個神器，然後點擊「確認選擇」'
-          : `等待 ${currentPlayerName} 選擇神器...`,
-        headerColor: 'text-blue-400',
-      }
-    }
-    return {
-      title: '選卡階段',
-      description: isYourTurn
-        ? hasSelectedCard
-          ? '點擊「確認選擇」鎖定卡片，或點擊卡片取消/切換選擇'
-          : '點擊一張卡片進行選擇'
-        : `等待 ${currentPlayerName} 選擇卡片...`,
-      headerColor: 'text-blue-400',
-    }
-  }
-
-  const headerInfo = getHeaderInfo()
-
-  return (
-    <div className="flex-1 flex flex-col p-4 overflow-hidden" data-testid="hunting-phase">
-      {/* Header */}
-      <div className="text-center mb-4 flex-shrink-0">
-        <h2 className={cn('text-xl font-bold mb-1', headerInfo.headerColor)}>
-          {headerInfo.title}
-        </h2>
-        <p className="text-sm text-slate-400">
-          {headerInfo.description}
-        </p>
-      </div>
-
-      {/* Seven-League Boots Instruction Banner (v5.22.0) */}
-      {showSevenLeagueBootsSelection && (
-        <div className="mb-4 p-3 bg-purple-900/30 border border-purple-500/50 rounded-lg flex-shrink-0">
-          <p className="text-sm text-purple-300 text-center">
-            {isInSevenLeagueBootsSelection
-              ? '點擊市場上的一張卡片，將其加入你的棲息地（不需支付費用）'
-              : '等待其他玩家完成七里靴選擇...'}
-          </p>
-        </div>
-      )}
-
-      {/* Card Grid - Always show market cards */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 justify-items-center pb-4">
-          {marketCards.map((card, index) => {
-            const selectionInfo = cardSelectionMap.get(card.instanceId)
-            const isConfirmed = selectionInfo?.isConfirmed ?? false
-            const isMySelection = mySelectedCardId === card.instanceId
-
-            // Seven-League Boots selection mode
-            if (showSevenLeagueBootsSelection) {
-              const isSelectedForShelter = sevenLeagueBootsState?.selectedCardId === card.instanceId
-              const canClickForShelter = isInSevenLeagueBootsSelection
-
-              return (
-                <div
-                  key={card.instanceId}
-                  className={cn(
-                    'transition-all relative',
-                    canClickForShelter
-                      ? 'hover:scale-105 cursor-pointer'
-                      : 'opacity-60 cursor-not-allowed'
-                  )}
-                  data-testid={`seven-league-boots-card-${index}`}
-                >
-                  <Card
-                    card={card}
-                    index={index}
-                    compact={false}
-                    currentRound={currentRound}
-                    onClick={() => canClickForShelter && onSelectSevenLeagueBootsCard?.(card.instanceId)}
-                    isSelected={isSelectedForShelter}
-                    className={cn(
-                      isSelectedForShelter && 'ring-4 ring-purple-400 ring-opacity-75 shadow-purple-500/50',
-                      canClickForShelter && !isSelectedForShelter && 'hover:border-purple-400 hover:shadow-purple-500/50'
-                    )}
-                  />
-                  {/* Selected for shelter indicator */}
-                  {isSelectedForShelter && (
-                    <div className="absolute -top-2 -right-2 bg-purple-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg z-10">
-                      棲息地
-                    </div>
-                  )}
-                </div>
-              )
-            }
-
-            // Normal card selection mode
-            // Disable card selection during artifact selection phase
-            const canClick = isYourTurn && !isConfirmed && !showArtifactSelection
-
-            return (
-              <div
-                key={card.instanceId}
-                className={cn(
-                  'transition-all relative',
-                  canClick
-                    ? 'hover:scale-105 cursor-pointer'
-                    : isConfirmed
-                      ? 'cursor-default'
-                      : 'opacity-60 cursor-not-allowed'
-                )}
-                data-testid={`hunting-card-${index}`}
-              >
-                <Card
-                  card={card}
-                  index={index}
-                  compact={false}
-                  currentRound={currentRound}
-                  onClick={() => canClick && onToggleCard(card.instanceId)}
-                  selectedByColor={selectionInfo?.color}
-                  selectedByName={selectionInfo?.playerName}
-                  isConfirmed={isConfirmed}
-                  isSelected={isMySelection}
-                  className={cn(
-                    isMySelection && !isConfirmed && 'ring-4 ring-blue-400 ring-opacity-75',
-                    canClick && 'hover:border-blue-400 hover:shadow-blue-500/50',
-                    isConfirmed && 'border-slate-500'
-                  )}
-                />
-                {isConfirmed && (
-                  <div className="absolute inset-0 bg-black/30 rounded-lg pointer-events-none" />
-                )}
-              </div>
-            )
-            })}
-        </div>
-
-        {/* Artifact Selection at Bottom - Show only during artifact selection phase */}
-        {showArtifactSelection && availableArtifacts && onSelectArtifact && (
-          <div className="flex-shrink-0 mt-4 border-t border-purple-500/30 pt-4">
-            <CompactArtifactSelector
-              availableArtifacts={availableArtifacts}
-              usedArtifacts={usedArtifacts || []}
-              artifactSelections={artifactSelectionMap}
-              round={currentRound || 1}
-              playerName={artifactSelectorPlayerName || playerName || '玩家'}
-              onSelectArtifact={onSelectArtifact}
-              isActive={isYourArtifactTurn ?? false}
-              disabledArtifacts={disabledArtifacts}
-            />
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ============================================
-// ACTION PHASE UI
-// ============================================
-
-interface ActionPhaseUIProps {
-  playersFieldData: PlayerFieldData[]
-  handCards: CardInstance[]
-  playerScores: PlayerScoreInfo[]
-  currentPlayerId: string
-  currentRound: number
-  gameStatus: 'WAITING' | 'HUNTING' | 'ACTION' | 'RESOLUTION' | 'ENDED'
-  isYourTurn: boolean
-  onCardPlay: (cardId: string) => void
-  onCardSell: (cardId: string) => void
-  onHandCardDiscard: (cardId: string) => void
-  onCardReturn: (playerId: string, cardId: string) => void
-  onCardDiscard: (playerId: string, cardId: string) => void
-  onScoreAdjust: (playerId: string, score: number) => void
-  onFlipToggle: (playerId: string) => void
-  canTameCard: (cardId: string) => boolean
-  resolutionMode?: boolean
-  onFinishResolution?: () => void
-}
-
-function ActionPhaseUI({
-  playersFieldData,
-  handCards: _handCards,
-  playerScores: _playerScores,
-  currentPlayerId,
-  currentRound,
-  gameStatus,
-  isYourTurn: _isYourTurn,
-  onCardPlay: _onCardPlay,
-  onCardSell: _onCardSell,
-  onHandCardDiscard: _onHandCardDiscard,
-  onCardReturn,
-  onCardDiscard,
-  onScoreAdjust: _onScoreAdjust,
-  onFlipToggle: _onFlipToggle,
-  canTameCard: _canTameCard,
-  resolutionMode = false,
-  onFinishResolution,
-}: ActionPhaseUIProps) {
-  // Reserved for future use
-  void _handCards
-  void _playerScores
-  void _isYourTurn
-  void _onCardPlay
-  void _onCardSell
-  void _onHandCardDiscard
-  void _onScoreAdjust
-  void _onFlipToggle
-  void _canTameCard
-  // Split players: self first, others after
-  const selfPlayer = playersFieldData.find(p => p.playerId === currentPlayerId)
-  const otherPlayers = playersFieldData.filter(p => p.playerId !== currentPlayerId)
-
-  return (
-    <div className="flex-1 flex flex-col" data-testid={resolutionMode ? "resolution-phase" : "action-phase"}>
-      {/* Top Section - Field Area & Hand */}
-      <div className="flex-1 overflow-y-auto overflow-x-visible p-2 space-y-1 custom-scrollbar min-h-0">
-        {/* Self Player's Field Area */}
-        {selfPlayer && (
-          <PlayersFieldArea
-            players={[selfPlayer]}
-            currentPlayerId={currentPlayerId}
-            phase={gameStatus}
-            currentRound={currentRound}
-            onCardReturn={onCardReturn}
-            onCardDiscard={onCardDiscard}
-          />
-        )}
-
-        {/* Player Hand - Now in floating window */}
-
-        {/* Other Players' Field Area */}
-        {otherPlayers.length > 0 && (
-          <PlayersFieldArea
-            players={otherPlayers}
-            currentPlayerId={currentPlayerId}
-            phase={gameStatus}
-            currentRound={currentRound}
-            onCardReturn={onCardReturn}
-            onCardDiscard={onCardDiscard}
-          />
-        )}
-      </div>
-
-      {/* Resolution Mode - Finish Button */}
-      {resolutionMode && _isYourTurn && onFinishResolution && (
-        <div className="flex-shrink-0 p-3 pt-2 border-t border-purple-900/30">
-          <Button
-            onClick={onFinishResolution}
-            className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400"
-            data-testid="finish-resolution-btn"
-          >
-            完成結算（觸發回合結束效果）
-          </Button>
-        </div>
-      )}
-
-      {/* Resolution Mode - Waiting Message */}
-      {resolutionMode && !_isYourTurn && (
-        <div className="flex-shrink-0 p-3 pt-2 border-t border-purple-900/30">
-          <p className="text-center text-slate-400 text-sm">
-            等待其他玩家完成結算...
-          </p>
-        </div>
-      )}
-    </div>
-  )
-}
 
 // ============================================
 // MAIN COMPONENT
@@ -885,6 +533,7 @@ export function MultiplayerGame() {
         playerId: player.playerId,
         name: player.name,
         color: player.color || 'green',
+        handCount: player.hand?.length ?? 0,
         fieldCards: fieldCardInstances,
         sanctuaryCards: sanctuaryCardInstances,
         isCurrentTurn: player.playerId === currentTurnPlayerId,
@@ -1517,6 +1166,18 @@ export function MultiplayerGame() {
             hasSelectedShelterCard={!!sevenLeagueBootsState?.selectedCardId}
             isYourArtifactTurn={isYourArtifactTurn}
             isArtifactSelectionActive={isArtifactSelectionActive}
+            allPlayers={players.map(p => ({
+              playerId: p.playerId,
+              playerName: p.name,
+              playerColor: p.color,
+              playerCoins: p.stones || createEmptyStonePool(),
+            }))}
+            currentPlayerId={playerId ?? ''}
+            currentPlayerStoneLimit={
+              // Simple check: base limit is 4
+              // Check if field contains Hestia (F001) to add +2
+              4 + ((currentPlayer?.field?.some(id => id.startsWith('F001-')) ? 2 : 0))
+            }
           />
         }
         scoreBar={

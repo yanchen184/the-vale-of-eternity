@@ -1,0 +1,57 @@
+/**
+ * PlayerCoinAreaCompact Styles
+ * @version 1.0.0
+ */
+
+/* Animation for coin arrival */
+@keyframes coin-arrive {
+  0% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.player-coin-area-compact__coin--arriving {
+  animation: coin-arrive 0.3s ease-out;
+}
+
+/* Animation for coin leaving */
+@keyframes coin-leave {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+}
+
+.player-coin-area-compact__coin--leaving {
+  animation: coin-leave 0.2s ease-in;
+}
+
+/* Highlight animation when player takes/returns coin */
+@keyframes coin-area-highlight {
+  0% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px 4px rgba(245, 158, 11, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+  }
+}
+
+.player-coin-area-compact--highlight {
+  animation: coin-area-highlight 0.5s ease-out;
+}

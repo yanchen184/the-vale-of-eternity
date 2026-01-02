@@ -1,10 +1,10 @@
 /**
- * Game State Store for Single Player Mode v3.1.0
+ * Game State Store for Single Player Mode v3.2.0
  * Using Zustand for state management
  * Supports single-player game with Stone Economy System
- * @version 3.1.0 - Added manual mode support
+ * @version 3.2.0 - Added artifact selection and initial card selection support
  */
-console.log('[stores/useGameStore.ts] v3.1.0 loaded')
+console.log('[stores/useGameStore.ts] v3.2.0 loaded')
 
 import { create } from 'zustand'
 import { devtools, subscribeWithSelector } from 'zustand/middleware'
@@ -46,9 +46,19 @@ interface GameStore {
 
   // === Game Lifecycle ===
   /** Start a new single-player game */
-  startGame: (playerName: string) => void
+  startGame: (playerName: string, expansionMode?: boolean) => void
   /** Reset the game */
   resetGame: () => void
+
+  // === Setup Phase Actions (v3.2.0) ===
+  /** Select artifact during setup */
+  selectArtifact: (artifactId: string) => void
+  /** Confirm artifact selection */
+  confirmArtifact: () => void
+  /** Select initial card during setup */
+  selectInitialCard: (cardInstanceId: string) => void
+  /** Confirm initial card selection */
+  confirmInitialCard: () => void
 
   // === Draw Phase Actions ===
   /** Draw a card from deck */
@@ -129,11 +139,11 @@ export const useGameStore = create<GameStore>()(
         error: null,
 
         // === Game Lifecycle ===
-        startGame: (playerName: string) => {
+        startGame: (playerName: string, expansionMode: boolean = true) => {
           set({ isLoading: true, error: null })
           try {
             // engine.initGame() will trigger onStateChange callback which will set gameState
-            engine.initGame(playerName)
+            engine.initGame(playerName, expansionMode)
             set({ isLoading: false })
           } catch (err) {
             const message = err instanceof SinglePlayerError
@@ -146,6 +156,63 @@ export const useGameStore = create<GameStore>()(
         resetGame: () => {
           engine.resetGame()
           set({ gameState: null, error: null })
+        },
+
+        // === Setup Phase Actions (v3.2.0) ===
+        selectArtifact: (artifactId: string) => {
+          const { gameState } = get()
+          if (!gameState) return
+
+          try {
+            engine.selectArtifact(artifactId)
+          } catch (err) {
+            const message = err instanceof SinglePlayerError
+              ? err.message
+              : 'Failed to select artifact'
+            set({ error: message })
+          }
+        },
+
+        confirmArtifact: () => {
+          const { gameState } = get()
+          if (!gameState) return
+
+          try {
+            engine.confirmArtifact()
+          } catch (err) {
+            const message = err instanceof SinglePlayerError
+              ? err.message
+              : 'Failed to confirm artifact'
+            set({ error: message })
+          }
+        },
+
+        selectInitialCard: (cardInstanceId: string) => {
+          const { gameState } = get()
+          if (!gameState) return
+
+          try {
+            engine.selectInitialCard(cardInstanceId)
+          } catch (err) {
+            const message = err instanceof SinglePlayerError
+              ? err.message
+              : 'Failed to select initial card'
+            set({ error: message })
+          }
+        },
+
+        confirmInitialCard: () => {
+          const { gameState } = get()
+          if (!gameState) return
+
+          try {
+            engine.confirmInitialCard()
+          } catch (err) {
+            const message = err instanceof SinglePlayerError
+              ? err.message
+              : 'Failed to confirm initial card'
+            set({ error: message })
+          }
         },
 
         // === Draw Phase Actions ===
@@ -530,6 +597,36 @@ export const selectEndReason = (state: GameStore): string | null =>
 export const selectPlayerName = (state: GameStore): string =>
   state.gameState?.player.name ?? ''
 
+/**
+ * Select available artifacts for setup
+ */
+export const selectAvailableArtifacts = (state: GameStore): string[] =>
+  state.gameState?.availableArtifacts ?? []
+
+/**
+ * Select selected artifact
+ */
+export const selectSelectedArtifact = (state: GameStore): string | null =>
+  state.gameState?.selectedArtifact ?? null
+
+/**
+ * Select initial cards for selection
+ */
+export const selectInitialCards = (state: GameStore): CardInstance[] =>
+  state.gameState?.initialCards ?? []
+
+/**
+ * Select selected initial card
+ */
+export const selectSelectedInitialCard = (state: GameStore): string | null =>
+  state.gameState?.selectedInitialCard ?? null
+
+/**
+ * Select if expansion mode is enabled
+ */
+export const selectIsExpansionMode = (state: GameStore): boolean =>
+  state.gameState?.isExpansionMode ?? false
+
 // ============================================
 // HOOKS
 // ============================================
@@ -628,6 +725,41 @@ export function useTameableFromHand(): CardInstance[] {
  */
 export function useTameableFromMarket(): CardInstance[] {
   return useGameStore(state => state.getTameableFromMarket())
+}
+
+/**
+ * Hook to get available artifacts for setup
+ */
+export function useAvailableArtifacts(): string[] {
+  return useGameStore(selectAvailableArtifacts)
+}
+
+/**
+ * Hook to get selected artifact
+ */
+export function useSelectedArtifact(): string | null {
+  return useGameStore(selectSelectedArtifact)
+}
+
+/**
+ * Hook to get initial cards for selection
+ */
+export function useInitialCards(): CardInstance[] {
+  return useGameStore(selectInitialCards)
+}
+
+/**
+ * Hook to get selected initial card
+ */
+export function useSelectedInitialCard(): string | null {
+  return useGameStore(selectSelectedInitialCard)
+}
+
+/**
+ * Hook to get expansion mode status
+ */
+export function useIsExpansionMode(): boolean {
+  return useGameStore(selectIsExpansionMode)
 }
 
 // ============================================

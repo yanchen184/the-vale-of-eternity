@@ -1,11 +1,11 @@
 /**
- * Single Player Game Page v4.0.0
- * Main gameplay interface for single-player mode - Now using multiplayer UI components
- * @version 4.0.0
+ * Single Player Game Page v7.0.0
+ * Main gameplay interface for single-player mode - Simplified flow without setup phases
+ * @version 7.0.0 - Simplified flow without setup phases (like multiplayer)
  */
-console.log('[pages/SinglePlayerGame.tsx] v4.0.0 loaded - Using multiplayer UI')
+console.log('[pages/SinglePlayerGame.tsx] v7.0.0 loaded - Simplified flow without setup phases')
 
-import { useEffect, useCallback, useMemo } from 'react'
+import { useEffect, useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   useGameStore,
@@ -24,15 +24,23 @@ import { calculateStonePoolValue } from '@/types/game'
 import type { CardInstance } from '@/types/cards'
 import { StoneType } from '@/types/cards'
 import {
+  Card,
   GameLayout,
   GameHeader,
   LeftSidebar,
   RightSidebar,
   PlayersFieldArea,
+  ScoreBar,
+  ScoreTrack,
+  HuntingPhaseUI,
 } from '@/components/game'
+import { FixedHandPanel } from '@/components/game/FixedHandPanel'
+import { Modal } from '@/components/ui/Modal'
+import { cn } from '@/lib/utils'
 import type { PlayerSidebarData } from '@/components/game/LeftSidebar'
 import type { PlayerFieldData } from '@/components/game/PlayersFieldArea'
-// import { PlayerColor } from '@/types/player-color'
+import type { ScoreBarPlayerData } from '@/components/game/ScoreBar'
+import type { PlayerScoreInfo } from '@/components/game/ScoreTrack'
 
 // ============================================
 // MAIN COMPONENT
@@ -57,39 +65,67 @@ export default function SinglePlayerGame() {
     startGame,
     drawCard,
     tameCreature,
-    // pass,
-    // endGame,
+    pass,
     resetGame,
     canTameCard,
     error,
   } = useGameStore()
+
+  // UI State - matching multiplayer
+  const [selectedHandCardId, setSelectedHandCardId] = useState<string | null>(null)
+  const [showDiscardModal, setShowDiscardModal] = useState(false)
+  const [showSanctuaryModal, setShowSanctuaryModal] = useState(false)
+  const [showAllFieldsModal, setShowAllFieldsModal] = useState(false)
+  const [showScoreModal, setShowScoreModal] = useState(false)
 
   // Compute stone value
   const totalStoneValue = useMemo(() => {
     return stones ? calculateStonePoolValue(stones) : 0
   }, [stones])
 
-  // Initialize game if not started
+  // Initialize game if not started - directly to DRAW phase (no expansion mode)
   useEffect(() => {
     if (!phase) {
       const savedName = localStorage.getItem('playerName') || 'Player'
-      startGame(savedName)
+      startGame(savedName, false) // false = no expansion mode, starts directly at DRAW
     }
   }, [phase, startGame])
 
   // Convert SinglePlayerPhase to multiplayer phase format
   const multiplayerPhase = useMemo(() => {
     if (!phase) return 'WAITING' as const
-    if (gameOver) return 'ENDED' as const
+    if (gameOver.isOver) return 'ENDED' as const
     if (phase === SinglePlayerPhase.DRAW) return 'HUNTING' as const
     return 'ACTION' as const
-  }, [phase, gameOver])
+  }, [phase, gameOver.isOver])
+
+  // ScoreBar data
+  const scoreBarData: ScoreBarPlayerData[] = useMemo(() => [{
+    playerId: 'single-player',
+    name: playerName || 'Player',
+    color: 'green' as const,
+    score: totalStoneValue,
+  }], [playerName, totalStoneValue])
+
+  // Player score data for score track
+  const playerScores: PlayerScoreInfo[] = useMemo(() => [{
+    playerId: 'single-player',
+    playerName: playerName || 'Player',
+    color: 'green' as const,
+    score: totalStoneValue,
+    isFlipped: false,
+  }], [playerName, totalStoneValue])
+
+  // Discard pile (single player doesn't have discard pile yet)
+  const discardPile = useMemo(() => {
+    return [] as CardInstance[]
+  }, [])
 
   // Prepare player data for LeftSidebar
   const playerData: PlayerSidebarData = useMemo(() => ({
     playerId: 'single-player',
     name: playerName || 'Player',
-    color: 'blue' as any, // PlayerColor.BLUE
+    color: 'green' as const,
     index: 0,
     stones: stones || {
       [StoneType.ONE]: 0,
@@ -104,18 +140,17 @@ export default function SinglePlayerGame() {
     fieldCount: field?.length || 0,
     score: totalStoneValue,
     hasPassed: false,
-    zoneBonus: 0, // Single player doesn't use zone bonus
+    zoneBonus: 0,
   }), [playerName, stones, hand, field, totalStoneValue])
 
   // Prepare field data for PlayersFieldArea
   const fieldData: PlayerFieldData = useMemo(() => ({
     playerId: 'single-player',
     name: playerName || 'Player',
-    color: 'blue' as any, // PlayerColor.BLUE
-    handCards: hand || [],
+    color: 'green' as const,
+    handCount: hand?.length ?? 0,
     fieldCards: field || [],
     sanctuaryCards: [],
-    isCurrentPlayer: true,
     isCurrentTurn: true,
     hasPassed: false,
   }), [playerName, hand, field])
@@ -140,11 +175,11 @@ export default function SinglePlayerGame() {
     drawCard()
   }, [phase, drawCard])
 
-  // Handle pass action (currently unused - keeping for future use)
-  // const handlePass = useCallback(() => {
-  //   if (phase !== SinglePlayerPhase.ACTION) return
-  //   pass()
-  // }, [phase, pass])
+  // Handle pass action
+  const handlePass = useCallback(() => {
+    if (phase !== SinglePlayerPhase.ACTION) return
+    pass()
+  }, [phase, pass])
 
   // Handle back to menu
   const handleBackToMenu = useCallback(() => {
@@ -156,10 +191,10 @@ export default function SinglePlayerGame() {
   const handlePlayAgain = useCallback(() => {
     resetGame()
     const savedName = localStorage.getItem('playerName') || 'Player'
-    startGame(savedName)
+    startGame(savedName, false)
   }, [resetGame, startGame])
 
-  // Show loading state if game not initialized
+  // Show loading state if game not initialized or stones not ready
   if (!phase || !stones) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -169,7 +204,7 @@ export default function SinglePlayerGame() {
   }
 
   // Game Over Modal
-  if (gameOver) {
+  if (gameOver.isOver) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
         <div className="bg-slate-800/90 backdrop-blur-lg rounded-2xl p-8 border-2 border-vale-500 shadow-2xl max-w-md w-full mx-4">
@@ -204,109 +239,269 @@ export default function SinglePlayerGame() {
   }
 
   return (
-    <GameLayout
-      header={
-        <GameHeader
-          roomCode="單人遊戲"
-          phase={multiplayerPhase}
-          round={round}
-          currentPlayerName={playerName || 'Player'}
-          isYourTurn={true}
-          onLeave={handleBackToMenu}
-        />
-      }
-      leftSidebar={
-        <LeftSidebar
-          players={[playerData]}
-          currentPlayerId="single-player"
-          currentTurnPlayerId="single-player"
-          phase={multiplayerPhase}
-          deckCount={deckSize}
-          onDrawCard={phase === SinglePlayerPhase.DRAW ? handleDraw : undefined}
-          currentRound={round}
-          mySelectedArtifacts={[]}
-          allArtifactSelections={{}}
-        />
-      }
-      rightSidebar={
-        <RightSidebar
-          playerCoins={stones || {
-            [StoneType.ONE]: 0,
-            [StoneType.THREE]: 0,
-            [StoneType.SIX]: 0,
-            [StoneType.WATER]: 0,
-            [StoneType.FIRE]: 0,
-            [StoneType.EARTH]: 0,
-            [StoneType.WIND]: 0,
-          }}
-          playerName={playerName || 'Player'}
-          isYourTurn={true}
-          phase={multiplayerPhase}
-        />
-      }
-      mainContent={
-        /* Main Game Area */
-        <div className="flex flex-col gap-4 h-full">
-        {/* Market Area */}
-        <div className="flex-shrink-0">
-          <div className="bg-slate-800/30 rounded-xl border border-slate-700/50 p-4">
-            <h3 className="text-lg font-semibold text-slate-200 mb-3">市場區</h3>
-            <div className="flex gap-3 overflow-x-auto pb-2">
-              {market && market.length > 0 ? (
-                market.map((card) => (
-                  <div
-                    key={card.instanceId}
-                    onClick={() => handleMarketCardClick(card)}
-                    className={`flex-shrink-0 cursor-pointer transition-transform hover:scale-105 ${
-                      phase === SinglePlayerPhase.ACTION && canTameCard(card.instanceId)
-                        ? 'ring-2 ring-vale-500'
-                        : 'opacity-60'
-                    }`}
-                  >
-                    <div className="w-32 h-48 bg-gradient-to-br from-slate-700 to-slate-800 rounded-lg border-2 border-slate-600 p-2 flex flex-col">
-                      <div className="text-xs font-bold text-slate-200">{card.name}</div>
-                      <div className="text-xs text-slate-400">{card.element}</div>
-                      <div className="mt-auto text-lg font-bold text-amber-400">{card.cost}</div>
-                    </div>
+    <>
+      <GameLayout
+        testId="single-player-game"
+        header={
+          <GameHeader
+            roomCode="單人遊戲"
+            phase={multiplayerPhase}
+            round={round}
+            currentPlayerName={playerName || 'Player'}
+            isYourTurn={true}
+            onLeave={handleBackToMenu}
+            onViewScore={() => setShowScoreModal(true)}
+            onViewAllFields={() => setShowAllFieldsModal(true)}
+            onViewSanctuary={() => setShowSanctuaryModal(true)}
+            onPassTurn={phase === SinglePlayerPhase.ACTION ? handlePass : undefined}
+            showPassTurn={phase === SinglePlayerPhase.ACTION}
+          />
+        }
+        leftSidebar={
+          <LeftSidebar
+            players={[playerData]}
+            currentPlayerId="single-player"
+            currentTurnPlayerId="single-player"
+            phase={multiplayerPhase}
+            deckCount={deckSize}
+            onDrawCard={phase === SinglePlayerPhase.DRAW ? handleDraw : undefined}
+            currentRound={round}
+            mySelectedArtifacts={[]}
+            allArtifactSelections={{}}
+          />
+        }
+        rightSidebar={
+          <RightSidebar
+            playerCoins={stones}
+            playerName={playerName || 'Player'}
+            isYourTurn={true}
+            phase={multiplayerPhase}
+          />
+        }
+        scoreBar={
+          <ScoreBar
+            players={scoreBarData}
+            currentPlayerId="single-player"
+            maxScore={60}
+            discardCount={discardPile.length}
+            onDiscardClick={() => setShowDiscardModal(true)}
+          />
+        }
+        mainContent={
+          <div className="w-full h-full overflow-auto custom-scrollbar">
+            {/* Market Area - Using shared HuntingPhaseUI during DRAW phase */}
+            {phase === SinglePlayerPhase.DRAW ? (
+              <HuntingPhaseUI
+                marketCards={market || []}
+                isYourTurn={false}  // DRAW phase: can't select cards yet, need to draw first
+                currentPlayerName={playerName || 'Player'}
+                currentPlayerId="single-player"
+                currentRound={round}
+                onToggleCard={() => {}}  // Disabled during DRAW phase
+                onConfirmSelection={() => {}}  // Single player doesn't need confirmation
+                cardSelectionMap={new Map()}  // No multiplayer selection
+                mySelectedCardId={null}
+                hasSelectedCard={false}
+                isExpansionMode={false}
+                availableArtifacts={[]}
+                usedArtifacts={[]}
+                disabledArtifacts={[]}
+                artifactSelectionMap={new Map()}
+                onSelectArtifact={() => {}}
+                playerName={playerName || 'Player'}
+                artifactSelectorPlayerName={undefined}
+                isYourArtifactTurn={false}
+                isArtifactSelectionActive={false}
+                sevenLeagueBootsState={null}
+                isInSevenLeagueBootsSelection={false}
+                onSelectSevenLeagueBootsCard={() => {}}
+                onConfirmSevenLeagueBootsSelection={() => {}}
+              />
+            ) : (
+              <div className="flex flex-col gap-4 h-full p-4">
+                {/* Market Area with full Card components */}
+                <div className="flex-shrink-0">
+                  <div className="text-center mb-4">
+                    <h2 className="text-xl font-bold text-blue-400 mb-1">市場區</h2>
+                    <p className="text-sm text-slate-400">選擇卡片進行馴服</p>
                   </div>
-                ))
-              ) : (
-                <div className="text-slate-500 text-sm">市場為空</div>
-              )}
-            </div>
-          </div>
-        </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 justify-items-center">
+                    {market && market.length > 0 ? (
+                      market.map((card, index) => {
+                        const canTame = canTameCard(card.instanceId)
+                        return (
+                          <div
+                            key={card.instanceId}
+                            className={cn(
+                              'transition-all',
+                              canTame
+                                ? 'hover:scale-105 cursor-pointer'
+                                : 'opacity-60 cursor-not-allowed'
+                            )}
+                            data-testid={`market-card-${index}`}
+                          >
+                            <Card
+                              card={card}
+                              index={index}
+                              compact={false}
+                              currentRound={round}
+                              onClick={() => canTame && handleMarketCardClick(card)}
+                              className={cn(
+                                canTame && 'hover:border-blue-400 hover:shadow-blue-500/50 ring-2 ring-vale-500'
+                              )}
+                            />
+                          </div>
+                        )
+                      })
+                    ) : (
+                      <div className="col-span-full text-slate-500 text-center py-8">市場為空</div>
+                    )}
+                  </div>
+                </div>
 
-        {/* Player Field Area */}
-        <div className="flex-1 min-h-0">
+                {/* Player Field Area */}
+                <div className="flex-1 min-h-0 mt-4">
+                  <PlayersFieldArea
+                    players={[fieldData]}
+                    currentPlayerId="single-player"
+                    phase={multiplayerPhase}
+                    currentRound={round}
+                    onCardClick={(_playerId, cardId) => {
+                      const card = hand?.find(c => c.instanceId === cardId)
+                      if (card) handleHandCardClick(card)
+                    }}
+                  />
+                </div>
+
+                {/* Error Display */}
+                {error && (
+                  <div className="flex-shrink-0 bg-red-500/20 border border-red-500/50 rounded-lg p-3">
+                    <div className="text-red-400 text-sm font-semibold">{error}</div>
+                  </div>
+                )}
+
+                {/* Phase Instructions */}
+                <div className="flex-shrink-0 bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-3">
+                  <div className="text-cyan-300 text-sm text-center">
+                    選擇手牌或市場的卡片進行馴服，或點擊跳過
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        }
+      />
+
+      {/* Fixed Hand Panel - Bottom of screen */}
+      <FixedHandPanel
+        cards={hand || []}
+        selectedCardId={selectedHandCardId}
+        onCardClick={(card) => {
+          setSelectedHandCardId(prev => prev === card.instanceId ? null : card.instanceId)
+        }}
+        onTameCard={(cardId) => {
+          const card = hand?.find(c => c.instanceId === cardId)
+          if (card) {
+            handleHandCardClick(card)
+          }
+          setSelectedHandCardId(null)
+        }}
+        onSellCard={(cardId) => {
+          // Single player doesn't have sell, but keep for consistency
+          void cardId
+          setSelectedHandCardId(null)
+        }}
+        onDiscardCard={(cardId) => {
+          // Implement discard if needed
+          void cardId
+          setSelectedHandCardId(null)
+        }}
+        onMoveToSanctuary={(cardId) => {
+          // Implement sanctuary if needed
+          void cardId
+          setSelectedHandCardId(null)
+        }}
+        showCardActions={phase === SinglePlayerPhase.ACTION}
+        canTameCard={(cardId) => {
+          if (phase !== SinglePlayerPhase.ACTION) return false
+          return canTameCard(cardId)
+        }}
+        currentRound={round}
+      />
+
+      {/* Discard Pile Modal */}
+      <Modal
+        isOpen={showDiscardModal}
+        onClose={() => setShowDiscardModal(false)}
+        title="棄置牌堆"
+        size="xl"
+      >
+        <div className="p-6">
+          {discardPile.length === 0 ? (
+            <div className="text-center text-slate-500 py-8">尚無棄置的卡片</div>
+          ) : (
+            <div className="flex flex-wrap gap-6">
+              {discardPile.map((card, index) => (
+                <Card key={card.instanceId} card={card} index={index} />
+              ))}
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* Score Modal */}
+      <Modal
+        isOpen={showScoreModal}
+        onClose={() => setShowScoreModal(false)}
+        size="wide"
+      >
+        <div className="p-6">
+          <ScoreTrack
+            players={playerScores}
+            maxScore={60}
+            currentPlayerId="single-player"
+          />
+        </div>
+      </Modal>
+
+      {/* All Fields Modal */}
+      <Modal
+        isOpen={showAllFieldsModal}
+        onClose={() => setShowAllFieldsModal(false)}
+        size="wide"
+        title="怪獸區"
+      >
+        <div className="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
           <PlayersFieldArea
             players={[fieldData]}
             currentPlayerId="single-player"
             phase={multiplayerPhase}
             currentRound={round}
-            onCardClick={(_playerId, cardId) => {
-              const card = hand?.find(c => c.instanceId === cardId)
-              if (card) handleHandCardClick(card)
-            }}
           />
         </div>
+      </Modal>
 
-        {/* Error Display */}
-        {error && (
-          <div className="flex-shrink-0 bg-red-500/20 border border-red-500/50 rounded-lg p-3">
-            <div className="text-red-400 text-sm font-semibold">{error}</div>
-          </div>
-        )}
-
-        {/* Phase Instructions */}
-        <div className="flex-shrink-0 bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-3">
-          <div className="text-cyan-300 text-sm text-center">
-            {phase === SinglePlayerPhase.DRAW && '點擊左側抽牌按鈕抽取卡片'}
-            {phase === SinglePlayerPhase.ACTION && '選擇手牌或市場的卡片進行馴服，或點擊跳過'}
-          </div>
+      {/* Sanctuary Modal */}
+      <Modal
+        isOpen={showSanctuaryModal}
+        onClose={() => setShowSanctuaryModal(false)}
+        size="wide"
+        title="棲息地"
+      >
+        <div className="p-4">
+          <div className="text-center text-slate-500">單人遊戲尚未支援棲息地功能</div>
         </div>
-      </div>
-      }
-    />
+      </Modal>
+
+      {/* Error Toast */}
+      {error && (
+        <div
+          className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg animate-slide-up"
+          data-testid="error-toast"
+        >
+          {error}
+        </div>
+      )}
+    </>
   )
 }

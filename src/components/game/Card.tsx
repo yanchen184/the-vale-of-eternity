@@ -258,7 +258,7 @@ const CardActions = memo(function CardActions({
           type="button"
           title="移至棲息地（擴充模式）"
         >
-          庇護
+          棲息地
         </button>
       )}
     </div>

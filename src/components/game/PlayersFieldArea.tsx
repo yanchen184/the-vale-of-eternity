@@ -1,14 +1,17 @@
 /**
  * PlayersFieldArea Component
  * Displays all players' field cards - each player gets a horizontal row
- * @version 1.5.0 - Allow returning field cards to hand during RESOLUTION phase
+ * Integrated with hand preview and current turn cards display
+ * @version 2.0.0 - Integrated PlayerHandPreview and CurrentTurnCards
  */
-console.log('[components/game/PlayersFieldArea.tsx] v1.5.0 loaded')
+console.log('[components/game/PlayersFieldArea.tsx] v2.0.0 loaded')
 
 import { memo, useMemo, useCallback, useState } from 'react'
 import { Card } from './Card'
 import { PlayerMarker } from './PlayerMarker'
 import { CardPreviewModal } from './CardPreviewModal'
+import { PlayerHandPreview } from './PlayerHandPreview'
+import { CurrentTurnCards } from './CurrentTurnCards'
 import { type PlayerColor, PLAYER_COLORS } from '@/types/player-color'
 import type { CardInstance } from '@/types/cards'
 import { cn } from '@/lib/utils'
@@ -23,6 +26,8 @@ export interface PlayerFieldData {
   color: PlayerColor
   fieldCards: CardInstance[]
   sanctuaryCards?: CardInstance[]  // Cards in sanctuary (expansion mode)
+  handCount: number  // Number of cards in hand
+  currentTurnCards?: CardInstance[]  // Cards drawn/selected this turn
   isCurrentTurn: boolean
   hasPassed: boolean
 }
@@ -85,6 +90,13 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
     onCardDiscard?.(cardId)
   }, [onCardDiscard])
 
+  // Get phase label for current turn cards
+  const getPhaseLabel = () => {
+    if (phase === 'HUNTING') return '選卡階段'
+    if (phase === 'ACTION') return '行動階段'
+    return '本回合卡片'
+  }
+
   return (
     <div
       className={cn(
@@ -136,6 +148,17 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
           ({player.fieldCards.length} 張)
         </span>
       </div>
+
+      {/* Current Turn Cards - Above field (only if has cards) */}
+      {player.currentTurnCards && player.currentTurnCards.length > 0 && (
+        <CurrentTurnCards
+          cards={player.currentTurnCards}
+          playerName={player.name}
+          isCurrentTurn={player.isCurrentTurn}
+          currentRound={currentRound}
+          phaseLabel={getPhaseLabel()}
+        />
+      )}
 
       {/* Main Content: Field Cards + Sanctuary */}
       <div className="flex gap-4">
@@ -258,6 +281,14 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
             </div>
           </div>
         )}
+      </div>
+
+      {/* Hand Preview - Below field cards */}
+      <div className="mt-4 pt-3 border-t border-slate-700/30">
+        <PlayerHandPreview
+          handCount={player.handCount}
+          playerName={player.name}
+        />
       </div>
 
       {/* Decorative corner based on player color */}

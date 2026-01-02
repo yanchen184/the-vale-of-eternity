@@ -1,10 +1,10 @@
 /**
- * Single Player Game Engine for Vale of Eternity v3.0.0
+ * Single Player Game Engine for Vale of Eternity v7.0.0
  * Core game logic for single-player mode with Stone Economy System
  * Based on GAME_FLOW.md specifications
- * @version 3.0.0
+ * @version 7.0.0 - Simplified flow without setup phases (like multiplayer)
  */
-console.log('[lib/single-player-engine.ts] v3.0.0 loaded')
+console.log('[lib/single-player-engine.ts] v7.0.0 loaded - Simplified flow without setup phases')
 
 import type { CardInstance, CardEffect, StoneConfig } from '@/types/cards'
 import { CardLocation, Element, EffectType, EffectTrigger, StoneType } from '@/types/cards'
@@ -60,6 +60,11 @@ export enum SinglePlayerErrorCode {
   ERR_FIELD_FULL = 'ERR_FIELD_FULL',
   ERR_HAND_FULL = 'ERR_HAND_FULL',
   ERR_INVALID_EXCHANGE = 'ERR_INVALID_EXCHANGE',
+  ERR_INVALID_ACTION = 'ERR_INVALID_ACTION',
+  ERR_ARTIFACT_NOT_AVAILABLE = 'ERR_ARTIFACT_NOT_AVAILABLE',
+  ERR_NO_ARTIFACT_SELECTED = 'ERR_NO_ARTIFACT_SELECTED',
+  ERR_CARD_NOT_AVAILABLE = 'ERR_CARD_NOT_AVAILABLE',
+  ERR_NO_CARD_SELECTED = 'ERR_NO_CARD_SELECTED',
 }
 
 /**
@@ -208,9 +213,10 @@ export class SinglePlayerEngine {
   /**
    * Initialize a new single-player game
    * @param playerName Player's display name
+   * @param _expansionMode Deprecated - kept for API compatibility but no longer used
    * @returns Initial game state
    */
-  initGame(playerName: string): SinglePlayerGameState {
+  initGame(playerName: string, _expansionMode: boolean = false): SinglePlayerGameState {
     // Build deck from all 70 base cards
     const allCards = getAllBaseCards()
     const deck = shuffleArray(
@@ -239,10 +245,10 @@ export class SinglePlayerEngine {
       stones: createEmptyStonePool(),
     }
 
-    // Create game state
+    // Create game state - start in DRAW phase like multiplayer
     this.state = {
       gameId: generateGameId(),
-      version: '3.1.0',
+      version: '3.2.0',
       player,
       deck,
       market,
@@ -258,11 +264,19 @@ export class SinglePlayerEngine {
       updatedAt: Date.now(),
       gameMode: 'AUTOMATIC',
       manualOperations: [],
+      // No expansion mode setup phases - will use HUNTING phase like multiplayer
+      isExpansionMode: false,
+      availableArtifacts: undefined,
+      selectedArtifact: null,
+      initialCards: [],
+      selectedInitialCard: null,
     } as SinglePlayerGameState
 
     this.notifyStateChange()
     return this.state!
   }
+
+  // NOTE: getRandomArtifacts removed in v7.0.0 - artifact selection phase no longer used
 
   /**
    * Get current game state
@@ -276,6 +290,220 @@ export class SinglePlayerEngine {
    */
   resetGame(): void {
     this.state = null
+  }
+
+  // ============================================
+  // SETUP PHASE - ARTIFACT SELECTION
+  // ============================================
+
+  /**
+   * Select an artifact during setup
+   * @param artifactId Artifact ID to select
+   */
+  selectArtifact(artifactId: string): void {
+    if (!this.state) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_NOT_STARTED,
+        'Game not started'
+      )
+    }
+
+    if (this.state.phase !== SinglePlayerPhase.SETUP_ARTIFACT) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_INVALID_PHASE,
+        'Can only select artifact during SETUP_ARTIFACT phase'
+      )
+    }
+
+    if (!this.state.availableArtifacts?.includes(artifactId)) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_ARTIFACT_NOT_AVAILABLE,
+        'Artifact not available'
+      )
+    }
+
+    this.state = {
+      ...this.state,
+      selectedArtifact: artifactId,
+      updatedAt: Date.now(),
+    }
+
+    this.notifyStateChange()
+  }
+
+  /**
+   * Confirm artifact selection and move to initial card selection
+   */
+  confirmArtifact(): void {
+    if (!this.state) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_NOT_STARTED,
+        'Game not started'
+      )
+    }
+
+    if (this.state.phase !== SinglePlayerPhase.SETUP_ARTIFACT) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_INVALID_PHASE,
+        'Can only confirm artifact during SETUP_ARTIFACT phase'
+      )
+    }
+
+    if (!this.state.selectedArtifact) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_NO_ARTIFACT_SELECTED,
+        'No artifact selected'
+      )
+    }
+
+    // Draw 2 cards for initial selection from deck
+    const card1 = this.state.deck[0]
+    const card2 = this.state.deck[1]
+
+    if (!card1 || !card2) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_DECK_EMPTY,
+        'Not enough cards in deck for initial selection'
+      )
+    }
+
+    // Mark cards as revealed for selection
+    const initialCards: CardInstance[] = [
+      { ...card1, location: CardLocation.HAND, isRevealed: true },
+      { ...card2, location: CardLocation.HAND, isRevealed: true },
+    ]
+
+    // Remove cards from deck
+    const newDeck = this.state.deck.slice(2)
+
+    // Record action
+    const action: SinglePlayerAction = {
+      type: SinglePlayerActionType.CONFIRM_ARTIFACT,
+      timestamp: Date.now(),
+      payload: { cardInstanceId: this.state.selectedArtifact },
+    }
+
+    this.state = {
+      ...this.state,
+      deck: newDeck,
+      initialCards,
+      phase: SinglePlayerPhase.SETUP_INITIAL_CARDS,
+      actionsThisRound: [...this.state.actionsThisRound, action],
+      updatedAt: Date.now(),
+    }
+
+    this.notifyStateChange()
+  }
+
+  // ============================================
+  // SETUP PHASE - INITIAL CARD SELECTION
+  // ============================================
+
+  /**
+   * Select initial card during setup
+   * @param cardInstanceId Card instance ID to select
+   */
+  selectInitialCard(cardInstanceId: string): void {
+    if (!this.state) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_NOT_STARTED,
+        'Game not started'
+      )
+    }
+
+    if (this.state.phase !== SinglePlayerPhase.SETUP_INITIAL_CARDS) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_INVALID_PHASE,
+        'Can only select initial card during SETUP_INITIAL_CARDS phase'
+      )
+    }
+
+    const card = this.state.initialCards?.find(c => c.instanceId === cardInstanceId)
+    if (!card) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_CARD_NOT_AVAILABLE,
+        'Card not available for selection'
+      )
+    }
+
+    this.state = {
+      ...this.state,
+      selectedInitialCard: cardInstanceId,
+      updatedAt: Date.now(),
+    }
+
+    this.notifyStateChange()
+  }
+
+  /**
+   * Confirm initial card selection and start game
+   */
+  confirmInitialCard(): void {
+    if (!this.state) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_NOT_STARTED,
+        'Game not started'
+      )
+    }
+
+    if (this.state.phase !== SinglePlayerPhase.SETUP_INITIAL_CARDS) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_INVALID_PHASE,
+        'Can only confirm initial card during SETUP_INITIAL_CARDS phase'
+      )
+    }
+
+    if (!this.state.selectedInitialCard) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_NO_CARD_SELECTED,
+        'No initial card selected'
+      )
+    }
+
+    // Add selected card to hand
+    const selectedCard = this.state.initialCards!.find(
+      c => c.instanceId === this.state!.selectedInitialCard
+    )!
+
+    // Find unselected card
+    const unselectedCard = this.state.initialCards!.find(
+      c => c.instanceId !== this.state!.selectedInitialCard
+    )!
+
+    // Return unselected card to deck and shuffle
+    const newDeck = shuffleArray([
+      { ...unselectedCard, location: CardLocation.DECK, isRevealed: false },
+      ...this.state.deck,
+    ])
+
+    // Add selected card to hand
+    const newHand = [
+      ...this.state.player.hand,
+      { ...selectedCard, location: CardLocation.HAND, isRevealed: true },
+    ]
+
+    // Record action
+    const action: SinglePlayerAction = {
+      type: SinglePlayerActionType.CONFIRM_INITIAL_CARD,
+      timestamp: Date.now(),
+      payload: { cardInstanceId: this.state.selectedInitialCard },
+    }
+
+    this.state = {
+      ...this.state,
+      deck: newDeck,
+      player: {
+        ...this.state.player,
+        hand: newHand,
+      },
+      phase: SinglePlayerPhase.DRAW,
+      initialCards: [],
+      selectedInitialCard: null,
+      actionsThisRound: [...this.state.actionsThisRound, action],
+      updatedAt: Date.now(),
+    }
+
+    this.notifyStateChange()
   }
 
   // ============================================
@@ -1068,6 +1296,20 @@ export class SinglePlayerEngine {
     const actions: SinglePlayerActionType[] = []
 
     switch (this.state.phase) {
+      case SinglePlayerPhase.SETUP_ARTIFACT:
+        actions.push(SinglePlayerActionType.SELECT_ARTIFACT)
+        if (this.state.selectedArtifact) {
+          actions.push(SinglePlayerActionType.CONFIRM_ARTIFACT)
+        }
+        break
+
+      case SinglePlayerPhase.SETUP_INITIAL_CARDS:
+        actions.push(SinglePlayerActionType.SELECT_INITIAL_CARD)
+        if (this.state.selectedInitialCard) {
+          actions.push(SinglePlayerActionType.CONFIRM_INITIAL_CARD)
+        }
+        break
+
       case SinglePlayerPhase.DRAW:
         actions.push(SinglePlayerActionType.DRAW_CARD)
         break
@@ -1096,7 +1338,8 @@ export class SinglePlayerEngine {
         break
 
       case SinglePlayerPhase.SCORE:
-        // No actions in score phase
+      case SinglePlayerPhase.GAME_OVER:
+        // No actions in score/game over phase
         break
     }
 

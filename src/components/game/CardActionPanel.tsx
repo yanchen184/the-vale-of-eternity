@@ -141,7 +141,7 @@ export const CardActionPanel = memo(function CardActionPanel({
       {onSanctuary && (
         <ActionButton
           icon={<Shield className="w-5 h-5" />}
-          label="庇護"
+          label="棲息地"
           description="移至棲息地保護"
           disabled={false}
           variant="info"

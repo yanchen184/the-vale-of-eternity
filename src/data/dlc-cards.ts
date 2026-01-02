@@ -309,7 +309,7 @@ export const TAWERET: CardTemplate = {
     },
   ],
   flavorText: 'Maternal protector of life.',
-  flavorTextTw: '生命的慈母守護者，庇護萬物免於傷害。',
+  flavorTextTw: '生命的慈母守護者，棲息地萬物免於傷害。',
   imageUrl: '/the-vale-of-eternity/assets/dlc/Taweret.jpg',
 }
 

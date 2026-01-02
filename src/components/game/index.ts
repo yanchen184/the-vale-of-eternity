@@ -1,9 +1,9 @@
 /**
  * Game components exports
  * Core UI components for The Vale of Eternity game
- * @version 5.0.0 - Added new fixed hand panel system with grid/strip layouts
+ * @version 6.3.0 - SinglePlayerGame now uses fully shared components
  */
-console.log('[components/game/index.ts] v5.0.0 loaded')
+console.log('[components/game/index.ts] v6.3.0 loaded')
 
 // Card components
 export { Card, CardBack } from './Card'
@@ -70,7 +70,7 @@ export type { PlayersFieldAreaProps, PlayerFieldData } from './PlayersFieldArea'
 export { LeftSidebar } from './LeftSidebar'
 export type { LeftSidebarProps, PlayerSidebarData } from './LeftSidebar'
 export { RightSidebar } from './RightSidebar'
-export type { RightSidebarProps } from './RightSidebar'
+export type { RightSidebarProps, PlayerCoinInfo } from './RightSidebar'
 export { MainGameArea } from './MainGameArea'
 export type { MainGameAreaProps } from './MainGameArea'
 export { GameLayout, GameHeader } from './GameLayout'
@@ -99,3 +99,42 @@ export { HorizontalCardStrip } from './HorizontalCardStrip'
 export type { HorizontalCardStripProps } from './HorizontalCardStrip'
 export { CardActionPanel } from './CardActionPanel'
 export type { CardActionPanelProps } from './CardActionPanel'
+
+// Initial Card Selection (removed - not needed)
+
+// Flying Coin Animation (v5.2.0)
+export { FlyingCoinContainer } from './FlyingCoinContainer'
+export type { FlyingCoinContainerProps } from './FlyingCoinContainer'
+
+// Multi-player Coin System (v5.3.0)
+export { PlayerCoinAreaCompact } from './PlayerCoinAreaCompact'
+export type {
+  PlayerCoinAreaCompactProps,
+  PlayerCoinAreaCompactRef,
+} from './PlayerCoinAreaCompact'
+export { AllPlayersCoinArea } from './AllPlayersCoinArea'
+export type {
+  AllPlayersCoinAreaProps,
+  AllPlayersCoinAreaRef,
+  PlayerCoinData,
+} from './AllPlayersCoinArea'
+export { MultiplayerCoinSystem } from './MultiplayerCoinSystem'
+export type { MultiplayerCoinSystemProps } from './MultiplayerCoinSystem'
+
+// Game Phase UI Components (v6.2.0)
+export { HuntingPhaseUI } from './HuntingPhaseUI'
+export type { HuntingPhaseProps, SevenLeagueBootsState } from './HuntingPhaseUI'
+export { ActionPhaseUI } from './ActionPhaseUI'
+export type { ActionPhaseUIProps } from './ActionPhaseUI'
+
+// Game Action Log Component (v7.0.0)
+export { GameActionLog } from './GameActionLog'
+export type { GameActionLogProps } from './GameActionLog'
+
+// Player Hand Preview Component (v7.0.0)
+export { PlayerHandPreview } from './PlayerHandPreview'
+export type { PlayerHandPreviewProps } from './PlayerHandPreview'
+
+// Current Turn Cards Component (v7.0.0)
+export { CurrentTurnCards } from './CurrentTurnCards'
+export type { CurrentTurnCardsProps } from './CurrentTurnCards'

@@ -1,11 +1,11 @@
 /**
  * BankArea Component
- * Displays the bank's coin pool and allows players to take/return coins
- * @version 1.1.0 - Using coin images, only 1/3/6 coins
+ * Displays the bank's coin pool and allows players to take coins
+ * @version 3.0.0 - Simplified compact design for sidebar
  */
-console.log('[components/game/BankArea.tsx] v1.1.0 loaded')
+console.log('[components/game/BankArea.tsx] v3.0.0 loaded')
 
-import { memo } from 'react'
+import { memo, useRef, forwardRef } from 'react'
 import { cn } from '@/lib/utils'
 import type { StonePool } from '@/types/game'
 import { StoneType } from '@/types/cards'
@@ -20,7 +20,7 @@ export interface BankAreaProps {
   /** Whether the current player can interact with the bank */
   allowInteraction?: boolean
   /** Callback when a coin type is clicked to take from bank */
-  onTakeCoin?: (coinType: StoneType) => void
+  onTakeCoin?: (coinType: StoneType, coinElement: HTMLElement | null) => void
   /** Additional CSS classes */
   className?: string
 }
@@ -58,90 +58,93 @@ const COIN_CONFIGS: CoinConfig[] = [
 ]
 
 // ============================================
-// COMPONENT
+// SUBCOMPONENTS - Simplified Coin Icon
 // ============================================
 
-export const BankArea = memo(function BankArea({
-  bankCoins: _bankCoins,
-  allowInteraction = false,
+interface SimpleCoinIconProps {
+  config: CoinConfig
+  allowInteraction: boolean
+  onTakeCoin: (coinType: StoneType, element: HTMLElement | null) => void
+}
+
+const SimpleCoinIcon = memo(function SimpleCoinIcon({
+  config,
+  allowInteraction,
   onTakeCoin,
-  className = '',
-}: BankAreaProps) {
-  void _bankCoins // Reserved for displaying coin counts
+}: SimpleCoinIconProps) {
+  const buttonRef = useRef<HTMLButtonElement>(null)
+
   return (
-    <div
+    <button
+      ref={buttonRef}
+      type="button"
+      disabled={!allowInteraction}
+      onClick={() => allowInteraction && onTakeCoin(config.type, buttonRef.current)}
       className={cn(
-        'bg-slate-800/50 rounded-xl border border-slate-700 p-6',
-        className
+        'aspect-square p-2 rounded-lg border flex items-center justify-center',
+        'transition-all duration-200',
+        allowInteraction
+          ? 'border-amber-500/40 bg-slate-700/50 cursor-pointer hover:bg-amber-900/30 hover:scale-105 active:scale-95'
+          : 'border-slate-600/30 bg-slate-800/20 cursor-not-allowed opacity-50'
       )}
-      data-testid="bank-area"
+      data-testid={`bank-coin-${config.type}`}
+      title={`${config.value} 元`}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-amber-600/20 border-2 border-amber-500 flex items-center justify-center">
-            <svg
-              className="w-6 h-6 text-amber-500"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-slate-200">銀行</h3>
-            <p className="text-xs text-slate-500">
-              {allowInteraction ? '點擊錢幣來拿取' : '銀行錢幣池'}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Coin Grid */}
-      <div className="grid grid-cols-3 gap-6">
-        {COIN_CONFIGS.map((config) => {
-          return (
-            <button
-              key={config.type}
-              type="button"
-              disabled={!allowInteraction}
-              onClick={() => allowInteraction && onTakeCoin?.(config.type)}
-              className={cn(
-                'flex flex-col items-center justify-center p-4 rounded-xl',
-                'border-2 border-slate-600 bg-slate-700/50',
-                'transition-all duration-200',
-                allowInteraction
-                  ? 'hover:scale-105 hover:shadow-lg hover:border-amber-500 cursor-pointer'
-                  : 'opacity-50 cursor-not-allowed'
-              )}
-              data-testid={`bank-coin-${config.type}`}
-              title={config.displayName}
-            >
-              {/* Coin Image */}
-              <div className="relative w-24 h-24 mb-3">
-                <img
-                  src={config.image}
-                  alt={config.displayName}
-                  className="w-full h-full object-contain drop-shadow-lg"
-                />
-              </div>
-
-              {/* Coin Value Label */}
-              <div className="px-3 py-1 bg-slate-800 rounded-full border border-slate-600">
-                <span className="text-lg font-bold text-amber-400">{config.value} 元</span>
-              </div>
-            </button>
-          )
-        })}
-      </div>
-    </div>
+      <img
+        src={config.image}
+        alt={`${config.value} 元`}
+        className="w-full h-full object-contain drop-shadow pointer-events-none"
+      />
+    </button>
   )
 })
+
+// ============================================
+// MAIN COMPONENT
+// ============================================
+
+export const BankArea = memo(
+  forwardRef<HTMLDivElement, BankAreaProps>(function BankArea(
+    { bankCoins: _bankCoins, allowInteraction = false, onTakeCoin, className = '' },
+    ref
+  ) {
+    void _bankCoins // Bank has infinite coins, no need to track count
+
+    const handleTakeCoin = (coinType: StoneType, element: HTMLElement | null) => {
+      onTakeCoin?.(coinType, element)
+    }
+
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          'bg-slate-800/40 rounded-lg border border-slate-700/50 p-3',
+          className
+        )}
+        data-testid="bank-area"
+      >
+        {/* Compact Header */}
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-semibold text-amber-400">銀行</h3>
+          <span className="text-xs text-slate-400">
+            {allowInteraction ? '可拿取' : '鎖定'}
+          </span>
+        </div>
+
+        {/* Compact Coin Grid - 3 icons only */}
+        <div className="grid grid-cols-3 gap-2">
+          {COIN_CONFIGS.map((config) => (
+            <SimpleCoinIcon
+              key={config.type}
+              config={config}
+              allowInteraction={allowInteraction}
+              onTakeCoin={handleTakeCoin}
+            />
+          ))}
+        </div>
+      </div>
+    )
+  })
+)
 
 export default BankArea

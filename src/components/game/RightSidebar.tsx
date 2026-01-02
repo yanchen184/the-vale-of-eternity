@@ -1,20 +1,33 @@
 /**
  * RightSidebar Component
  * Right sidebar for multiplayer game - displays bank coins and player coins
- * @version 1.7.1 - Fix confirm button staying visible after artifact selection completes
+ * @version 3.0.0 - Integrated flying coin animations
  */
-console.log('[components/game/RightSidebar.tsx] v1.7.1 loaded')
+console.log('[components/game/RightSidebar.tsx] v3.0.0 loaded')
 
-import { memo } from 'react'
+import { memo, useRef, useCallback } from 'react'
 import { cn } from '@/lib/utils'
-import { GlassCard } from '@/components/ui/GlassCard'
 import type { StonePool } from '@/types/game'
-import { calculateStonePoolValue } from '@/types/game'  // Used for MyCoinsSection
+import { createEmptyStonePool } from '@/types/game'
 import { StoneType } from '@/types/cards'
+import { BankArea } from './BankArea'
+import { PlayerCoinAreaCompact } from './PlayerCoinAreaCompact'
+import type { PlayerCoinAreaCompactRef } from './PlayerCoinAreaCompact'
+import { FlyingCoinContainer } from './FlyingCoinContainer'
+import { useCoinFlyAnimation } from '@/hooks/useCoinFlyAnimation'
 
 // ============================================
 // TYPES
 // ============================================
+
+import type { PlayerColor } from '@/types/player-color'
+
+export interface PlayerCoinInfo {
+  playerId: string
+  playerName: string
+  playerColor: PlayerColor
+  playerCoins: StonePool
+}
 
 export interface RightSidebarProps {
   /** Bank's coin pool (optional - bank is infinite) */
@@ -47,279 +60,15 @@ export interface RightSidebarProps {
   isYourArtifactTurn?: boolean
   /** Whether artifact selection is currently active */
   isArtifactSelectionActive?: boolean
+  // Multiplayer coins (v2.0.0)
+  /** All players' coin information for multiplayer display */
+  allPlayers?: PlayerCoinInfo[]
+  /** Current player ID */
+  currentPlayerId?: string
+  // Stone limit (v3.1.0)
+  /** Current player's stone limit (default: 4, with Hestia: 6) */
+  currentPlayerStoneLimit?: number
 }
-
-// ============================================
-// COIN CONFIG
-// ============================================
-
-interface CoinConfig {
-  type: StoneType
-  value: number
-  image: string
-  label: string
-  color: string
-}
-
-const VALUE_COINS: CoinConfig[] = [
-  {
-    type: StoneType.ONE,
-    value: 1,
-    image: '/the-vale-of-eternity/assets/stones/stone-1.png',
-    label: '1元',
-    color: 'amber',
-  },
-  {
-    type: StoneType.THREE,
-    value: 3,
-    image: '/the-vale-of-eternity/assets/stones/stone-3.png',
-    label: '3元',
-    color: 'amber',
-  },
-  {
-    type: StoneType.SIX,
-    value: 6,
-    image: '/the-vale-of-eternity/assets/stones/stone-6.png',
-    label: '6元',
-    color: 'amber',
-  },
-]
-
-// ============================================
-// COIN DISPLAY COMPONENT
-// ============================================
-
-interface CoinDisplayProps {
-  config: CoinConfig
-  count: number
-  interactive?: boolean
-  onClick?: () => void
-  size?: 'sm' | 'md'
-  /** Whether this is a bank coin (always available, shows infinity symbol) */
-  isBank?: boolean
-}
-
-// Unused component - reserved for future coin display functionality
-// @ts-ignore - Reserved for future use
-const _CoinDisplay = memo(function CoinDisplay({
-  config,
-  count,
-  interactive = false,
-  onClick,
-  size = 'md',
-  isBank = false,
-}: CoinDisplayProps) {
-  // Bank coins are never empty
-  const isEmpty = !isBank && count === 0
-
-  return (
-    <button
-      type="button"
-      onClick={interactive && !isEmpty ? onClick : undefined}
-      disabled={!interactive || isEmpty}
-      className={cn(
-        'relative flex flex-col items-center justify-center rounded-lg transition-all duration-200',
-        size === 'md' ? 'p-2' : 'p-1.5',
-        interactive && !isEmpty
-          ? 'hover:scale-105 hover:bg-slate-700/50 cursor-pointer'
-          : 'cursor-default',
-        isEmpty && 'opacity-30'
-      )}
-      title={interactive ? `取得 ${config.label}` : config.label}
-    >
-      {/* Coin Image */}
-      <div className={cn('relative mb-1', size === 'md' ? 'w-12 h-12' : 'w-8 h-8')}>
-        <img
-          src={config.image}
-          alt={config.label}
-          className="w-full h-full object-contain drop-shadow-md"
-        />
-      </div>
-
-      {/* Count Badge - don't show for bank */}
-      {!isBank && (
-        <div
-          className={cn(
-            'font-bold rounded-full',
-            size === 'md' ? 'text-sm px-2 py-0.5' : 'text-xs px-1.5 py-0.5',
-            'bg-slate-800/80 border border-slate-600'
-          )}
-        >
-          <span className="text-amber-400">x{count}</span>
-        </div>
-      )}
-
-      {/* Interactive Indicator */}
-      {interactive && !isEmpty && (
-        <div className="absolute inset-0 rounded-lg border-2 border-transparent hover:border-amber-500/50 transition-colors" />
-      )}
-    </button>
-  )
-})
-
-// ============================================
-// MY COINS SECTION
-// ============================================
-
-interface MyCoinsSectionProps {
-  coins: StonePool
-  isYourTurn: boolean
-  onReturnCoin?: (coinType: StoneType) => void
-}
-
-const MyCoinsSection = memo(function MyCoinsSection({
-  coins,
-  isYourTurn,
-  onReturnCoin,
-}: MyCoinsSectionProps) {
-  const totalValue = calculateStonePoolValue(coins)
-
-  return (
-    <GlassCard variant="gold" glow={isYourTurn ? 'gold' : 'none'} padding="sm">
-      <div className="space-y-3">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h4 className="text-base font-bold text-amber-300">
-            我的錢幣
-          </h4>
-          <span className="text-2xl font-bold text-amber-400">
-            {totalValue}
-          </span>
-        </div>
-
-        {/* Coin List - Vertical */}
-        <div className="space-y-2">
-          {VALUE_COINS.map((config) => {
-            const count = coins[config.type] || 0
-            const isInteractive = isYourTurn && count > 0
-
-            return (
-              <button
-                key={config.type}
-                type="button"
-                onClick={isInteractive ? () => onReturnCoin?.(config.type) : undefined}
-                disabled={!isInteractive}
-                className={cn(
-                  'w-full flex items-center justify-between p-3 rounded-lg transition-all duration-200',
-                  'border-2 bg-slate-800/60',
-                  isInteractive
-                    ? 'border-amber-500/50 hover:border-amber-500 hover:bg-amber-900/20 cursor-pointer hover:scale-[1.02]'
-                    : 'border-slate-600/30 opacity-60 cursor-default'
-                )}
-                title={isInteractive ? `點擊歸還 ${config.label}` : config.label}
-              >
-                {/* Left: Coin Image */}
-                <div className="flex items-center gap-3">
-                  <div className="relative w-14 h-14 flex-shrink-0">
-                    <img
-                      src={config.image}
-                      alt={config.label}
-                      className="w-full h-full object-contain drop-shadow-lg"
-                    />
-                  </div>
-                  <span className="text-lg font-bold text-amber-300">
-                    {config.value} 元
-                  </span>
-                </div>
-
-                {/* Right: Count */}
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-slate-400">×</span>
-                  <span className="text-2xl font-bold text-amber-400 min-w-[3rem] text-right">
-                    {count}
-                  </span>
-                </div>
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Return Hint */}
-        {isYourTurn && totalValue > 0 && (
-          <p className="text-xs text-amber-400/60 text-center pt-1">
-            點擊錢幣歸還銀行
-          </p>
-        )}
-      </div>
-    </GlassCard>
-  )
-})
-
-// ============================================
-// BANK SECTION
-// ============================================
-
-interface BankSectionProps {
-  isYourTurn: boolean
-  onTakeCoin?: (coinType: StoneType) => void
-}
-
-const BankSection = memo(function BankSection({
-  isYourTurn,
-  onTakeCoin,
-}: BankSectionProps) {
-  return (
-    <GlassCard variant="blue" glow="none" padding="sm">
-      <div className="space-y-3">
-        {/* Header */}
-        <h4 className="text-base font-bold text-blue-300 flex items-center gap-2">
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <span>銀行</span>
-        </h4>
-
-        {/* Coin List - Vertical */}
-        <div className="space-y-2">
-          {VALUE_COINS.map((config) => (
-            <button
-              key={config.type}
-              type="button"
-              onClick={isYourTurn ? () => onTakeCoin?.(config.type) : undefined}
-              disabled={!isYourTurn}
-              className={cn(
-                'w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200',
-                'border-2 bg-slate-800/60',
-                isYourTurn
-                  ? 'border-blue-500/50 hover:border-blue-500 hover:bg-blue-900/20 cursor-pointer hover:scale-[1.02]'
-                  : 'border-slate-600/30 opacity-60 cursor-default'
-              )}
-              title={isYourTurn ? `從銀行取得 ${config.label}` : config.label}
-            >
-              {/* Coin Image */}
-              <div className="relative w-14 h-14 flex-shrink-0">
-                <img
-                  src={config.image}
-                  alt={config.label}
-                  className="w-full h-full object-contain drop-shadow-lg"
-                />
-              </div>
-              <span className="text-lg font-bold text-blue-300">
-                {config.value} 元
-              </span>
-            </button>
-          ))}
-        </div>
-
-        {/* Take Hint */}
-        {isYourTurn ? (
-          <p className="text-xs text-blue-400/60 text-center pt-1">
-            點擊錢幣從銀行取得
-          </p>
-        ) : (
-          <p className="text-xs text-slate-500 text-center pt-1">
-            等待你的回合...
-          </p>
-        )}
-      </div>
-    </GlassCard>
-  )
-})
 
 // ============================================
 // MAIN COMPONENT
@@ -342,9 +91,64 @@ export const RightSidebar = memo(function RightSidebar({
   // Artifact selection props (v1.7.0)
   isYourArtifactTurn,
   isArtifactSelectionActive,
+  // Multiplayer coins (v2.0.0)
+  allPlayers,
+  currentPlayerId,
+  // Stone limit (v3.1.0)
+  currentPlayerStoneLimit = 4,
 }: RightSidebarProps) {
   void _playerName // Reserved for future use
   void _bankCoins // Bank is infinite, no need to track
+  void playerCoins // Now using allPlayers instead
+
+  // Flying animation system (v3.0.0)
+  const { flyingCoins, triggerFly } = useCoinFlyAnimation()
+  const bankAreaRef = useRef<HTMLDivElement>(null)
+  const playerCoinRefs = useRef<Map<string, PlayerCoinAreaCompactRef>>(new Map())
+
+  // Calculate current player's total coins (v3.1.0 - updated to use dynamic limit)
+  const currentPlayerCoins = allPlayers?.find((p) => p.playerId === currentPlayerId)?.playerCoins
+  const currentPlayerTotalCoins = currentPlayerCoins
+    ? (currentPlayerCoins[StoneType.ONE] || 0) +
+      (currentPlayerCoins[StoneType.THREE] || 0) +
+      (currentPlayerCoins[StoneType.SIX] || 0)
+    : 0
+  const canTakeMoreCoins = currentPlayerTotalCoins < currentPlayerStoneLimit
+
+  // Handle taking coin from bank - play animation then trigger actual logic
+  const handleTakeCoinFromBank = useCallback(
+    (coinType: StoneType, bankCoinElement: HTMLElement | null) => {
+      if (!currentPlayerId || !onTakeCoin) return
+
+      // Check coin limit (default: 4, with Hestia: 6)
+      if (currentPlayerTotalCoins >= currentPlayerStoneLimit) {
+        console.warn(
+          `[RightSidebar] Cannot take coin: player has ${currentPlayerTotalCoins}/${currentPlayerStoneLimit} coins already`
+        )
+        return
+      }
+
+      const playerRef = playerCoinRefs.current.get(currentPlayerId)
+      const targetElement = playerRef?.getCoinSlotElement(coinType)
+
+      void triggerFly(coinType, bankCoinElement, targetElement || null, {
+        onComplete: () => onTakeCoin(coinType),
+      })
+    },
+    [currentPlayerId, currentPlayerTotalCoins, currentPlayerStoneLimit, onTakeCoin, triggerFly]
+  )
+
+  // Handle returning coin to bank - play animation then trigger actual logic
+  const handleReturnCoinToBank = useCallback(
+    (coinType: StoneType, playerCoinElement: HTMLElement) => {
+      if (!onReturnCoin) return
+
+      void triggerFly(coinType, playerCoinElement, bankAreaRef.current, {
+        onComplete: () => onReturnCoin(coinType),
+      })
+    },
+    [onReturnCoin, triggerFly]
+  )
 
   // Show confirm selection button only during HUNTING phase and player's turn
   // v1.7.0: During artifact selection, use isYourArtifactTurn instead of isYourTurn
@@ -362,7 +166,7 @@ export const RightSidebar = memo(function RightSidebar({
   const getConfirmButtonConfig = () => {
     if (isInSevenLeagueBootsSelection) {
       return {
-        text: '確認庇護',
+        text: '確認棲息地',
         disabled: !hasSelectedShelterCard,
         colorClass: hasSelectedShelterCard
           ? 'from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 active:from-purple-700 active:to-purple-800 border-purple-400/50 shadow-purple-900/50'
@@ -402,12 +206,13 @@ export const RightSidebar = memo(function RightSidebar({
       </div>
 
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
-        {/* My Coins */}
-        <MyCoinsSection
-          coins={playerCoins}
-          isYourTurn={isYourTurn}
-          onReturnCoin={onReturnCoin}
+      <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">
+        {/* Bank - 6 Slot System */}
+        <BankArea
+          ref={bankAreaRef}
+          bankCoins={_bankCoins || createEmptyStonePool()}
+          allowInteraction={isYourTurn && canTakeMoreCoins}
+          onTakeCoin={handleTakeCoinFromBank}
         />
 
         {/* Divider */}
@@ -415,11 +220,32 @@ export const RightSidebar = memo(function RightSidebar({
           <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-600/50 to-transparent" />
         </div>
 
-        {/* Bank - Infinite supply */}
-        <BankSection
-          isYourTurn={isYourTurn}
-          onTakeCoin={onTakeCoin}
-        />
+        {/* All Players' Coins - 6 Slot System for each player */}
+        {allPlayers && allPlayers.length > 0 ? (
+          <div className="space-y-3">
+            {allPlayers.map((player) => (
+              <PlayerCoinAreaCompact
+                key={player.playerId}
+                ref={(ref) => {
+                  if (ref) {
+                    playerCoinRefs.current.set(player.playerId, ref)
+                  }
+                }}
+                playerId={player.playerId}
+                playerName={player.playerName}
+                playerColor={player.playerColor}
+                playerCoins={player.playerCoins}
+                isCurrentPlayer={player.playerId === currentPlayerId}
+                isPlayerTurn={player.playerId === currentPlayerId && isYourTurn}
+                onReturnCoin={
+                  player.playerId === currentPlayerId && onReturnCoin
+                    ? handleReturnCoinToBank
+                    : undefined
+                }
+              />
+            ))}
+          </div>
+        ) : null}
 
         {/* Confirm Selection Button - Show during HUNTING phase or Seven-League Boots selection */}
         {showConfirmSelection && (
@@ -482,6 +308,9 @@ export const RightSidebar = memo(function RightSidebar({
           )}
         </div>
       </div>
+
+      {/* Flying Coin Animation Container */}
+      <FlyingCoinContainer flyingCoins={flyingCoins} />
     </aside>
   )
 })

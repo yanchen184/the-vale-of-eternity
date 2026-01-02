@@ -70,7 +70,7 @@ function GameHeader({
   onHelp,
   onPause,
 }: GameHeaderProps) {
-  const phaseLabels: Record<SinglePlayerPhase, string> = {
+  const phaseLabels: Partial<Record<SinglePlayerPhase, string>> = {
     [SinglePlayerPhase.DRAW]: '抽牌階段',
     [SinglePlayerPhase.ACTION]: '行動階段',
     [SinglePlayerPhase.SCORE]: '計分階段',

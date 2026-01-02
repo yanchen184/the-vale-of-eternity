@@ -1,14 +1,17 @@
 /**
  * PlayersInfoArea Component
  * Displays all players' coin counts and hand card counts
- * @version 1.0.0
+ * Integrated with GameActionLog for complete game state visibility
+ * @version 2.0.0 - Integrated GameActionLog component
  */
-console.log('[components/game/PlayersInfoArea.tsx] v1.0.0 loaded')
+console.log('[components/game/PlayersInfoArea.tsx] v2.0.0 loaded')
 
 import { memo, useMemo } from 'react'
 import { PlayerMarker } from './PlayerMarker'
+import { GameActionLog } from './GameActionLog'
 import { type PlayerColor } from '@/types/player-color'
 import type { StonePool } from '@/types/game'
+import type { GameActionLog as GameActionLogType } from '@/types/game-log'
 import { cn } from '@/lib/utils'
 
 // ============================================
@@ -45,6 +48,8 @@ export interface PlayersInfoAreaProps {
   currentPlayerId: string
   /** Player ID whose turn it is */
   currentTurnPlayerId: string
+  /** Game action logs (optional) */
+  actionLogs?: GameActionLogType[]
   /** Additional CSS classes */
   className?: string
 }
@@ -224,6 +229,7 @@ export const PlayersInfoArea = memo(function PlayersInfoArea({
   players,
   currentPlayerId,
   currentTurnPlayerId,
+  actionLogs = [],
   className,
 }: PlayersInfoAreaProps) {
   // Sort players: current turn player first, then by index
@@ -237,38 +243,48 @@ export const PlayersInfoArea = memo(function PlayersInfoArea({
   }, [players, currentPlayerId])
 
   return (
-    <section
-      className={cn(
-        'bg-slate-800/30 rounded-xl border border-slate-700/50 p-4',
-        className
-      )}
-      data-testid="players-info-area"
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-slate-200">玩家資訊</h3>
-        <span className="text-sm text-slate-500">{players.length} 位玩家</span>
-      </div>
-
-      {/* Players Grid */}
-      <div
+    <div className={cn('space-y-3', className)} data-testid="players-info-area-container">
+      {/* Players Info Section */}
+      <section
         className={cn(
-          'grid gap-4',
-          players.length === 2 && 'grid-cols-2',
-          players.length === 3 && 'grid-cols-3',
-          players.length === 4 && 'grid-cols-2 lg:grid-cols-4'
+          'bg-slate-800/30 rounded-xl border border-slate-700/50 p-4',
         )}
+        data-testid="players-info-area"
       >
-        {sortedPlayers.map((player) => (
-          <PlayerInfoCard
-            key={player.playerId}
-            player={player}
-            isCurrentPlayer={player.playerId === currentPlayerId}
-            isCurrentTurn={player.playerId === currentTurnPlayerId}
-          />
-        ))}
-      </div>
-    </section>
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-slate-200">玩家資訊</h3>
+          <span className="text-sm text-slate-500">{players.length} 位玩家</span>
+        </div>
+
+        {/* Players Grid */}
+        <div
+          className={cn(
+            'grid gap-4',
+            players.length === 2 && 'grid-cols-2',
+            players.length === 3 && 'grid-cols-3',
+            players.length === 4 && 'grid-cols-2 lg:grid-cols-4'
+          )}
+        >
+          {sortedPlayers.map((player) => (
+            <PlayerInfoCard
+              key={player.playerId}
+              player={player}
+              isCurrentPlayer={player.playerId === currentPlayerId}
+              isCurrentTurn={player.playerId === currentTurnPlayerId}
+            />
+          ))}
+        </div>
+      </section>
+
+      {/* Game Action Log Section */}
+      {actionLogs.length > 0 && (
+        <GameActionLog
+          logs={actionLogs}
+          maxDisplay={5}
+        />
+      )}
+    </div>
   )
 })
 
