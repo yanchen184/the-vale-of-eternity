@@ -1,10 +1,10 @@
 /**
- * Single Player Game Engine for Vale of Eternity v7.5.0
+ * Single Player Game Engine for Vale of Eternity v7.6.0
  * Core game logic for single-player mode with Stone Economy System
  * Based on GAME_FLOW.md specifications
- * @version 7.5.0 - Added player area bonus (+1/+2) for final scoring
+ * @version 7.6.0 - Implemented round-based field size limits (round + areaBonus)
  */
-console.log('[lib/single-player-engine.ts] v7.5.0 loaded - Area bonus system implemented')
+console.log('[lib/single-player-engine.ts] v7.6.0 loaded - Round-based field size limits')
 
 import type { CardInstance, CardEffect, StoneConfig } from '@/types/cards'
 import { CardLocation, Element, EffectType, EffectTrigger, StoneType } from '@/types/cards'
@@ -35,7 +35,7 @@ export const SINGLE_PLAYER_CONSTANTS = {
   INITIAL_HAND_SIZE: 5,
   /** Market size (always 4 cards) */
   MARKET_SIZE: 4,
-  /** Maximum field size */
+  /** Absolute maximum field size (hard cap) */
   MAX_FIELD_SIZE: 12,
   /** Maximum hand size */
   MAX_HAND_SIZE: 10,
@@ -223,12 +223,8 @@ export class SinglePlayerEngine {
       allCards.map((template, index) => createCardInstance(template, index))
     )
 
-    // Draw initial hand (5 cards)
-    const hand = deck.splice(0, SINGLE_PLAYER_CONSTANTS.INITIAL_HAND_SIZE)
-    hand.forEach(card => {
-      card.location = CardLocation.HAND
-      card.isRevealed = true
-    })
+    // Start with empty hand (0 cards)
+    const hand: CardInstance[] = []
 
     // Setup market (4 cards) - Show immediately like multiplayer
     // In multiplayer: player count × 2 cards are shown at start of hunting phase
@@ -775,11 +771,12 @@ export class SinglePlayerEngine {
       )
     }
 
-    // Check field capacity
-    if (this.state.player.field.length >= SINGLE_PLAYER_CONSTANTS.MAX_FIELD_SIZE) {
+    // Check field capacity based on current round and area bonus
+    const maxFieldSize = this.getMaxFieldSize()
+    if (this.state.player.field.length >= maxFieldSize) {
       throw new SinglePlayerError(
         SinglePlayerErrorCode.ERR_FIELD_FULL,
-        'Field is full (maximum 12 cards)'
+        `Field is full (maximum ${maxFieldSize} cards for round ${this.state.round})`
       )
     }
 
@@ -1821,7 +1818,9 @@ export class SinglePlayerEngine {
   canTameCard(cardInstanceId: string): boolean {
     if (!this.state) return false
     if (this.state.phase !== SinglePlayerPhase.ACTION) return false
-    if (this.state.player.field.length >= SINGLE_PLAYER_CONSTANTS.MAX_FIELD_SIZE) {
+    // Check field capacity based on current round and area bonus
+    const maxFieldSize = this.getMaxFieldSize()
+    if (this.state.player.field.length >= maxFieldSize) {
       return false
     }
 
@@ -2000,6 +1999,25 @@ export class SinglePlayerEngine {
    */
   getAreaBonus(): number {
     return this.state?.player.areaBonus ?? 0
+  }
+
+  /**
+   * Get maximum field size based on current round and area bonus
+   * Formula: min(current_round + areaBonus, MAX_FIELD_SIZE)
+   * Round 1 → 1 slot (+ areaBonus)
+   * Round 2 → 2 slots (+ areaBonus)
+   * ...
+   * Round 12 → 12 slots (max)
+   * @returns Maximum number of cards allowed on field
+   */
+  getMaxFieldSize(): number {
+    if (!this.state) return 1
+
+    const baseLimit = this.state.round
+    const areaBonus = this.state.player.areaBonus
+    const maxSize = Math.min(baseLimit + areaBonus, SINGLE_PLAYER_CONSTANTS.MAX_FIELD_SIZE)
+
+    return maxSize
   }
 }
 

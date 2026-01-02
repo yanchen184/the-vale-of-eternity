@@ -49,6 +49,8 @@ export interface PlayersFieldAreaProps {
   onCardReturn?: (playerId: string, cardId: string) => void
   /** Callback when a card is discarded from field (optional) */
   onCardDiscard?: (playerId: string, cardId: string) => void
+  /** Callback when a card is moved to sanctuary (optional) */
+  onCardMoveToSanctuary?: (playerId: string, cardId: string) => void
   /** Callback when a current turn card is moved to hand (optional) */
   onCurrentCardMoveToHand?: (playerId: string, cardId: string) => void
   /** Callback when a current turn card is sold (optional) */
@@ -70,6 +72,7 @@ interface PlayerFieldSectionProps {
   onCardClick?: (cardId: string) => void
   onCardReturn?: (cardId: string) => void
   onCardDiscard?: (cardId: string) => void
+  onCardMoveToSanctuary?: (cardId: string) => void
   onCurrentCardMoveToHand?: (cardId: string) => void
   onCurrentCardSell?: (cardId: string) => void
   onCurrentTurnCardClick?: (cardId: string) => void
@@ -84,6 +87,7 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
   onCardClick,
   onCardReturn,
   onCardDiscard,
+  onCardMoveToSanctuary,
   onCurrentCardMoveToHand,
   onCurrentCardSell,
   onCurrentTurnCardClick,
@@ -101,6 +105,10 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
   const handleCardDiscard = useCallback((cardId: string) => {
     onCardDiscard?.(cardId)
   }, [onCardDiscard])
+
+  const handleCardMoveToSanctuary = useCallback((cardId: string) => {
+    onCardMoveToSanctuary?.(cardId)
+  }, [onCardMoveToSanctuary])
 
   const handleCurrentCardMoveToHand = useCallback((cardId: string) => {
     console.log('[PlayerFieldSection] handleCurrentCardMoveToHand called:', { playerId: player.playerId, cardId })
@@ -232,6 +240,7 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
                                     compact={true}
                                     currentRound={currentRound}
                                     className="shadow-md ring-2 ring-blue-400/50"
+                                    onClick={() => {}} // Prevent Card's internal modal from opening
                                   />
 
                                   {/* Action buttons for Current Turn Cards */}
@@ -402,6 +411,24 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
                                         棄置
                                       </button>
                                     )}
+                                    {onCardMoveToSanctuary && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleCardMoveToSanctuary(card.instanceId)
+                                        }}
+                                        className={cn(
+                                          'px-2 py-1 text-xs rounded-md',
+                                          'bg-green-600 hover:bg-green-500 text-white',
+                                          'shadow-lg border border-green-400/50',
+                                          'whitespace-nowrap'
+                                        )}
+                                        type="button"
+                                        title="移動到棲息地"
+                                      >
+                                        棲息地
+                                      </button>
+                                    )}
                                   </div>
                                 )}
                               </div>
@@ -489,6 +516,7 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
   onCardClick,
   onCardReturn,
   onCardDiscard,
+  onCardMoveToSanctuary,
   onCurrentCardMoveToHand,
   onCurrentCardSell,
   className,
@@ -546,6 +574,10 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
     onCardDiscard?.(playerId, cardId)
   }, [onCardDiscard])
 
+  const handlePlayerCardMoveToSanctuary = useCallback((playerId: string, cardId: string) => {
+    onCardMoveToSanctuary?.(playerId, cardId)
+  }, [onCardMoveToSanctuary])
+
   const handlePlayerCurrentCardMoveToHand = useCallback((playerId: string, cardId: string) => {
     console.log('[PlayersFieldArea] handlePlayerCurrentCardMoveToHand called:', {
       playerId,
@@ -598,6 +630,7 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
               onCardClick={(cardId) => handlePlayerCardClick(player.playerId, cardId)}
               onCardReturn={(cardId) => handlePlayerCardReturn(player.playerId, cardId)}
               onCardDiscard={(cardId) => handlePlayerCardDiscard(player.playerId, cardId)}
+              onCardMoveToSanctuary={(cardId) => handlePlayerCardMoveToSanctuary(player.playerId, cardId)}
               onCurrentCardMoveToHand={(cardId) => handlePlayerCurrentCardMoveToHand(player.playerId, cardId)}
               onCurrentCardSell={(cardId) => handlePlayerCurrentCardSell(player.playerId, cardId)}
               onCurrentTurnCardClick={(cardId) => handleCurrentTurnCardClick(player.playerId, cardId)}

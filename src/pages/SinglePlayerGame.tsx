@@ -85,6 +85,7 @@ export default function SinglePlayerGame() {
 
   // Store actions
   const {
+    gameState,
     startGame,
     drawCard,
     takeCardsFromMarket,
@@ -92,10 +93,14 @@ export default function SinglePlayerGame() {
     moveCurrentCardToHand,
     sellCurrentCard,
     pass,
+    discardCard,
+    moveToSanctuary,
     resetGame,
     canTameCard,
     selectArtifact,
     confirmArtifact,
+    addStones,
+    removeStones,
     error,
   } = useGameStore()
 
@@ -229,12 +234,12 @@ export default function SinglePlayerGame() {
     color: 'green' as const,
     handCount: hand?.length ?? 0,
     fieldCards: field || [],
-    sanctuaryCards: [],
+    sanctuaryCards: gameState?.sanctuary || [],
     currentTurnCards: currentTurnCards || [],
     selectedArtifact: selectedArtifactCard || undefined,
     isCurrentTurn: true,
     hasPassed: false,
-  }), [playerName, hand, field, currentTurnCards, selectedArtifactCard])
+  }), [playerName, hand, field, currentTurnCards, selectedArtifactCard, gameState?.sanctuary])
 
   // Handle card click from hand
   const handleHandCardClick = useCallback((card: CardInstance) => {
@@ -273,6 +278,18 @@ export default function SinglePlayerGame() {
     console.log('[SinglePlayerGame] handleSellCurrentCard:', cardId)
     sellCurrentCard(cardId)
   }, [sellCurrentCard])
+
+  // Handle taking coin from bank
+  const handleTakeCoin = useCallback((coinType: StoneType) => {
+    console.log('[SinglePlayerGame] Taking coin from bank:', coinType)
+    addStones(coinType, 1)
+  }, [addStones])
+
+  // Handle returning coin to bank
+  const handleReturnCoin = useCallback((coinType: StoneType) => {
+    console.log('[SinglePlayerGame] Returning coin to bank:', coinType)
+    removeStones(coinType, 1)
+  }, [removeStones])
 
   // Handle card selection toggle in DRAW phase (after artifact selection)
   const handleToggleCard = useCallback((cardId: string) => {
@@ -427,8 +444,8 @@ export default function SinglePlayerGame() {
             playerName={playerName || 'Player'}
             isYourTurn={true}
             phase={multiplayerPhase}
-            onTakeCoin={() => {}} // Single player doesn't use coin taking
-            onReturnCoin={() => {}}
+            onTakeCoin={handleTakeCoin}
+            onReturnCoin={handleReturnCoin}
             onConfirmSelection={
               // Like multiplayer: handle both artifact and card confirmation
               // 1. If artifact selection active and has selected artifact → confirm artifact
@@ -596,6 +613,8 @@ export default function SinglePlayerGame() {
                       const card = hand?.find(c => c.instanceId === cardId)
                       if (card) handleHandCardClick(card)
                     }}
+                    onCardDiscard={(_playerId, cardId) => discardCard(cardId)}
+                    onCardMoveToSanctuary={(_playerId, cardId) => moveToSanctuary(cardId)}
                     onCurrentCardMoveToHand={handleMoveCurrentCardToHand}
                     onCurrentCardSell={handleSellCurrentCard}
                   />
@@ -609,8 +628,8 @@ export default function SinglePlayerGame() {
                     currentTurnPlayerId="single-player"
                     bankCoins={EMPTY_STONE_POOL}  // Single player has no bank
                     isYourTurn={true}
-                    onTakeCoin={() => {}}
-                    onReturnCoin={() => {}}
+                    onTakeCoin={handleTakeCoin}
+                    onReturnCoin={handleReturnCoin}
                     enableAnimations={false}
                   />
                 </div>
