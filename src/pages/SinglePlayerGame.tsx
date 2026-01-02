@@ -101,8 +101,13 @@ export default function SinglePlayerGame() {
     confirmArtifact,
     addStones,
     removeStones,
+    getCurrentScore,
+    adjustScore,
     error,
   } = useGameStore()
+
+  // Flip state for +60/-60 score adjustment
+  const [isFlipped, setIsFlipped] = useState(false)
 
   console.log('[SinglePlayerGame] artifactSelectionPhase:', artifactSelectionPhase)
   console.log('[SinglePlayerGame] selectedArtifact:', selectedArtifact)
@@ -127,6 +132,11 @@ export default function SinglePlayerGame() {
   const totalStoneValue = useMemo(() => {
     return stones ? calculateStonePoolValue(stones) : 0
   }, [stones])
+
+  // Get current score from field cards
+  const currentScore = useMemo(() => {
+    return getCurrentScore()
+  }, [getCurrentScore, field])
 
   // Initialize game if not started - directly to DRAW phase with expansion mode
   useEffect(() => {
@@ -161,9 +171,9 @@ export default function SinglePlayerGame() {
     playerId: 'single-player',
     playerName: playerName || 'Player',
     color: 'green' as const,
-    score: totalStoneValue,
+    score: currentScore,
     isFlipped: false,
-  }], [playerName, totalStoneValue])
+  }], [playerName, currentScore])
 
   // Discard pile (single player doesn't have discard pile yet)
   const discardPile = useMemo(() => {
@@ -673,13 +683,11 @@ export default function SinglePlayerGame() {
           setSelectedHandCardId(null)
         }}
         onDiscardCard={(cardId) => {
-          // Implement discard if needed
-          void cardId
+          discardCard(cardId)
           setSelectedHandCardId(null)
         }}
         onMoveToSanctuary={(cardId) => {
-          // Implement sanctuary if needed
-          void cardId
+          moveToSanctuary(cardId)
           setSelectedHandCardId(null)
         }}
         showCardActions={phase === SinglePlayerPhase.ACTION}

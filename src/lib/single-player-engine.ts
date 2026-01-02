@@ -1184,18 +1184,29 @@ export class SinglePlayerEngine {
       )
     }
 
-    // Find card in field
-    const card = this.state.player.field.find(c => c.instanceId === cardInstanceId)
+    // Find card in hand or field
+    let card = this.state.player.hand.find(c => c.instanceId === cardInstanceId)
+    let fromHand = !!card
+
+    if (!card) {
+      card = this.state.player.field.find(c => c.instanceId === cardInstanceId)
+      fromHand = false
+    }
 
     if (!card) {
       throw new SinglePlayerError(
         SinglePlayerErrorCode.ERR_CARD_NOT_FOUND,
-        'Card not found in field'
+        'Card not found in hand or field'
       )
     }
 
-    // Remove card from field
-    const newField = this.state.player.field.filter(c => c.instanceId !== cardInstanceId)
+    // Remove card from hand or field
+    const newHand = fromHand
+      ? this.state.player.hand.filter(c => c.instanceId !== cardInstanceId)
+      : this.state.player.hand
+    const newField = !fromHand
+      ? this.state.player.field.filter(c => c.instanceId !== cardInstanceId)
+      : this.state.player.field
 
     // Add card to discard pile
     const discardedCard: CardInstance = {
@@ -1207,13 +1218,17 @@ export class SinglePlayerEngine {
     const action: SinglePlayerAction = {
       type: SinglePlayerActionType.DISCARD_CARD,
       timestamp: Date.now(),
-      payload: { cardInstanceId },
+      payload: {
+        cardInstanceId,
+        from: fromHand ? 'HAND' : 'FIELD' as 'HAND' | 'MARKET',
+      },
     }
 
     this.state = {
       ...this.state,
       player: {
         ...this.state.player,
+        hand: newHand,
         field: newField,
       },
       discardPile: [...this.state.discardPile, discardedCard],
@@ -1221,7 +1236,7 @@ export class SinglePlayerEngine {
       updatedAt: Date.now(),
     }
 
-    console.log('[SinglePlayerEngine] Discarded card:', cardInstanceId)
+    console.log('[SinglePlayerEngine] Discarded card from', fromHand ? 'hand' : 'field', ':', cardInstanceId)
     this.notifyStateChange()
     return this.state
   }
@@ -1246,18 +1261,29 @@ export class SinglePlayerEngine {
       )
     }
 
-    // Find card in field
-    const card = this.state.player.field.find(c => c.instanceId === cardInstanceId)
+    // Find card in hand or field
+    let card = this.state.player.hand.find(c => c.instanceId === cardInstanceId)
+    let fromHand = !!card
+
+    if (!card) {
+      card = this.state.player.field.find(c => c.instanceId === cardInstanceId)
+      fromHand = false
+    }
 
     if (!card) {
       throw new SinglePlayerError(
         SinglePlayerErrorCode.ERR_CARD_NOT_FOUND,
-        'Card not found in field'
+        'Card not found in hand or field'
       )
     }
 
-    // Remove card from field
-    const newField = this.state.player.field.filter(c => c.instanceId !== cardInstanceId)
+    // Remove card from hand or field
+    const newHand = fromHand
+      ? this.state.player.hand.filter(c => c.instanceId !== cardInstanceId)
+      : this.state.player.hand
+    const newField = !fromHand
+      ? this.state.player.field.filter(c => c.instanceId !== cardInstanceId)
+      : this.state.player.field
 
     // Add card to sanctuary (preserve card location as FIELD since it's permanent storage)
     const sanctuaryCard: CardInstance = {
@@ -1269,13 +1295,17 @@ export class SinglePlayerEngine {
     const action: SinglePlayerAction = {
       type: SinglePlayerActionType.MOVE_TO_SANCTUARY,
       timestamp: Date.now(),
-      payload: { cardInstanceId },
+      payload: {
+        cardInstanceId,
+        from: fromHand ? 'HAND' : 'FIELD' as 'HAND' | 'MARKET',
+      },
     }
 
     this.state = {
       ...this.state,
       player: {
         ...this.state.player,
+        hand: newHand,
         field: newField,
       },
       sanctuary: [...this.state.sanctuary, sanctuaryCard],
@@ -1283,7 +1313,7 @@ export class SinglePlayerEngine {
       updatedAt: Date.now(),
     }
 
-    console.log('[SinglePlayerEngine] Moved card to sanctuary:', cardInstanceId)
+    console.log('[SinglePlayerEngine] Moved card to sanctuary from', fromHand ? 'hand' : 'field', ':', cardInstanceId)
     this.notifyStateChange()
     return this.state
   }

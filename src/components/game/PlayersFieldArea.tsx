@@ -2,9 +2,9 @@
  * PlayersFieldArea Component
  * Displays all players' field cards - each player gets a horizontal row
  * Integrated with hand preview and current turn cards display
- * @version 5.2.0 - Field cards now scroll horizontally instead of wrapping
+ * @version 5.3.0 - Fixed double modal issue for current turn cards
  */
-console.log('[components/game/PlayersFieldArea.tsx] v5.2.0 loaded')
+console.log('[components/game/PlayersFieldArea.tsx] v5.3.0 loaded')
 
 import { memo, useMemo, useCallback, useState } from 'react'
 import { Card } from './Card'

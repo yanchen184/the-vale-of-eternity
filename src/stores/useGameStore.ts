@@ -95,6 +95,8 @@ interface GameStore {
   getAvailableActions: () => SinglePlayerActionType[]
   /** Get total stone value */
   getTotalStoneValue: () => number
+  /** Get current score (calculated from field cards) */
+  getCurrentScore: () => number
   /** Get cards that can be tamed from hand */
   getTameableFromHand: () => CardInstance[]
   /** Get cards that can be tamed from market */
@@ -409,6 +411,12 @@ export const useGameStore = create<GameStore>()(
           const { gameState } = get()
           if (!gameState) return 0
           return calculateStonePoolValue(gameState.player.stones)
+        },
+
+        getCurrentScore: () => {
+          const { engine } = get()
+          const scoreBreakdown = engine.calculateFinalScore()
+          return scoreBreakdown.grandTotal
         },
 
         getTameableFromHand: () => {
