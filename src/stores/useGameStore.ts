@@ -69,8 +69,18 @@ interface GameStore {
   // === Action Phase Actions ===
   /** Tame a creature */
   tameCreature: (cardInstanceId: string, from: 'HAND' | 'MARKET') => void
-  /** Pass turn (continue to next draw phase) */
+  /** Move current turn card to hand */
+  moveCurrentCardToHand: (cardInstanceId: string) => void
+  /** Sell current turn card for coins */
+  sellCurrentCard: (cardInstanceId: string) => void
+  /** Pass turn (move to settlement/SCORE phase) */
   pass: () => void
+  /** Complete settlement and move to next round (after processing all currentTurnCards) */
+  completeSettlement: () => void
+  /** Discard a card from field to discard pile */
+  discardCard: (cardInstanceId: string) => void
+  /** Move a card from field to sanctuary */
+  moveToSanctuary: (cardInstanceId: string) => void
   /** Manually end the game */
   endGame: () => void
   /** Exchange stones */
@@ -270,6 +280,34 @@ export const useGameStore = create<GameStore>()(
           }
         },
 
+        moveCurrentCardToHand: (cardInstanceId: string) => {
+          const { gameState } = get()
+          if (!gameState) return
+
+          try {
+            engine.moveCurrentDrawnCardToHand(cardInstanceId)
+          } catch (err) {
+            const message = err instanceof SinglePlayerError
+              ? err.message
+              : 'Failed to move card to hand'
+            set({ error: message })
+          }
+        },
+
+        sellCurrentCard: (cardInstanceId: string) => {
+          const { gameState } = get()
+          if (!gameState) return
+
+          try {
+            engine.sellCurrentDrawnCard(cardInstanceId)
+          } catch (err) {
+            const message = err instanceof SinglePlayerError
+              ? err.message
+              : 'Failed to sell card'
+            set({ error: message })
+          }
+        },
+
         pass: () => {
           const { gameState } = get()
           if (!gameState) return
@@ -280,6 +318,48 @@ export const useGameStore = create<GameStore>()(
             const message = err instanceof SinglePlayerError
               ? err.message
               : 'Failed to pass'
+            set({ error: message })
+          }
+        },
+
+        completeSettlement: () => {
+          const { gameState } = get()
+          if (!gameState) return
+
+          try {
+            engine.completeSettlement()
+          } catch (err) {
+            const message = err instanceof SinglePlayerError
+              ? err.message
+              : 'Failed to complete settlement'
+            set({ error: message })
+          }
+        },
+
+        discardCard: (cardInstanceId: string) => {
+          const { gameState } = get()
+          if (!gameState) return
+
+          try {
+            engine.discardCard(cardInstanceId)
+          } catch (err) {
+            const message = err instanceof SinglePlayerError
+              ? err.message
+              : 'Failed to discard card'
+            set({ error: message })
+          }
+        },
+
+        moveToSanctuary: (cardInstanceId: string) => {
+          const { gameState } = get()
+          if (!gameState) return
+
+          try {
+            engine.moveToSanctuary(cardInstanceId)
+          } catch (err) {
+            const message = err instanceof SinglePlayerError
+              ? err.message
+              : 'Failed to move card to sanctuary'
             set({ error: message })
           }
         },
@@ -374,7 +454,7 @@ export const useGameStore = create<GameStore>()(
 
         addStones: (type: StoneType, amount: number) => {
           const { gameState } = get()
-          if (!gameState || gameState.gameMode !== GameMode.MANUAL) return
+          if (!gameState) return
 
           // Validate amount
           if (amount <= 0) {
@@ -409,7 +489,7 @@ export const useGameStore = create<GameStore>()(
 
         removeStones: (type: StoneType, amount: number) => {
           const { gameState } = get()
-          if (!gameState || gameState.gameMode !== GameMode.MANUAL) return
+          if (!gameState) return
 
           // Validate amount
           if (amount <= 0) {

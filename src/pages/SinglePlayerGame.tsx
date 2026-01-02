@@ -89,6 +89,8 @@ export default function SinglePlayerGame() {
     drawCard,
     takeCardsFromMarket,
     tameCreature,
+    moveCurrentCardToHand,
+    sellCurrentCard,
     pass,
     resetGame,
     canTameCard,
@@ -137,6 +139,7 @@ export default function SinglePlayerGame() {
     if (!phase) return 'WAITING' as const
     if (gameOver.isOver) return 'ENDED' as const
     if (phase === SinglePlayerPhase.DRAW) return 'HUNTING' as const
+    // Both ACTION and SCORE phases use 'ACTION' UI (SCORE is just settlement)
     return 'ACTION' as const
   }, [phase, gameOver.isOver])
 
@@ -258,6 +261,18 @@ export default function SinglePlayerGame() {
     if (phase !== SinglePlayerPhase.ACTION) return
     pass()
   }, [phase, pass])
+
+  // Handle move current card to hand
+  const handleMoveCurrentCardToHand = useCallback((_playerId: string, cardId: string) => {
+    console.log('[SinglePlayerGame] handleMoveCurrentCardToHand:', cardId)
+    moveCurrentCardToHand(cardId)
+  }, [moveCurrentCardToHand])
+
+  // Handle sell current card
+  const handleSellCurrentCard = useCallback((_playerId: string, cardId: string) => {
+    console.log('[SinglePlayerGame] handleSellCurrentCard:', cardId)
+    sellCurrentCard(cardId)
+  }, [sellCurrentCard])
 
   // Handle card selection toggle in DRAW phase (after artifact selection)
   const handleToggleCard = useCallback((cardId: string) => {
@@ -492,8 +507,9 @@ export default function SinglePlayerGame() {
                 onSelectSevenLeagueBootsCard={() => {}}
                 onConfirmSevenLeagueBootsSelection={() => {}}
               />
-            ) : phase === SinglePlayerPhase.ACTION ? (
-              // ACTION Phase - Using ActionPhaseUI like multiplayer
+            ) : (phase === SinglePlayerPhase.ACTION || phase === SinglePlayerPhase.SCORE) ? (
+              // ACTION & SCORE Phase - Using ActionPhaseUI like multiplayer
+              // SCORE phase is settlement phase where player processes currentTurnCards
               <ActionPhaseUI
                 playersFieldData={[fieldData]}
                 handCards={hand || []}
@@ -580,6 +596,8 @@ export default function SinglePlayerGame() {
                       const card = hand?.find(c => c.instanceId === cardId)
                       if (card) handleHandCardClick(card)
                     }}
+                    onCurrentCardMoveToHand={handleMoveCurrentCardToHand}
+                    onCurrentCardSell={handleSellCurrentCard}
                   />
                 </div>
 

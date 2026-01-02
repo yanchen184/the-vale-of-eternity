@@ -77,6 +77,10 @@ export enum SinglePlayerActionType {
   SELECT_INITIAL_CARD = 'SELECT_INITIAL_CARD',
   /** Confirm initial card selection */
   CONFIRM_INITIAL_CARD = 'CONFIRM_INITIAL_CARD',
+  /** Discard a card from field to discard pile */
+  DISCARD_CARD = 'DISCARD_CARD',
+  /** Move a card from field to sanctuary */
+  MOVE_TO_SANCTUARY = 'MOVE_TO_SANCTUARY',
 }
 
 // ============================================
@@ -120,6 +124,8 @@ export interface SinglePlayerState {
   currentTurnCards?: CardInstance[]
   /** Selected artifact for this game */
   selectedArtifact?: CardInstance
+  /** Area bonus (+1 or +2) - adds to final score based on field size */
+  areaBonus: number
 }
 
 /**
@@ -144,6 +150,8 @@ export interface SinglePlayerGameState {
   market: CardInstance[]
   /** Discard pile */
   discardPile: CardInstance[]
+  /** Sanctuary (expansion mode - permanent storage) */
+  sanctuary: CardInstance[]
 
   // === Game Progress ===
   /** Current game phase */

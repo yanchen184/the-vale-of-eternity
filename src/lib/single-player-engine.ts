@@ -1,10 +1,10 @@
 /**
- * Single Player Game Engine for Vale of Eternity v7.3.0
+ * Single Player Game Engine for Vale of Eternity v7.5.0
  * Core game logic for single-player mode with Stone Economy System
  * Based on GAME_FLOW.md specifications
- * @version 7.3.0 - Added takeCardsFromMarket method for free card selection in DRAW phase
+ * @version 7.5.0 - Added player area bonus (+1/+2) for final scoring
  */
-console.log('[lib/single-player-engine.ts] v7.3.0 loaded - takeCardsFromMarket added')
+console.log('[lib/single-player-engine.ts] v7.5.0 loaded - Area bonus system implemented')
 
 import type { CardInstance, CardEffect, StoneConfig } from '@/types/cards'
 import { CardLocation, Element, EffectType, EffectTrigger, StoneType } from '@/types/cards'
@@ -245,6 +245,7 @@ export class SinglePlayerEngine {
       hand,
       field: [],
       stones: createEmptyStonePool(),
+      areaBonus: 0, // Area bonus starts at 0 (+1 or +2 based on round/achievements)
     }
 
     // Create game state - start in DRAW phase like multiplayer
@@ -255,6 +256,7 @@ export class SinglePlayerEngine {
       deck,
       market,
       discardPile: [],
+      sanctuary: [],  // Initialize sanctuary array
       phase: SinglePlayerPhase.DRAW,
       round: 1,
       actionsThisRound: [],
@@ -719,6 +721,7 @@ export class SinglePlayerEngine {
       payload: { cardInstanceId: drawnCard.instanceId },
     }
 
+    // Simply add card to hand and transition to ACTION phase
     this.state = {
       ...this.state,
       deck: this.state.deck.slice(1),
@@ -731,6 +734,8 @@ export class SinglePlayerEngine {
       updatedAt: Date.now(),
     }
 
+    console.log('[SinglePlayerEngine] Drew card:', drawnCard.instanceId, '- added directly to hand')
+    console.log('[SinglePlayerEngine] Transitioned to ACTION phase')
     this.notifyStateChange()
     return this.state
   }
@@ -889,8 +894,192 @@ export class SinglePlayerEngine {
   }
 
   /**
+   * Move a card from currentTurnCards to hand (keep in hand)
+   * This is used after drawing cards - player confirms they want to keep the card
+   * @param cardInstanceId Card instance ID to move
+   * @returns Updated game state
+   */
+  moveCurrentDrawnCardToHand(cardInstanceId: string): SinglePlayerGameState {
+    if (!this.state) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_NOT_STARTED,
+        'Game not started'
+      )
+    }
+
+    if (this.state.isGameOver) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_ALREADY_OVER,
+        'Game is already over'
+      )
+    }
+
+    // Allow in both ACTION and SCORE phases
+    if (this.state.phase !== SinglePlayerPhase.ACTION && this.state.phase !== SinglePlayerPhase.SCORE) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_INVALID_PHASE,
+        'Not in action or score phase'
+      )
+    }
+
+    // Find card in currentTurnCards
+    const card = this.state.player.currentTurnCards?.find(
+      c => c.instanceId === cardInstanceId
+    )
+
+    if (!card) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_CARD_NOT_FOUND,
+        'Card not found in current turn cards'
+      )
+    }
+
+    // Remove from currentTurnCards (card is already in hand, just remove from currentTurnCards)
+    const newCurrentTurnCards = (this.state.player.currentTurnCards || []).filter(
+      c => c.instanceId !== cardInstanceId
+    )
+
+    // Record action
+    const action: SinglePlayerAction = {
+      type: SinglePlayerActionType.DRAW_CARD, // Reuse DRAW_CARD type
+      timestamp: Date.now(),
+      payload: { cardInstanceId },
+    }
+
+    this.state = {
+      ...this.state,
+      player: {
+        ...this.state.player,
+        currentTurnCards: newCurrentTurnCards,
+      },
+      actionsThisRound: [...this.state.actionsThisRound, action],
+      updatedAt: Date.now(),
+    }
+
+    console.log('[SinglePlayerEngine] Moved card to hand:', cardInstanceId)
+    console.log('[SinglePlayerEngine] Remaining currentTurnCards:', newCurrentTurnCards.length)
+
+    // Auto-complete settlement if all cards processed and in SCORE phase
+    if (this.state.phase === SinglePlayerPhase.SCORE && newCurrentTurnCards.length === 0) {
+      console.log('[SinglePlayerEngine] All cards processed, auto-completing settlement')
+      this.notifyStateChange()
+      return this.completeSettlement()
+    }
+
+    this.notifyStateChange()
+    return this.state
+  }
+
+  /**
+   * Sell a card from currentTurnCards
+   * Convert the card to stones based on its cost
+   * @param cardInstanceId Card instance ID to sell
+   * @returns Updated game state
+   */
+  sellCurrentDrawnCard(cardInstanceId: string): SinglePlayerGameState {
+    if (!this.state) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_NOT_STARTED,
+        'Game not started'
+      )
+    }
+
+    if (this.state.isGameOver) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_ALREADY_OVER,
+        'Game is already over'
+      )
+    }
+
+    // Allow in both ACTION and SCORE phases
+    if (this.state.phase !== SinglePlayerPhase.ACTION && this.state.phase !== SinglePlayerPhase.SCORE) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_INVALID_PHASE,
+        'Not in action or score phase'
+      )
+    }
+
+    // Find card in currentTurnCards
+    const card = this.state.player.currentTurnCards?.find(
+      c => c.instanceId === cardInstanceId
+    )
+
+    if (!card) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_CARD_NOT_FOUND,
+        'Card not found in current turn cards'
+      )
+    }
+
+    // Calculate stones gained (sell value = card cost)
+    // Convert cost to appropriate stones (prefer larger denominations)
+    const stonesGained: Partial<StonePool> = {}
+    let remainingCost = card.cost
+    if (remainingCost >= 6) {
+      stonesGained.SIX = Math.floor(remainingCost / 6)
+      remainingCost = remainingCost % 6
+    }
+    if (remainingCost >= 3) {
+      stonesGained.THREE = Math.floor(remainingCost / 3)
+      remainingCost = remainingCost % 3
+    }
+    if (remainingCost > 0) {
+      stonesGained.ONE = remainingCost
+    }
+
+    // Remove card from both hand and currentTurnCards
+    const newHand = this.state.player.hand.filter(c => c.instanceId !== cardInstanceId)
+    const newCurrentTurnCards = (this.state.player.currentTurnCards || []).filter(
+      c => c.instanceId !== cardInstanceId
+    )
+
+    // Add stones to player's pool
+    const newStones = addStonesToPool(this.state.player.stones, stonesGained)
+
+    // Move card to discard pile
+    const discardedCard: CardInstance = {
+      ...card,
+      location: CardLocation.DISCARD,
+    }
+
+    // Record action
+    const action: SinglePlayerAction = {
+      type: SinglePlayerActionType.PASS, // Use PASS type for selling
+      timestamp: Date.now(),
+      payload: { cardInstanceId },
+    }
+
+    this.state = {
+      ...this.state,
+      player: {
+        ...this.state.player,
+        hand: newHand,
+        currentTurnCards: newCurrentTurnCards,
+        stones: newStones,
+      },
+      discardPile: [...this.state.discardPile, discardedCard],
+      actionsThisRound: [...this.state.actionsThisRound, action],
+      updatedAt: Date.now(),
+    }
+
+    console.log('[SinglePlayerEngine] Sold card:', cardInstanceId, 'for', stonesGained)
+    console.log('[SinglePlayerEngine] New stone pool:', newStones)
+    console.log('[SinglePlayerEngine] Remaining currentTurnCards:', newCurrentTurnCards.length)
+
+    // Auto-complete settlement if all cards processed and in SCORE phase
+    if (this.state.phase === SinglePlayerPhase.SCORE && newCurrentTurnCards.length === 0) {
+      console.log('[SinglePlayerEngine] All cards processed, auto-completing settlement')
+      this.notifyStateChange()
+      return this.completeSettlement()
+    }
+
+    this.notifyStateChange()
+    return this.state
+  }
+
+  /**
    * Pass the current action phase
-   * Moves to next draw phase
+   * Moves to SCORE phase (settlement) like multiplayer
    * @returns Updated game state
    */
   pass(): SinglePlayerGameState {
@@ -922,15 +1111,182 @@ export class SinglePlayerEngine {
       payload: {},
     }
 
+    // Move to SCORE phase (settlement) like multiplayer
+    // Player must process currentTurnCards before advancing to next round
+    this.state = {
+      ...this.state,
+      phase: SinglePlayerPhase.SCORE,
+      actionsThisRound: [...this.state.actionsThisRound, action],
+      updatedAt: Date.now(),
+    }
+
+    console.log('[SinglePlayerEngine] Moved to SCORE phase (settlement)')
+    this.notifyStateChange()
+    return this.state
+  }
+
+  /**
+   * Complete the settlement phase and move to next round
+   * Called after all currentTurnCards are processed (kept or sold)
+   * @returns Updated game state
+   */
+  completeSettlement(): SinglePlayerGameState {
+    if (!this.state) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_NOT_STARTED,
+        'Game not started'
+      )
+    }
+
+    if (this.state.phase !== SinglePlayerPhase.SCORE) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_INVALID_PHASE,
+        'Not in score phase'
+      )
+    }
+
+    // Check if all currentTurnCards have been processed
+    if (this.state.player.currentTurnCards && this.state.player.currentTurnCards.length > 0) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_INVALID_ACTION,
+        'Must process all current turn cards before completing settlement'
+      )
+    }
+
     // Move to next round's draw phase
     this.state = {
       ...this.state,
       phase: SinglePlayerPhase.DRAW,
       round: this.state.round + 1,
-      actionsThisRound: [action],
+      actionsThisRound: [],
       updatedAt: Date.now(),
     }
 
+    console.log('[SinglePlayerEngine] Settlement complete, moved to next round DRAW phase')
+    this.notifyStateChange()
+    return this.state
+  }
+
+  /**
+   * Discard a card from field to discard pile
+   * @param cardInstanceId Card instance ID to discard
+   * @returns Updated game state
+   */
+  discardCard(cardInstanceId: string): SinglePlayerGameState {
+    if (!this.state) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_NOT_STARTED,
+        'Game not started'
+      )
+    }
+
+    if (this.state.isGameOver) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_ALREADY_OVER,
+        'Game is already over'
+      )
+    }
+
+    // Find card in field
+    const card = this.state.player.field.find(c => c.instanceId === cardInstanceId)
+
+    if (!card) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_CARD_NOT_FOUND,
+        'Card not found in field'
+      )
+    }
+
+    // Remove card from field
+    const newField = this.state.player.field.filter(c => c.instanceId !== cardInstanceId)
+
+    // Add card to discard pile
+    const discardedCard: CardInstance = {
+      ...card,
+      location: CardLocation.DISCARD,
+    }
+
+    // Record action
+    const action: SinglePlayerAction = {
+      type: SinglePlayerActionType.DISCARD_CARD,
+      timestamp: Date.now(),
+      payload: { cardInstanceId },
+    }
+
+    this.state = {
+      ...this.state,
+      player: {
+        ...this.state.player,
+        field: newField,
+      },
+      discardPile: [...this.state.discardPile, discardedCard],
+      actionsThisRound: [...this.state.actionsThisRound, action],
+      updatedAt: Date.now(),
+    }
+
+    console.log('[SinglePlayerEngine] Discarded card:', cardInstanceId)
+    this.notifyStateChange()
+    return this.state
+  }
+
+  /**
+   * Move a card from field to sanctuary (expansion mode feature)
+   * @param cardInstanceId Card instance ID to move
+   * @returns Updated game state
+   */
+  moveToSanctuary(cardInstanceId: string): SinglePlayerGameState {
+    if (!this.state) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_NOT_STARTED,
+        'Game not started'
+      )
+    }
+
+    if (this.state.isGameOver) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_ALREADY_OVER,
+        'Game is already over'
+      )
+    }
+
+    // Find card in field
+    const card = this.state.player.field.find(c => c.instanceId === cardInstanceId)
+
+    if (!card) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_CARD_NOT_FOUND,
+        'Card not found in field'
+      )
+    }
+
+    // Remove card from field
+    const newField = this.state.player.field.filter(c => c.instanceId !== cardInstanceId)
+
+    // Add card to sanctuary (preserve card location as FIELD since it's permanent storage)
+    const sanctuaryCard: CardInstance = {
+      ...card,
+      location: CardLocation.FIELD, // Keep as FIELD since sanctuary cards count for scoring
+    }
+
+    // Record action
+    const action: SinglePlayerAction = {
+      type: SinglePlayerActionType.MOVE_TO_SANCTUARY,
+      timestamp: Date.now(),
+      payload: { cardInstanceId },
+    }
+
+    this.state = {
+      ...this.state,
+      player: {
+        ...this.state.player,
+        field: newField,
+      },
+      sanctuary: [...this.state.sanctuary, sanctuaryCard],
+      actionsThisRound: [...this.state.actionsThisRound, action],
+      updatedAt: Date.now(),
+    }
+
+    console.log('[SinglePlayerEngine] Moved card to sanctuary:', cardInstanceId)
     this.notifyStateChange()
     return this.state
   }
@@ -1207,6 +1563,61 @@ export class SinglePlayerEngine {
         }
         break
 
+      case EffectType.CONDITIONAL_AREA:
+        // CONDITIONAL_AREA with ON_TAME trigger - calculate based on field at time of taming
+        // This handles effects like "Earn X for each card in your area"
+        if (this.state && effect.trigger === EffectTrigger.ON_TAME) {
+          // Calculate stones based on field size + 1 (including the card being tamed)
+          // The card is not yet in field array when ON_TAME effects are processed
+          const fieldSize = this.state.player.field.length + 1
+          const stoneValue = effect.value ?? 1
+          const totalStones = fieldSize * stoneValue
+
+          if (totalStones > 0 && effect.stones && effect.stones.length > 0) {
+            // If specific stones are defined, use those
+            const additions: Partial<StonePool> = {}
+            for (const stone of effect.stones) {
+              const key = stoneTypeToPoolKey(stone.type)
+              additions[key] = (additions[key] ?? 0) + (stone.amount * fieldSize)
+            }
+            result.stonesGained = additions
+            result.message = `Earned stones (${fieldSize} cards in area × ${stoneValue})`
+          } else if (totalStones > 0) {
+            // Default to ONE stones
+            result.stonesGained = { ONE: totalStones }
+            result.message = `Earned ${totalStones} stones (${fieldSize} cards in area × ${stoneValue})`
+          }
+        } else {
+          // ON_SCORE trigger - will be processed at game end
+          result.message = 'Area scoring effect registered'
+        }
+        break
+
+      case EffectType.CONDITIONAL_HAND:
+        // CONDITIONAL_HAND with ON_TAME trigger - calculate based on hand size
+        if (this.state && effect.trigger === EffectTrigger.ON_TAME) {
+          const handSize = this.state.player.hand.length
+          const stoneValue = effect.value ?? 1
+          const totalStones = handSize * stoneValue
+
+          if (totalStones > 0 && effect.stones && effect.stones.length > 0) {
+            const additions: Partial<StonePool> = {}
+            for (const stone of effect.stones) {
+              const key = stoneTypeToPoolKey(stone.type)
+              additions[key] = (additions[key] ?? 0) + (stone.amount * handSize)
+            }
+            result.stonesGained = additions
+            result.message = `Earned stones (${handSize} cards in hand)`
+          } else if (totalStones > 0) {
+            result.stonesGained = { ONE: totalStones }
+            result.message = `Earned ${totalStones} stones (${handSize} cards in hand)`
+          }
+        } else {
+          // ON_SCORE trigger - will be processed at game end
+          result.message = 'Hand scoring effect registered'
+        }
+        break
+
       case EffectType.INCREASE_STONE_VALUE:
       case EffectType.INCREASE_STONE_LIMIT:
       case EffectType.DECREASE_COST:
@@ -1217,8 +1628,6 @@ export class SinglePlayerEngine {
 
       case EffectType.EARN_PER_ELEMENT:
       case EffectType.EARN_PER_FAMILY:
-      case EffectType.CONDITIONAL_AREA:
-      case EffectType.CONDITIONAL_HAND:
       case EffectType.CONDITIONAL_EARN:
         // ON_SCORE effects - processed at game end
         result.message = 'Scoring effect registered'
@@ -1321,6 +1730,18 @@ export class SinglePlayerEngine {
 
     // Calculate remaining stone value
     breakdown.stoneValue = calculateStonePoolValue(this.state.player.stones)
+
+    // Calculate area bonus (field size × areaBonus)
+    const areaBonus = field.length * this.state.player.areaBonus
+    if (areaBonus > 0) {
+      breakdown.permanentBonuses.push({
+        cardId: 'area-bonus',
+        cardName: '區域加成',
+        effectDescription: `場上 ${field.length} 張卡 × 區域+${this.state.player.areaBonus}`,
+        bonus: areaBonus,
+      })
+      breakdown.totalPermanentBonus += areaBonus
+    }
 
     // Calculate grand total
     breakdown.grandTotal =
@@ -1532,6 +1953,53 @@ export class SinglePlayerEngine {
     if (this.state) {
       this.gameEndListeners.forEach(cb => cb(this.state!))
     }
+  }
+
+  // ============================================
+  // AREA BONUS MANAGEMENT
+  // ============================================
+
+  /**
+   * Set the area bonus for the player
+   * Area bonus adds to final score: field.length × areaBonus
+   * @param bonus Area bonus value (+1 or +2)
+   * @returns Updated game state
+   */
+  setAreaBonus(bonus: number): SinglePlayerGameState {
+    if (!this.state) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_NOT_STARTED,
+        'Game not started'
+      )
+    }
+
+    if (bonus < 0 || bonus > 2) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_INVALID_ACTION,
+        'Area bonus must be 0, 1, or 2'
+      )
+    }
+
+    this.state = {
+      ...this.state,
+      player: {
+        ...this.state.player,
+        areaBonus: bonus,
+      },
+      updatedAt: Date.now(),
+    }
+
+    console.log('[SinglePlayerEngine] Area bonus set to:', bonus)
+    this.notifyStateChange()
+    return this.state
+  }
+
+  /**
+   * Get current area bonus
+   * @returns Current area bonus value
+   */
+  getAreaBonus(): number {
+    return this.state?.player.areaBonus ?? 0
   }
 }
 
