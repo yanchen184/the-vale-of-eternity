@@ -315,10 +315,10 @@ export const WIND_CARDS: readonly CardTemplate[] = [
     effects: [
       {
         type: EffectType.DRAW_CARD,
-        trigger: EffectTrigger.ON_TAME,
+        trigger: EffectTrigger.NONE, // 結算階段效果，暫不實作
         value: 1,
-        description: 'Draw a card.',
-        descriptionTw: '抽 1 張卡。',
+        description: 'Draw a card during resolution phase. (Not yet implemented)',
+        descriptionTw: '結算階段抽 1 張卡（尚未實作）',
       },
     ],
     flavorText: 'King of all creatures.',

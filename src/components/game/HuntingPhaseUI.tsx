@@ -180,6 +180,7 @@ export function HuntingPhaseUI({
                     currentRound={currentRound}
                     onClick={() => canClickForShelter && onSelectSevenLeagueBootsCard?.(card.instanceId)}
                     isSelected={isSelectedForShelter}
+                    showImplementationStatus={true}
                     className={cn(
                       isSelectedForShelter && 'ring-4 ring-purple-400 ring-opacity-75 shadow-purple-500/50',
                       canClickForShelter && !isSelectedForShelter && 'hover:border-purple-400 hover:shadow-purple-500/50'
@@ -222,6 +223,7 @@ export function HuntingPhaseUI({
                   selectedByName={selectionInfo?.playerName}
                   isConfirmed={isConfirmed}
                   isSelected={isMySelection}
+                  showImplementationStatus={true}
                   className={cn(
                     isMySelection && !isConfirmed && 'ring-4 ring-blue-400 ring-opacity-75',
                     canClick && 'hover:border-blue-400 hover:shadow-blue-500/50',

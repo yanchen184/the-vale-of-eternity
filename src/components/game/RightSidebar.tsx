@@ -1,9 +1,9 @@
 /**
  * RightSidebar Component
  * Right sidebar for multiplayer game - displays bank coins and player coins
- * @version 5.0.0 - 多人同步金幣飛行動畫
+ * @version 5.5.0 - Removed action buttons (moved to GameLayout Header)
  */
-console.log('[components/game/RightSidebar.tsx] v5.0.0 loaded')
+console.log('[components/game/RightSidebar.tsx] v5.5.0 loaded')
 
 import { memo, useRef, useCallback, useEffect } from 'react' // eslint-disable-line
 import { cn } from '@/lib/utils'
@@ -67,6 +67,9 @@ export interface RightSidebarProps {
   // Stone limit (v3.1.0)
   /** Current player's stone limit (default: 4, with Hestia: 6) */
   currentPlayerStoneLimit?: number
+  // Action phase cards (v5.4.0)
+  /** Number of current turn cards that haven't been processed (must be 0 to end turn) */
+  unprocessedActionCards?: number
 }
 
 // ============================================
@@ -78,27 +81,37 @@ export const RightSidebar = memo(function RightSidebar({
   playerCoins,
   playerName: _playerName,
   isYourTurn,
-  phase,
+  phase: _phase,
   onTakeCoin,
   onReturnCoin,
-  onConfirmSelection,
-  onEndTurn,
+  onConfirmSelection: _onConfirmSelection,
+  onEndTurn: _onEndTurn,
   className,
   // Seven-League Boots props (v1.6.0)
-  isInSevenLeagueBootsSelection,
-  hasSelectedShelterCard,
+  isInSevenLeagueBootsSelection: _isInSevenLeagueBootsSelection,
+  hasSelectedShelterCard: _hasSelectedShelterCard,
   // Artifact selection props (v1.7.0)
-  isYourArtifactTurn,
-  isArtifactSelectionActive,
+  isYourArtifactTurn: _isYourArtifactTurn,
+  isArtifactSelectionActive: _isArtifactSelectionActive,
   // Multiplayer coins (v2.0.0)
   allPlayers,
   currentPlayerId,
   // Stone limit (v3.1.0)
   currentPlayerStoneLimit = 4,
+  // Action phase cards (v5.4.0)
+  unprocessedActionCards: _unprocessedActionCards = 0,
 }: RightSidebarProps) {
   void _playerName // Reserved for future use
   void _bankCoins // Bank is infinite, no need to track
   void playerCoins // Now using allPlayers instead
+  void _phase // Not currently used in UI
+  void _onConfirmSelection // Reserved for future use
+  void _onEndTurn // Reserved for future use
+  void _isInSevenLeagueBootsSelection // Reserved for future use
+  void _hasSelectedShelterCard // Reserved for future use
+  void _isYourArtifactTurn // Reserved for future use
+  void _isArtifactSelectionActive // Reserved for future use
+  void _unprocessedActionCards // Reserved for future use
 
   // 金幣飛行動畫系統 (v5.0.0 - 多人同步)
   const { animateCoin } = useCoinAnimation()
@@ -201,33 +214,10 @@ export const RightSidebar = memo(function RightSidebar({
   // v1.7.0: During artifact selection, use isYourArtifactTurn instead of isYourTurn
   // Also show during Seven-League Boots selection when player is active
   // v5.27.1: Fix issue where confirm button stays visible after artifact selection completes
-  const showConfirmSelection =
-    (isArtifactSelectionActive && isYourArtifactTurn && phase === 'HUNTING' && onConfirmSelection) ||
-    (!isArtifactSelectionActive && isYourTurn && phase === 'HUNTING' && onConfirmSelection) ||
-    (isInSevenLeagueBootsSelection && onConfirmSelection)
-
-  // Show end turn button during ACTION or RESOLUTION phase and player's turn
-  const showEndTurn = isYourTurn && (phase === 'ACTION' || phase === 'RESOLUTION') && onEndTurn
-
-  // Determine button text and style for Seven-League Boots mode
-  const getConfirmButtonConfig = () => {
-    if (isInSevenLeagueBootsSelection) {
-      return {
-        text: '確認棲息地',
-        disabled: !hasSelectedShelterCard,
-        colorClass: hasSelectedShelterCard
-          ? 'from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 active:from-purple-700 active:to-purple-800 border-purple-400/50 shadow-purple-900/50'
-          : 'from-slate-600 to-slate-700 border-slate-400/50 shadow-slate-900/50 cursor-not-allowed opacity-50',
-      }
-    }
-    return {
-      text: '確認選擇',
-      disabled: false,
-      colorClass: 'from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 active:from-emerald-700 active:to-emerald-800 border-emerald-400/50 shadow-emerald-900/50',
-    }
-  }
-
-  const confirmButtonConfig = getConfirmButtonConfig()
+  // These variables are defined for documentation but not currently used in the UI
+  // const showConfirmSelection = (isArtifactSelectionActive && isYourArtifactTurn && phase === 'HUNTING' && onConfirmSelection) || (!isArtifactSelectionActive && isYourTurn && phase === 'HUNTING' && onConfirmSelection) || (isInSevenLeagueBootsSelection && onConfirmSelection)
+  // const showEndTurn = isYourTurn && (phase === 'ACTION' || phase === 'RESOLUTION') && onEndTurn
+  // const canEndTurn = unprocessedActionCards === 0
   return (
     <aside
       className={cn(
@@ -247,7 +237,7 @@ export const RightSidebar = memo(function RightSidebar({
     >
       {/* Header */}
       <div className="px-4 py-3 border-b border-amber-500/20 flex-shrink-0">
-        <h3 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-400 flex items-center gap-2">
+        <h3 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-400">
           <span>銀行 & 資源</span>
         </h3>
       </div>
@@ -294,66 +284,6 @@ export const RightSidebar = memo(function RightSidebar({
           </div>
         ) : null}
 
-        {/* Confirm Selection Button - Show during HUNTING phase or Seven-League Boots selection */}
-        {showConfirmSelection && (
-          <button
-            type="button"
-            onClick={confirmButtonConfig.disabled ? undefined : onConfirmSelection}
-            disabled={confirmButtonConfig.disabled}
-            className={cn(
-              'w-full aspect-square',
-              'bg-gradient-to-br',
-              confirmButtonConfig.colorClass,
-              'text-white font-bold text-2xl',
-              'rounded-xl border-2',
-              'shadow-lg',
-              'transition-all duration-200',
-              'flex items-center justify-center',
-              !confirmButtonConfig.disabled && 'hover:scale-105 active:scale-95',
-              !confirmButtonConfig.disabled && 'animate-pulse'
-            )}
-            data-testid={isInSevenLeagueBootsSelection ? 'confirm-shelter-btn' : 'confirm-selection-btn'}
-          >
-            {confirmButtonConfig.text}
-          </button>
-        )}
-
-        {/* End Turn Button - Only show during ACTION or RESOLUTION phase */}
-        {showEndTurn && (
-          <button
-            type="button"
-            onClick={onEndTurn}
-            className={cn(
-              'w-full aspect-square',
-              'bg-gradient-to-br from-red-600 to-red-700',
-              'hover:from-red-500 hover:to-red-600',
-              'active:from-red-700 active:to-red-800',
-              'text-white font-bold text-2xl',
-              'rounded-xl border-2 border-red-400/50',
-              'shadow-lg shadow-red-900/50',
-              'transition-all duration-200',
-              'flex items-center justify-center',
-              'hover:scale-105 active:scale-95'
-            )}
-          >
-            回合結束
-          </button>
-        )}
-      </div>
-
-      {/* Footer - Turn Status */}
-      <div className="px-4 py-2 border-t border-amber-500/20 flex-shrink-0 bg-slate-900/50">
-        <div className="text-center">
-          {isYourTurn ? (
-            <span className="text-xs px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 animate-pulse">
-              輪到你了！
-            </span>
-          ) : (
-            <span className="text-xs px-3 py-1 rounded-full bg-slate-500/20 text-slate-400">
-              等待其他玩家...
-            </span>
-          )}
-        </div>
       </div>
 
     </aside>

@@ -101,7 +101,7 @@ const StackedCard = memo(function StackedCard({
       data-testid={`discard-stack-${index}`}
     >
       {/* Show actual card face-up */}
-      <Card card={card} compact />
+      <Card card={card} compact showImplementationStatus={true} />
     </div>
   )
 })

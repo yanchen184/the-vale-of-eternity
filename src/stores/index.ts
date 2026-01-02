@@ -1,9 +1,9 @@
 /**
- * Stores barrel export v3.1.0
+ * Stores barrel export v3.2.0
  * Single Player Mode with Manual Mode support
- * @version 3.1.0
+ * @version 3.2.0 - Added currentTurnCards and selectedArtifactCard selectors
  */
-console.log('[stores/index.ts] v3.1.0 loaded')
+console.log('[stores/index.ts] v3.2.0 loaded')
 
 // Single Player Game Store
 export {
@@ -18,6 +18,8 @@ export {
   useDiscardPile,
   useGameOver,
   usePlayerName,
+  useCurrentTurnCards,
+  useSelectedArtifactCard,
   // useTotalStoneValue and useAvailableActions removed - use store methods directly
   useTameableFromHand,
   useTameableFromMarket,
@@ -34,6 +36,8 @@ export {
   selectScoreBreakdown,
   selectEndReason,
   selectPlayerName,
+  selectCurrentTurnCards,
+  selectSelectedArtifactCard,
   SinglePlayerPhase,
   SinglePlayerActionType,
   SinglePlayerError,

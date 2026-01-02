@@ -139,7 +139,7 @@ export const HandGridView = memo(function HandGridView({
               onClick={() => handleCardClick(card)}
               data-testid={`grid-card-${card.instanceId}`}
             >
-              <Card card={card} compact isSelected={isSelected} />
+              <Card card={card} compact isSelected={isSelected} showImplementationStatus={true} />
             </div>
           )
         })}

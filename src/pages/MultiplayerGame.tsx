@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 6.4.0 - Sync other players' action sounds via Firebase state changes
+ * @version 6.10.0 - Fixed effect restoration from card templates for implementation status display
  */
-console.log('[pages/MultiplayerGame.tsx] v6.4.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v6.10.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -14,7 +14,10 @@ import {
   type GameRoom,
   type PlayerState,
   type CardInstanceData,
+  getElementSellValue,
 } from '@/services/multiplayer-game'
+import { getCardById } from '@/data/cards/base-cards'
+import { ARTIFACTS_BY_ID } from '@/data/artifacts'
 import {
   Card,
   PlayerMarker,
@@ -28,6 +31,7 @@ import {
   HuntingPhaseUI,
   ActionPhaseUI,
 } from '@/components/game'
+import { ActionLog } from '@/components/game/ActionLog'
 import { useSound, SoundType } from '@/hooks/useSound'
 import { FixedHandPanel } from '@/components/game/FixedHandPanel'
 import type { PlayerScoreInfo, PlayerFieldData, PlayerSidebarData, ScoreBarPlayerData } from '@/components/game'
@@ -482,6 +486,10 @@ export function MultiplayerGame() {
       const cardData = cards[instanceId]
       if (!cardData) return null
 
+      // Get full card template to restore effects information
+      const cardTemplate = getCardById(cardData.cardId)
+      const effects = cardTemplate?.effects || []
+
       return {
         instanceId: cardData.instanceId,
         cardId: cardData.cardId,
@@ -490,7 +498,7 @@ export function MultiplayerGame() {
         element: cardData.element,
         cost: cardData.cost,
         baseScore: cardData.baseScore,
-        effects: [],
+        effects,
         ownerId: cardData.ownerId,
         location: cardData.location,
         isRevealed: true,
@@ -699,8 +707,10 @@ export function MultiplayerGame() {
         .map(convertToCardInstance)
         .filter((c): c is CardInstance => c !== null)
 
-      // Calculate max field slots (base: 10, can be increased by certain cards)
-      const maxFieldSlots = 10 // TODO: Calculate based on field cards effects
+      // Calculate max field slots: current round + player's zone bonus
+      // Example: Round 3 + zoneBonus 1 = 4 slots
+      const currentRound = gameRoom?.currentRound ?? 1
+      const maxFieldSlots = currentRound + (player.zoneBonus || 0)
 
       return {
         playerId: player.playerId,
@@ -715,7 +725,16 @@ export function MultiplayerGame() {
         maxFieldSlots: maxFieldSlots,
       }
     })
-  }, [players, currentTurnPlayerId, convertToCardInstance])
+  }, [players, currentTurnPlayerId, convertToCardInstance, gameRoom?.currentRound])
+
+  // Prepare player colors map for ActionLog
+  const playerColors = useMemo(() => {
+    const colorsMap: Record<string, PlayerColor> = {}
+    players.forEach(player => {
+      colorsMap[player.playerId] = player.color || 'green'
+    })
+    return colorsMap
+  }, [players])
 
   // Handlers
   const handleStartGame = useCallback(async () => {
@@ -780,71 +799,147 @@ export function MultiplayerGame() {
 
   const handleTameCard = useCallback(
     async (cardInstanceId: string) => {
-      if (!gameId || !playerId) return
+      if (!gameId || !playerId || !playerName) return
 
       try {
+        const card = cards[cardInstanceId]
         play(SoundType.CARD_BUY)
         await multiplayerGameService.tameCard(gameId, playerId, cardInstanceId)
+
+        // Record action log
+        if (card) {
+          const cardTemplate = getCardById(card.cardId)
+          const cardName = cardTemplate?.nameTw || cardTemplate?.name || '未知卡片'
+          await multiplayerGameService.addActionLog(
+            gameId,
+            playerId,
+            playerName,
+            'tame',
+            cardName,
+            `召喚到場上`
+          )
+        }
       } catch (err: any) {
         setError(err.message || 'Failed to tame card')
       }
     },
-    [gameId, playerId, play]
+    [gameId, playerId, playerName, cards, play]
   )
 
   const handleSellCard = useCallback(
     async (cardInstanceId: string) => {
-      if (!gameId || !playerId) return
+      if (!gameId || !playerId || !playerName) return
 
       try {
+        const card = cards[cardInstanceId]
         play(SoundType.CARD_SELL)
         await multiplayerGameService.sellCard(gameId, playerId, cardInstanceId)
+
+        // Record action log
+        if (card) {
+          const cardTemplate = getCardById(card.cardId)
+          const cardName = cardTemplate?.nameTw || cardTemplate?.name || '未知卡片'
+          const sellValue = cardTemplate?.element ? getElementSellValue(cardTemplate.element) : 0
+          await multiplayerGameService.addActionLog(
+            gameId,
+            playerId,
+            playerName,
+            'sell',
+            cardName,
+            `獲得 ${sellValue} 元`
+          )
+        }
       } catch (err: any) {
         setError(err.message || 'Failed to sell card')
       }
     },
-    [gameId, playerId, play]
+    [gameId, playerId, playerName, cards, play]
   )
 
   const handleDiscardCard = useCallback(
     async (cardInstanceId: string) => {
-      if (!gameId || !playerId) return
+      if (!gameId || !playerId || !playerName) return
 
       try {
+        const card = cards[cardInstanceId]
         play(SoundType.CARD_FLIP)
         await multiplayerGameService.discardHandCard(gameId, playerId, cardInstanceId)
+
+        // Record action log
+        if (card) {
+          const cardTemplate = getCardById(card.cardId)
+          const cardName = cardTemplate?.nameTw || cardTemplate?.name || '未知卡片'
+          await multiplayerGameService.addActionLog(
+            gameId,
+            playerId,
+            playerName,
+            'discard',
+            cardName,
+            '從手牌棄置'
+          )
+        }
       } catch (err: any) {
         setError(err.message || 'Failed to discard card')
       }
     },
-    [gameId, playerId, play]
+    [gameId, playerId, playerName, cards, play]
   )
 
   const handleReturnCard = useCallback(
     async (_playerId: string, cardInstanceId: string) => {
-      if (!gameId || !playerId) return
+      if (!gameId || !playerId || !playerName) return
 
       try {
+        const card = cards[cardInstanceId]
         play(SoundType.CARD_RECALL)
         await multiplayerGameService.returnCardToHand(gameId, playerId, cardInstanceId)
+
+        // Record action log
+        if (card) {
+          const cardTemplate = getCardById(card.cardId)
+          const cardName = cardTemplate?.nameTw || cardTemplate?.name || '未知卡片'
+          await multiplayerGameService.addActionLog(
+            gameId,
+            playerId,
+            playerName,
+            'return',
+            cardName,
+            '從場上回到手牌'
+          )
+        }
       } catch (err: any) {
         setError(err.message || 'Failed to return card')
       }
     },
-    [gameId, playerId, play]
+    [gameId, playerId, playerName, cards, play]
   )
 
   const handleToggleZoneBonus = useCallback(
     async () => {
-      if (!gameId || !playerId) return
+      if (!gameId || !playerId || !playerName) return
 
       try {
+        // Get current player state to know the new zone bonus value
+        const player = players.find(p => p.playerId === playerId)
+        const currentZoneBonus = player?.zoneBonus || 0
+        const newZoneBonus = currentZoneBonus > 0 ? 0 : 1
+
         await multiplayerGameService.toggleZoneBonus(gameId, playerId)
+
+        // Record action log
+        await multiplayerGameService.addActionLog(
+          gameId,
+          playerId,
+          playerName,
+          'toggle_zone',
+          undefined,
+          newZoneBonus > 0 ? '開啟區域加成 (+1格)' : '關閉區域加成 (-1格)'
+        )
       } catch (err: any) {
         setError(err.message || 'Failed to toggle zone bonus')
       }
     },
-    [gameId, playerId]
+    [gameId, playerId, playerName, players]
   )
 
   const handleReturnFieldCardToHand = useCallback(
@@ -876,54 +971,104 @@ export function MultiplayerGame() {
   // Handle moving card from hand to sanctuary (expansion mode)
   const handleMoveToSanctuary = useCallback(
     async (cardInstanceId: string) => {
-      if (!gameId || !playerId) return
+      if (!gameId || !playerId || !playerName) return
 
       try {
+        const card = cards[cardInstanceId]
         play(SoundType.CARD_SHELTER)
         await multiplayerGameService.moveCardToSanctuary(gameId, playerId, cardInstanceId)
+
+        // Record action log
+        if (card) {
+          const cardTemplate = getCardById(card.cardId)
+          const cardName = cardTemplate?.nameTw || cardTemplate?.name || '未知卡片'
+          await multiplayerGameService.addActionLog(
+            gameId,
+            playerId,
+            playerName,
+            'move_to_sanctuary',
+            cardName,
+            '移至棲息地'
+          )
+        }
       } catch (err: any) {
         setError(err.message || 'Failed to move card to sanctuary')
       }
     },
-    [gameId, playerId, play]
+    [gameId, playerId, playerName, cards, play]
   )
 
   // Handle moving card from sanctuary back to hand (expansion mode)
   const handleMoveFromSanctuary = useCallback(
     async (cardInstanceId: string) => {
-      if (!gameId || !playerId) return
+      if (!gameId || !playerId || !playerName) return
 
       try {
+        const card = cards[cardInstanceId]
         play(SoundType.CARD_RECALL)
         await multiplayerGameService.moveCardFromSanctuary(gameId, playerId, cardInstanceId)
+
+        // Record action log
+        if (card) {
+          const cardTemplate = getCardById(card.cardId)
+          const cardName = cardTemplate?.nameTw || cardTemplate?.name || '未知卡片'
+          await multiplayerGameService.addActionLog(
+            gameId,
+            playerId,
+            playerName,
+            'move_from_sanctuary',
+            cardName,
+            '從棲息地回到手牌'
+          )
+        }
       } catch (err: any) {
         setError(err.message || 'Failed to move card from sanctuary')
       }
     },
-    [gameId, playerId, play]
+    [gameId, playerId, playerName, cards, play]
   )
 
   const handlePassTurn = useCallback(async () => {
-    if (!gameId || !playerId) return
+    if (!gameId || !playerId || !playerName) return
 
     try {
       play(SoundType.TURN_END)
       await multiplayerGameService.passTurn(gameId, playerId)
+
+      // Record action log
+      await multiplayerGameService.addActionLog(
+        gameId,
+        playerId,
+        playerName,
+        'pass',
+        undefined,
+        '結束回合'
+      )
     } catch (err: any) {
       setError(err.message || 'Failed to pass turn')
     }
-  }, [gameId, playerId, play])
+  }, [gameId, playerId, playerName, play])
 
   const handleDrawCard = useCallback(async () => {
-    if (!gameId || !playerId) return
+    if (!gameId || !playerId || !playerName) return
 
     try {
       play(SoundType.CARD_DRAW)
       await multiplayerGameService.drawCardFromDeck(gameId, playerId)
+
+      // Record action log
+      await multiplayerGameService.addActionLog(
+        gameId,
+        playerId,
+        playerName,
+        'draw',
+        undefined,
+        '從牌堆抽取1張卡片'
+      )
     } catch (err: any) {
       setError(err.message || 'Failed to draw card from deck')
     }
-  }, [gameId, playerId, play])
+  }, [gameId, playerId, playerName, play])
 
   const handleScoreAdjust = useCallback(
     async (targetPlayerId: string, newScore: number) => {
@@ -1010,31 +1155,31 @@ export function MultiplayerGame() {
   const handleMoveCurrentDrawnCardToHand = useCallback(
     async (_playerId: string, cardInstanceId: string) => {
       console.log('[MultiplayerGame] handleMoveCurrentDrawnCardToHand called:', { _playerId, cardInstanceId, gameId, playerId })
-      if (!gameId || !playerId) return
+      if (!gameId || !playerId || !playerName) return
 
       try {
         play(SoundType.CARD_DRAW)
-        await multiplayerGameService.moveCurrentDrawnCardToHand(gameId, playerId, cardInstanceId)
+        await multiplayerGameService.moveCurrentDrawnCardToHand(gameId, playerId, cardInstanceId, playerName)
       } catch (err: any) {
         setError(err.message || 'Failed to move card to hand')
       }
     },
-    [gameId, playerId, play]
+    [gameId, playerId, playerName, play]
   )
 
   const handleSellCurrentDrawnCard = useCallback(
     async (_playerId: string, cardInstanceId: string) => {
       console.log('[MultiplayerGame] handleSellCurrentDrawnCard called:', { _playerId, cardInstanceId, gameId, playerId })
-      if (!gameId || !playerId) return
+      if (!gameId || !playerId || !playerName) return
 
       try {
         play(SoundType.CARD_SELL)
-        await multiplayerGameService.sellCurrentDrawnCard(gameId, playerId, cardInstanceId)
+        await multiplayerGameService.sellCurrentDrawnCard(gameId, playerId, cardInstanceId, playerName)
       } catch (err: any) {
         setError(err.message || 'Failed to sell current drawn card')
       }
     },
-    [gameId, playerId, play]
+    [gameId, playerId, playerName, play]
   )
 
   // Artifact selection handler (Expansion Mode)
@@ -1048,11 +1193,12 @@ export function MultiplayerGame() {
         currentRound: gameRoom?.currentRound,
       })
 
-      if (!gameId || !playerId || !gameRoom) {
+      if (!gameId || !playerId || !gameRoom || !playerName) {
         console.warn('[MultiplayerGame] handleArtifactSelect: Missing required data', {
           hasGameId: !!gameId,
           hasPlayerId: !!playerId,
           hasGameRoom: !!gameRoom,
+          hasPlayerName: !!playerName,
         })
         return
       }
@@ -1067,12 +1213,24 @@ export function MultiplayerGame() {
           gameRoom.currentRound
         )
         console.log('[MultiplayerGame] selectArtifact service completed successfully')
+
+        // Record action log
+        const artifact = ARTIFACTS_BY_ID[artifactId]
+        const artifactName = artifact?.nameTw || artifact?.name || '未知神器'
+        await multiplayerGameService.addActionLog(
+          gameId,
+          playerId,
+          playerName,
+          'select_artifact',
+          artifactName,
+          `選擇神器`
+        )
       } catch (err: any) {
         console.error('[MultiplayerGame] selectArtifact error:', err)
         setError(err.message || 'Failed to select artifact')
       }
     },
-    [gameId, playerId, gameRoom, play]
+    [gameId, playerId, playerName, gameRoom, play]
   )
 
   // Seven-League Boots handlers (v5.22.0)
@@ -1372,7 +1530,17 @@ export function MultiplayerGame() {
             onViewAllFields={() => setShowAllFieldsModal(true)}
             onViewSanctuary={() => setShowSanctuaryModal(true)}
             onPassTurn={handlePassTurn}
-            showPassTurn={gameRoom.status === 'ACTION'}
+            showPassTurn={gameRoom.status === 'ACTION' || gameRoom.status === 'RESOLUTION'}
+            onConfirmSelection={handleConfirmCardSelection}
+            showConfirmSelection={
+              (isArtifactSelectionActive && isYourArtifactTurn && gameRoom.status === 'HUNTING') ||
+              (!isArtifactSelectionActive && isYourTurn && gameRoom.status === 'HUNTING') ||
+              !!isInSevenLeagueBootsSelection
+            }
+            confirmSelectionDisabled={
+              isInSevenLeagueBootsSelection ? !sevenLeagueBootsState?.selectedCardId : false
+            }
+            unprocessedActionCards={currentPlayer?.currentDrawnCards?.length || 0}
           />
         }
         leftSidebar={
@@ -1416,6 +1584,7 @@ export function MultiplayerGame() {
               // Check if field contains Hestia (F001) to add +2
               4 + ((currentPlayer?.field?.some(id => id.startsWith('F001-')) ? 2 : 0))
             }
+            unprocessedActionCards={currentPlayer?.currentDrawnCards?.length || 0}
           />
         }
         scoreBar={
@@ -1986,6 +2155,15 @@ export function MultiplayerGame() {
         }}
         currentRound={gameRoom?.currentRound}
       />
+
+      {/* Action Log - Fixed position in bottom-left */}
+      <div className="fixed bottom-4 left-4 z-50 w-96">
+        <ActionLog
+          logs={gameRoom.actionLog || []}
+          playerColors={playerColors}
+          maxLogs={50}
+        />
+      </div>
     </>
   )
 }

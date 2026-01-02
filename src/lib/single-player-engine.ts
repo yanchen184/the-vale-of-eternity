@@ -1,10 +1,10 @@
 /**
- * Single Player Game Engine for Vale of Eternity v7.1.0
+ * Single Player Game Engine for Vale of Eternity v7.3.0
  * Core game logic for single-player mode with Stone Economy System
  * Based on GAME_FLOW.md specifications
- * @version 7.1.0 - Artifact selection in DRAW phase (like multiplayer hunting phase)
+ * @version 7.3.0 - Added takeCardsFromMarket method for free card selection in DRAW phase
  */
-console.log('[lib/single-player-engine.ts] v7.1.0 loaded - Artifact selection in DRAW phase')
+console.log('[lib/single-player-engine.ts] v7.3.0 loaded - takeCardsFromMarket added')
 
 import type { CardInstance, CardEffect, StoneConfig } from '@/types/cards'
 import { CardLocation, Element, EffectType, EffectTrigger, StoneType } from '@/types/cards'
@@ -230,7 +230,9 @@ export class SinglePlayerEngine {
       card.isRevealed = true
     })
 
-    // Setup market (4 cards)
+    // Setup market (4 cards) - Show immediately like multiplayer
+    // In multiplayer: player count × 2 cards are shown at start of hunting phase
+    // In single player: 4 cards (like 2 players × 2)
     const market = deck.splice(0, SINGLE_PLAYER_CONSTANTS.MARKET_SIZE)
     market.forEach(card => {
       card.location = CardLocation.MARKET
@@ -248,7 +250,7 @@ export class SinglePlayerEngine {
     // Create game state - start in DRAW phase like multiplayer
     this.state = {
       gameId: generateGameId(),
-      version: '3.2.0',
+      version: '3.3.0',
       player,
       deck,
       market,
@@ -270,6 +272,11 @@ export class SinglePlayerEngine {
       selectedArtifact: null,
       initialCards: [],
       selectedInitialCard: null,
+      // Artifact selection phase (like multiplayer)
+      artifactSelectionPhase: {
+        isComplete: false,  // Start with artifact selection active
+        confirmedArtifactId: null,
+      },
     } as SinglePlayerGameState
 
     this.notifyStateChange()
@@ -362,7 +369,10 @@ export class SinglePlayerEngine {
   }
 
   /**
-   * Confirm artifact selection and move to initial card selection
+   * Confirm artifact selection (in DRAW/hunting phase, like multiplayer)
+   * After confirming artifact, sets artifactSelectionPhase.isComplete = true
+   * Player stays in DRAW phase to select market cards
+   * (Following multiplayer game flow exactly)
    */
   confirmArtifact(): void {
     if (!this.state) {
@@ -372,10 +382,11 @@ export class SinglePlayerEngine {
       )
     }
 
-    if (this.state.phase !== SinglePlayerPhase.SETUP_ARTIFACT) {
+    // Allow confirming artifact in DRAW phase (like multiplayer hunting phase)
+    if (this.state.phase !== SinglePlayerPhase.DRAW) {
       throw new SinglePlayerError(
         SinglePlayerErrorCode.ERR_INVALID_PHASE,
-        'Can only confirm artifact during SETUP_ARTIFACT phase'
+        'Can only confirm artifact during DRAW (hunting) phase'
       )
     }
 
@@ -386,43 +397,154 @@ export class SinglePlayerEngine {
       )
     }
 
-    // Draw 2 cards for initial selection from deck
-    const card1 = this.state.deck[0]
-    const card2 = this.state.deck[1]
-
-    if (!card1 || !card2) {
+    // Check artifact selection phase is active
+    if (this.state.artifactSelectionPhase?.isComplete) {
       throw new SinglePlayerError(
-        SinglePlayerErrorCode.ERR_DECK_EMPTY,
-        'Not enough cards in deck for initial selection'
+        SinglePlayerErrorCode.ERR_INVALID_PHASE,
+        'Artifact selection already complete'
       )
     }
 
-    // Mark cards as revealed for selection
-    const initialCards: CardInstance[] = [
-      { ...card1, location: CardLocation.HAND, isRevealed: true },
-      { ...card2, location: CardLocation.HAND, isRevealed: true },
-    ]
-
-    // Remove cards from deck
-    const newDeck = this.state.deck.slice(2)
+    const confirmedArtifact = this.state.selectedArtifact
 
     // Record action
     const action: SinglePlayerAction = {
       type: SinglePlayerActionType.CONFIRM_ARTIFACT,
       timestamp: Date.now(),
-      payload: { cardInstanceId: this.state.selectedArtifact },
+      payload: { cardInstanceId: confirmedArtifact },
     }
+
+    // After confirming artifact:
+    // 1. Remove it from available artifacts
+    // 2. Set artifactSelectionPhase.isComplete = true (like multiplayer)
+    // 3. Clear selectedArtifact so player can select cards
+    // Market cards are already showing (like multiplayer)
+    const newAvailableArtifacts = (this.state.availableArtifacts || []).filter(
+      id => id !== confirmedArtifact
+    )
 
     this.state = {
       ...this.state,
-      deck: newDeck,
-      initialCards,
-      phase: SinglePlayerPhase.SETUP_INITIAL_CARDS,
+      availableArtifacts: newAvailableArtifacts,
+      selectedArtifact: null,  // Clear selection so player can select cards
+      artifactSelectionPhase: {
+        isComplete: true,  // ✅ Artifact selection done, can now select cards
+        confirmedArtifactId: confirmedArtifact,
+      },
       actionsThisRound: [...this.state.actionsThisRound, action],
       updatedAt: Date.now(),
     }
 
+    console.log('[SinglePlayerEngine] Artifact confirmed:', confirmedArtifact)
+    console.log('[SinglePlayerEngine] artifactSelectionPhase.isComplete = true')
+    console.log('[SinglePlayerEngine] Can now select cards from market')
     this.notifyStateChange()
+  }
+
+  /**
+   * Take selected cards from market to hand during DRAW/hunting phase (after artifact selection)
+   * Unlike tameCreature, this is FREE and doesn't require payment
+   * @param cardInstanceIds Array of card instance IDs to take from market
+   * @returns Updated game state
+   */
+  takeCardsFromMarket(cardInstanceIds: string[]): SinglePlayerGameState {
+    if (!this.state) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_NOT_STARTED,
+        'Game not started'
+      )
+    }
+
+    if (this.state.phase !== SinglePlayerPhase.DRAW) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_INVALID_PHASE,
+        'Can only take cards from market during DRAW (hunting) phase'
+      )
+    }
+
+    if (!this.state.artifactSelectionPhase?.isComplete) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_INVALID_PHASE,
+        'Must complete artifact selection first'
+      )
+    }
+
+    // Validate all cards exist in market
+    const cardsToTake: CardInstance[] = []
+    for (const cardId of cardInstanceIds) {
+      const card = this.state.market.find(c => c.instanceId === cardId)
+      if (!card) {
+        throw new SinglePlayerError(
+          SinglePlayerErrorCode.ERR_CARD_NOT_FOUND,
+          `Card ${cardId} not found in market`
+        )
+      }
+      cardsToTake.push(card)
+    }
+
+    // Remove cards from market
+    const newMarket = this.state.market.filter(
+      c => !cardInstanceIds.includes(c.instanceId)
+    )
+
+    // Add cards to hand
+    const newHand = [
+      ...this.state.player.hand,
+      ...cardsToTake.map(c => ({
+        ...c,
+        location: CardLocation.HAND,
+        isRevealed: true,
+      })),
+    ]
+
+    // Refill market from deck
+    let newDeck = this.state.deck
+    if (newDeck.length > 0) {
+      const refillCount = Math.min(
+        SINGLE_PLAYER_CONSTANTS.MARKET_SIZE - newMarket.length,
+        newDeck.length
+      )
+      const refillCards = newDeck.slice(0, refillCount).map(c => ({
+        ...c,
+        location: CardLocation.MARKET,
+        isRevealed: true,
+      }))
+      newMarket.push(...refillCards)
+      newDeck = newDeck.slice(refillCount)
+    }
+
+    // Record action
+    const action: SinglePlayerAction = {
+      type: SinglePlayerActionType.DRAW_CARD, // Reuse DRAW_CARD type
+      timestamp: Date.now(),
+      payload: { cardInstanceId: cardInstanceIds.join(',') },
+    }
+
+    // Transition to ACTION phase after taking cards
+    this.state = {
+      ...this.state,
+      deck: newDeck,
+      market: newMarket,
+      player: {
+        ...this.state.player,
+        hand: newHand,
+        // Store the selected cards in currentTurnCards for ACTION phase display
+        currentTurnCards: cardsToTake.map(c => ({
+          ...c,
+          location: CardLocation.HAND,
+          isRevealed: true,
+        })),
+      },
+      phase: SinglePlayerPhase.ACTION, // ✅ Now move to ACTION phase
+      actionsThisRound: [...this.state.actionsThisRound, action],
+      updatedAt: Date.now(),
+    }
+
+    console.log('[SinglePlayerEngine] Took cards from market:', cardInstanceIds)
+    console.log('[SinglePlayerEngine] Set currentTurnCards:', cardsToTake.length, 'cards')
+    console.log('[SinglePlayerEngine] Transitioned to ACTION phase')
+    this.notifyStateChange()
+    return this.state
   }
 
   // ============================================

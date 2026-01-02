@@ -1,9 +1,9 @@
 /**
  * Effect Implementation Status Checker
  * Tracks which card effects have been implemented in the game
- * @version 1.0.0
+ * @version 1.2.0 - Only lightning effects (EARN_STONES, DRAW_CARD) marked as implemented
  */
-console.log('[utils/effect-implementation-status.ts] v1.0.0 loaded')
+console.log('[utils/effect-implementation-status.ts] v1.2.0 loaded')
 
 import type { CardInstance } from '@/types/cards'
 import { EffectType } from '@/types/cards'
@@ -13,25 +13,20 @@ import { EffectType } from '@/types/cards'
 // ============================================
 
 /**
- * Fully implemented effects - these work correctly in the game
+ * Fully implemented effects - ONLY lightning effects (閃電效果)
+ * These are instant effects that trigger automatically
+ * Manual review in progress - effects will be added one by one after verification
  */
 export const FULLY_IMPLEMENTED_EFFECTS: readonly EffectType[] = [
-  EffectType.EARN_STONES,
-  EffectType.DRAW_CARD,
-  EffectType.CONDITIONAL_EARN,
+  // ALL EFFECTS TEMPORARILY MARKED AS NOT IMPLEMENTED FOR MANUAL REVIEW
 ] as const
 
 /**
  * Partially implemented effects - basic functionality works but may have limitations
+ * Currently EMPTY - all non-lightning effects are treated as NOT_IMPLEMENTED
  */
 export const PARTIALLY_IMPLEMENTED_EFFECTS: readonly EffectType[] = [
-  EffectType.EXCHANGE_STONES,
-  EffectType.DISCARD_FROM_HAND,
-  EffectType.RECOVER_CARD,
-  EffectType.FREE_SUMMON,
-  EffectType.COPY_INSTANT_EFFECT,
-  EffectType.INCREASE_STONE_VALUE, // permanent effect
-  EffectType.DECREASE_COST, // permanent effect
+  // All moved to NOT_IMPLEMENTED for manual review
 ] as const
 
 /**
@@ -232,15 +227,29 @@ export function getPartiallyImplementedEffectTypes(card: CardInstance): EffectTy
 // UI HELPER FUNCTIONS
 // ============================================
 
+/**
+ * Badge position on the card
+ */
+export type BadgePosition = 'top-right' | 'bottom-right'
+
+/**
+ * Badge type for different display styles
+ */
+export type BadgeType = 'text' | 'star'
+
 export interface ImplementationStatusDisplay {
   /** Whether to show the status badge */
   show: boolean
-  /** Badge text */
+  /** Badge type: 'text' for warning labels, 'star' for implemented indicator */
+  type: BadgeType
+  /** Badge text (for text type) */
   text: string
   /** Badge color class (Tailwind) */
   colorClass: string
   /** Tooltip text */
   tooltip: string
+  /** Position on the card */
+  position: BadgePosition
 }
 
 /**
@@ -251,38 +260,57 @@ export function getImplementationStatusDisplay(card: CardInstance): Implementati
 
   switch (status) {
     case ImplementationStatus.FULLY_IMPLEMENTED:
+      // Show golden star for fully implemented effects
+      return {
+        show: true,
+        type: 'star',
+        text: '★',
+        colorClass: 'text-yellow-400 drop-shadow-[0_0_6px_rgba(250,204,21,0.8)]',
+        tooltip: '效果已實現，會自動執行',
+        position: 'bottom-right',
+      }
+
     case ImplementationStatus.NO_EFFECTS:
+      // No badge for cards without effects
       return {
         show: false,
+        type: 'text',
         text: '',
         colorClass: '',
         tooltip: '',
+        position: 'top-right',
       }
 
     case ImplementationStatus.PARTIALLY_IMPLEMENTED:
       const partialTypes = getPartiallyImplementedEffectTypes(card)
       return {
         show: true,
+        type: 'text',
         text: '部分',
         colorClass: 'bg-yellow-500/80 text-yellow-100',
         tooltip: `部分實現: ${partialTypes.join(', ')}`,
+        position: 'top-right',
       }
 
     case ImplementationStatus.NOT_IMPLEMENTED:
       const unimplTypes = getUnimplementedEffectTypes(card)
       return {
         show: true,
+        type: 'text',
         text: '未實現',
         colorClass: 'bg-red-500/80 text-red-100',
         tooltip: `未實現: ${unimplTypes.join(', ')}`,
+        position: 'top-right',
       }
 
     default:
       return {
         show: false,
+        type: 'text',
         text: '',
         colorClass: '',
         tooltip: '',
+        position: 'top-right',
       }
   }
 }

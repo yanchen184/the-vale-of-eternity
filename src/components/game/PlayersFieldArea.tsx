@@ -2,9 +2,9 @@
  * PlayersFieldArea Component
  * Displays all players' field cards - each player gets a horizontal row
  * Integrated with hand preview and current turn cards display
- * @version 5.0.0 - Fixed slots for action phase & field cards with visual divider
+ * @version 5.2.0 - Field cards now scroll horizontally instead of wrapping
  */
-console.log('[components/game/PlayersFieldArea.tsx] v5.0.0 loaded')
+console.log('[components/game/PlayersFieldArea.tsx] v5.2.0 loaded')
 
 import { memo, useMemo, useCallback, useState } from 'react'
 import { Card } from './Card'
@@ -28,6 +28,7 @@ export interface PlayerFieldData {
   sanctuaryCards?: CardInstance[]  // Cards in sanctuary (expansion mode)
   handCount: number  // Number of cards in hand
   currentTurnCards?: CardInstance[]  // Cards drawn/selected this turn
+  selectedArtifact?: CardInstance  // Selected artifact card
   isCurrentTurn: boolean
   hasPassed: boolean
   maxFieldSlots?: number  // Maximum field slots available (default: 10)
@@ -174,24 +175,19 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
       <div className="flex gap-4">
         {/* All Cards Container - Current Turn Cards + Field Cards in one row */}
         <div className="flex-1">
-          {player.fieldCards.length === 0 && (!player.currentTurnCards || player.currentTurnCards.length === 0) ? (
-            <div className="flex items-center justify-center h-24 text-slate-600 text-sm">
-              <span>尚無場上卡片</span>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {/* Cards Row - Action Phase Slots + Divider + Field Cards */}
-              <div className="flex gap-4 items-start">
-                {/* Action Phase Section - Fixed 2 slots */}
-                {(player.currentTurnCards && player.currentTurnCards.length > 0) || player.isCurrentTurn ? (
-                  <div className="flex-shrink-0">
+          <div className="flex flex-col gap-2">
+            {/* Cards Row - Action Phase Slots + Divider + Field Cards */}
+            <div className="flex gap-4 items-start">
+              {/* Action Phase Section - Fixed 2 slots - Always show during player's turn */}
+              {player.isCurrentTurn ? (
+                  <div className="flex-shrink-0 p-3 rounded-lg bg-blue-900/20 border-2 border-blue-500/40">
                     {/* Phase Label */}
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs font-semibold text-blue-400">
-                        {getPhaseLabel()}
+                      <span className="text-xs font-bold text-blue-300 uppercase tracking-wider">
+                        ⚡ {getPhaseLabel()}
                       </span>
                       {player.isCurrentTurn && (
-                        <span className="text-xs text-blue-300 bg-blue-500/20 px-2 py-0.5 rounded-full">
+                        <span className="text-xs text-blue-200 bg-blue-500/30 px-2 py-0.5 rounded-full font-semibold">
                           進行中
                         </span>
                       )}
@@ -205,11 +201,15 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
                           <div
                             key={`action-slot-${slotIndex}`}
                             className={cn(
-                              'relative w-[140px] h-[190px] rounded-lg transition-all duration-200',
+                              'relative rounded-lg transition-all duration-200 flex items-center justify-center',
                               card
                                 ? 'bg-transparent'
                                 : 'border-2 border-dashed border-blue-400/30 bg-blue-900/10'
                             )}
+                            style={{
+                              width: '11rem',    // 176px - slightly larger than card (168px)
+                              height: '16.5rem', // 264px - slightly larger than card (252px)
+                            }}
                           >
                             {card ? (
                               <div className="relative group h-full">
@@ -299,13 +299,23 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
                 ) : null}
 
                 {/* Vertical Divider */}
-                {(player.currentTurnCards && player.currentTurnCards.length > 0) || player.isCurrentTurn ? (
-                  <div className="flex-shrink-0 w-px bg-gradient-to-b from-transparent via-slate-600 to-transparent self-stretch" />
+                {player.isCurrentTurn ? (
+                  <div className="flex-shrink-0 w-1 bg-gradient-to-b from-blue-500/20 via-slate-600 to-blue-500/20 self-stretch rounded-full" />
                 ) : null}
 
                 {/* Field Cards Section */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap gap-2">
+                <div className="flex-1 min-w-0 p-3 rounded-lg bg-slate-800/30 border-2 border-slate-600/30">
+                  {/* Field Label */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                      🏰 場上怪獸
+                    </span>
+                    <span className="text-xs text-slate-400 bg-slate-700/30 px-2 py-0.5 rounded-full">
+                      {player.fieldCards.length} / {player.maxFieldSlots || 10}
+                    </span>
+                  </div>
+
+                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800/50">
                     {/* Render slots with cards or empty placeholders */}
                     {Array.from({ length: player.maxFieldSlots || 10 }).map((_, slotIndex) => {
                       const card = player.fieldCards[slotIndex]
@@ -313,11 +323,15 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
                         <div
                           key={`field-slot-${slotIndex}`}
                           className={cn(
-                            'relative w-[140px] h-[190px] rounded-lg transition-all duration-200',
+                            'relative rounded-lg transition-all duration-200 flex items-center justify-center flex-shrink-0',
                             card
                               ? 'bg-transparent'
                               : 'border-2 border-dashed border-slate-600/30 bg-slate-800/20'
                           )}
+                          style={{
+                            width: '11rem',    // 176px - slightly larger than card (168px)
+                            height: '16.5rem', // 264px - slightly larger than card (252px)
+                          }}
                         >
                           {card ? (
                             <div className="relative group h-full">
@@ -405,42 +419,41 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
                     })}
                   </div>
                 </div>
+
+                {/* Sanctuary - Stacked Cards on Right Side */}
+                {player.sanctuaryCards && player.sanctuaryCards.length > 0 && (
+                  <div className="flex-shrink-0 border-l-2 border-amber-500/30 pl-4">
+                    <div className="text-xs text-amber-400 mb-2 flex items-center gap-2">
+                      <span className="font-semibold">棲息地</span>
+                      <span className="bg-amber-500/20 px-2 py-0.5 rounded-full">
+                        {player.sanctuaryCards.length}
+                      </span>
+                    </div>
+                    <div className="relative" style={{ width: '120px', minHeight: '160px' }}>
+                      {player.sanctuaryCards.map((card, index) => (
+                        <div
+                          key={card.instanceId}
+                          className="absolute transition-all duration-200"
+                          style={{
+                            left: `${index * 15}px`,
+                            top: `${index * 6}px`,
+                            zIndex: index,
+                          }}
+                        >
+                          <Card
+                            card={card}
+                            index={index}
+                            compact={true}
+                            className="shadow-lg pointer-events-none"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          )}
         </div>
-
-        {/* Sanctuary - Stacked Cards on Right Side */}
-        {player.sanctuaryCards && player.sanctuaryCards.length > 0 && (
-          <div className="flex-shrink-0 border-l-2 border-amber-500/30 pl-4">
-            <div className="text-xs text-amber-400 mb-2 flex items-center gap-2">
-              <span className="font-semibold">棲息地</span>
-              <span className="bg-amber-500/20 px-2 py-0.5 rounded-full">
-                {player.sanctuaryCards.length}
-              </span>
-            </div>
-            <div className="relative" style={{ width: '120px', minHeight: '160px' }}>
-              {player.sanctuaryCards.map((card, index) => (
-                <div
-                  key={card.instanceId}
-                  className="absolute transition-all duration-200"
-                  style={{
-                    left: `${index * 15}px`,
-                    top: `${index * 6}px`,
-                    zIndex: index,
-                  }}
-                >
-                  <Card
-                    card={card}
-                    index={index}
-                    compact={true}
-                    className="shadow-lg pointer-events-none"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Hand Preview - Below field cards */}

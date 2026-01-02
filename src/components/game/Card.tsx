@@ -1,9 +1,9 @@
 /**
  * Card Component with Image Display
  * Renders a game card with its image and stats
- * @version 2.23.0 - Added effect implementation status badge
+ * @version 2.24.0 - Added star indicator for fully implemented effects
  */
-console.log('[components/game/Card.tsx] v2.23.0 loaded')
+console.log('[components/game/Card.tsx] v2.24.0 loaded')
 
 import { useState, useCallback, memo, useMemo } from 'react'
 import { Flame, Droplets, TreePine, Wind, Crown, Gem } from 'lucide-react'
@@ -444,14 +444,28 @@ export const Card = memo(function Card({
             </div>
           </div>
 
-          {/* Implementation Status Badge - compact mode */}
-          {implementationStatus?.show && (
+          {/* Implementation Status Badge - compact mode (centered) */}
+          {implementationStatus?.show && implementationStatus.type === 'star' && (
             <div
-              className="absolute top-1 right-12 z-20"
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20"
               title={implementationStatus.tooltip}
             >
               <div className={`
-                px-1.5 py-0.5 rounded text-[8px] font-bold
+                bg-slate-900/80 rounded-full p-1.5
+                text-2xl leading-none
+                ${implementationStatus.colorClass}
+              `}>
+                {implementationStatus.text}
+              </div>
+            </div>
+          )}
+          {implementationStatus?.show && implementationStatus.type === 'text' && (
+            <div
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20"
+              title={implementationStatus.tooltip}
+            >
+              <div className={`
+                px-2 py-1 rounded text-xs font-bold
                 ${implementationStatus.colorClass}
                 shadow-sm border border-white/20
               `}>
@@ -589,14 +603,29 @@ export const Card = memo(function Card({
         </div>
       </div>
 
-      {/* Implementation Status Badge - full mode */}
-      {implementationStatus?.show && (
+      {/* Implementation Status Badge - full mode (centered) */}
+      {implementationStatus?.show && implementationStatus.type === 'star' && (
         <div
-          className="absolute top-2 right-16 z-20"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20"
           title={implementationStatus.tooltip}
         >
           <div className={`
-            px-2 py-1 rounded text-[10px] font-bold
+            bg-slate-900/80 rounded-full p-2
+            text-3xl leading-none
+            ${implementationStatus.colorClass}
+          `}>
+            {implementationStatus.text}
+          </div>
+        </div>
+      )}
+      {/* Implementation Status Badge - full mode (text for partial/unimplemented) */}
+      {implementationStatus?.show && implementationStatus.type === 'text' && (
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20"
+          title={implementationStatus.tooltip}
+        >
+          <div className={`
+            px-3 py-1.5 rounded text-sm font-bold
             ${implementationStatus.colorClass}
             shadow-md border border-white/20
           `}>

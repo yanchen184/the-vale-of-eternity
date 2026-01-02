@@ -1,10 +1,10 @@
 /**
- * Game State Store for Single Player Mode v3.2.0
+ * Game State Store for Single Player Mode v3.4.0
  * Using Zustand for state management
  * Supports single-player game with Stone Economy System
- * @version 3.2.0 - Added artifact selection and initial card selection support
+ * @version 3.4.0 - Added takeCardsFromMarket action for free card selection in DRAW phase
  */
-console.log('[stores/useGameStore.ts] v3.2.0 loaded')
+console.log('[stores/useGameStore.ts] v3.4.0 loaded')
 
 import { create } from 'zustand'
 import { devtools, subscribeWithSelector } from 'zustand/middleware'
@@ -63,6 +63,8 @@ interface GameStore {
   // === Draw Phase Actions ===
   /** Draw a card from deck */
   drawCard: () => void
+  /** Take selected cards from market to hand (free during DRAW phase after artifact selection) */
+  takeCardsFromMarket: (cardInstanceIds: string[]) => void
 
   // === Action Phase Actions ===
   /** Tame a creature */
@@ -235,6 +237,20 @@ export const useGameStore = create<GameStore>()(
             const message = err instanceof SinglePlayerError
               ? err.message
               : 'Failed to draw card'
+            set({ error: message })
+          }
+        },
+
+        takeCardsFromMarket: (cardInstanceIds: string[]) => {
+          const { gameState } = get()
+          if (!gameState) return
+
+          try {
+            engine.takeCardsFromMarket(cardInstanceIds)
+          } catch (err) {
+            const message = err instanceof SinglePlayerError
+              ? err.message
+              : 'Failed to take cards from market'
             set({ error: message })
           }
         },
@@ -624,10 +640,22 @@ export const selectAvailableArtifacts = (state: GameStore): string[] =>
   state.gameState?.availableArtifacts ?? EMPTY_ARTIFACT_ARRAY
 
 /**
- * Select selected artifact
+ * Select selected artifact (artifact ID string)
  */
 export const selectSelectedArtifact = (state: GameStore): string | null =>
   state.gameState?.selectedArtifact ?? null
+
+/**
+ * Select player's current turn cards (cards selected during DRAW phase)
+ */
+export const selectCurrentTurnCards = (state: GameStore): CardInstance[] =>
+  state.gameState?.player.currentTurnCards ?? EMPTY_CARD_ARRAY
+
+/**
+ * Select player's selected artifact card instance
+ */
+export const selectSelectedArtifactCard = (state: GameStore): CardInstance | null =>
+  state.gameState?.player.selectedArtifact ?? null
 
 /**
  * Select initial cards for selection
@@ -646,6 +674,12 @@ export const selectSelectedInitialCard = (state: GameStore): string | null =>
  */
 export const selectIsExpansionMode = (state: GameStore): boolean =>
   state.gameState?.isExpansionMode ?? false
+
+/**
+ * Select artifact selection phase state
+ */
+export const selectArtifactSelectionPhase = (state: GameStore): { isComplete: boolean; confirmedArtifactId?: string | null } | null =>
+  state.gameState?.artifactSelectionPhase ?? null
 
 // ============================================
 // HOOKS
@@ -755,10 +789,24 @@ export function useAvailableArtifacts(): string[] {
 }
 
 /**
- * Hook to get selected artifact
+ * Hook to get selected artifact ID
  */
 export function useSelectedArtifact(): string | null {
   return useGameStore(selectSelectedArtifact)
+}
+
+/**
+ * Hook to get current turn cards (cards selected during DRAW phase)
+ */
+export function useCurrentTurnCards(): CardInstance[] {
+  return useGameStore(selectCurrentTurnCards)
+}
+
+/**
+ * Hook to get selected artifact card instance
+ */
+export function useSelectedArtifactCard(): CardInstance | null {
+  return useGameStore(selectSelectedArtifactCard)
 }
 
 /**
@@ -780,6 +828,13 @@ export function useSelectedInitialCard(): string | null {
  */
 export function useIsExpansionMode(): boolean {
   return useGameStore(selectIsExpansionMode)
+}
+
+/**
+ * Hook to get artifact selection phase state
+ */
+export function useArtifactSelectionPhase(): { isComplete: boolean; confirmedArtifactId?: string | null } | null {
+  return useGameStore(selectArtifactSelectionPhase)
 }
 
 // ============================================

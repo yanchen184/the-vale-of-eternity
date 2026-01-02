@@ -1,9 +1,9 @@
 /**
- * Single Player Game Page v8.0.0
+ * Single Player Game Page v8.6.0
  * Main gameplay interface for single-player mode - With artifact selection and coin display
- * @version 8.0.0 - Added artifact selection and coin display
+ * @version 8.6.0 - Added currentTurnCards and selectedArtifact to fieldData
  */
-console.log('[pages/SinglePlayerGame.tsx] v8.0.0 loaded - With artifact selection and coin display')
+console.log('[pages/SinglePlayerGame.tsx] v8.6.0 loaded - Added currentTurnCards and selectedArtifact to fieldData')
 
 import { useEffect, useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -21,6 +21,9 @@ import {
   useAvailableArtifacts,
   useSelectedArtifact,
   useIsExpansionMode,
+  useArtifactSelectionPhase,
+  useCurrentTurnCards,
+  useSelectedArtifactCard,
   SinglePlayerPhase,
 } from '@/stores/useGameStore'
 import { calculateStonePoolValue, createEmptyStonePool } from '@/types/game'
@@ -37,6 +40,7 @@ import {
   ScoreBar,
   ScoreTrack,
   HuntingPhaseUI,
+  ActionPhaseUI,
   MultiplayerCoinSystem,
 } from '@/components/game'
 import type { PlayerCoinInfo } from '@/components/game/MultiplayerCoinSystem'
@@ -75,11 +79,15 @@ export default function SinglePlayerGame() {
   const availableArtifacts = useAvailableArtifacts()
   const selectedArtifact = useSelectedArtifact()
   const isExpansionMode = useIsExpansionMode()
+  const artifactSelectionPhase = useArtifactSelectionPhase()
+  const currentTurnCards = useCurrentTurnCards()
+  const selectedArtifactCard = useSelectedArtifactCard()
 
   // Store actions
   const {
     startGame,
     drawCard,
+    takeCardsFromMarket,
     tameCreature,
     pass,
     resetGame,
@@ -89,12 +97,24 @@ export default function SinglePlayerGame() {
     error,
   } = useGameStore()
 
+  console.log('[SinglePlayerGame] artifactSelectionPhase:', artifactSelectionPhase)
+  console.log('[SinglePlayerGame] selectedArtifact:', selectedArtifact)
+  console.log('[SinglePlayerGame] Confirm button conditions:', {
+    hasArtifactPhase: !!artifactSelectionPhase,
+    isNotComplete: artifactSelectionPhase ? !artifactSelectionPhase.isComplete : false,
+    hasSelectedArtifact: !!selectedArtifact,
+    shouldShowConfirm: !!(artifactSelectionPhase && !artifactSelectionPhase.isComplete && selectedArtifact)
+  })
+
   // UI State - matching multiplayer
   const [selectedHandCardId, setSelectedHandCardId] = useState<string | null>(null)
   const [showDiscardModal, setShowDiscardModal] = useState(false)
   const [showSanctuaryModal, setShowSanctuaryModal] = useState(false)
   const [showAllFieldsModal, setShowAllFieldsModal] = useState(false)
   const [showScoreModal, setShowScoreModal] = useState(false)
+
+  // Card selection state for DRAW phase (after artifact selection)
+  const [selectedMarketCards, setSelectedMarketCards] = useState<Set<string>>(new Set())
 
   // Compute stone value
   const totalStoneValue = useMemo(() => {
@@ -155,6 +175,19 @@ export default function SinglePlayerGame() {
     return map
   }, [selectedArtifact, playerName])
 
+  // Card selection map for HuntingPhaseUI (after artifact selection)
+  const cardSelectionMap = useMemo(() => {
+    const map = new Map<string, { color: PlayerColor; playerName: string; isConfirmed: boolean }>()
+    selectedMarketCards.forEach(cardId => {
+      map.set(cardId, {
+        color: 'green' as PlayerColor,
+        playerName: playerName || 'Player',
+        isConfirmed: false,
+      })
+    })
+    return map
+  }, [selectedMarketCards, playerName])
+
   // Player coin info for MultiplayerCoinSystem
   const playerCoinInfo: PlayerCoinInfo[] = useMemo(() => [{
     playerId: 'single-player',
@@ -194,9 +227,11 @@ export default function SinglePlayerGame() {
     handCount: hand?.length ?? 0,
     fieldCards: field || [],
     sanctuaryCards: [],
+    currentTurnCards: currentTurnCards || [],
+    selectedArtifact: selectedArtifactCard || undefined,
     isCurrentTurn: true,
     hasPassed: false,
-  }), [playerName, hand, field])
+  }), [playerName, hand, field, currentTurnCards, selectedArtifactCard])
 
   // Handle card click from hand
   const handleHandCardClick = useCallback((card: CardInstance) => {
@@ -223,6 +258,43 @@ export default function SinglePlayerGame() {
     if (phase !== SinglePlayerPhase.ACTION) return
     pass()
   }, [phase, pass])
+
+  // Handle card selection toggle in DRAW phase (after artifact selection)
+  const handleToggleCard = useCallback((cardId: string) => {
+    // Only allow card selection after artifact selection is complete
+    if (!artifactSelectionPhase?.isComplete) return
+
+    setSelectedMarketCards(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(cardId)) {
+        newSet.delete(cardId)
+      } else {
+        // Single player selects 2 cards (like 2-player game)
+        if (newSet.size < 2) {
+          newSet.add(cardId)
+        }
+      }
+      return newSet
+    })
+  }, [artifactSelectionPhase])
+
+  // Handle card selection confirmation in DRAW phase
+  const handleConfirmCardSelection = useCallback(() => {
+    // Validate selection count
+    if (selectedMarketCards.size !== 2) {
+      console.error('[SinglePlayerGame] Must select exactly 2 cards')
+      return
+    }
+
+    // Take cards from market to hand (free - no payment required)
+    // This will automatically transition from DRAW → ACTION phase
+    const cardIds = Array.from(selectedMarketCards)
+    takeCardsFromMarket(cardIds)
+
+    // Clear selection
+    setSelectedMarketCards(new Set())
+    console.log('[SinglePlayerGame] Cards confirmed, transitioning to ACTION phase')
+  }, [selectedMarketCards, takeCardsFromMarket])
 
   // Handle back to menu
   const handleBackToMenu = useCallback(() => {
@@ -298,6 +370,26 @@ export default function SinglePlayerGame() {
             onViewSanctuary={() => setShowSanctuaryModal(true)}
             onPassTurn={phase === SinglePlayerPhase.ACTION ? handlePass : undefined}
             showPassTurn={phase === SinglePlayerPhase.ACTION}
+            onConfirmSelection={
+              // Like multiplayer: handle both artifact and card confirmation
+              // 1. If artifact selection active and has selected artifact → confirm artifact
+              // 2. If artifact done and has selected cards → confirm card selection
+              (artifactSelectionPhase && !artifactSelectionPhase.isComplete && selectedArtifact)
+                ? confirmArtifact
+                : (artifactSelectionPhase?.isComplete && selectedMarketCards.size === 2)
+                  ? handleConfirmCardSelection
+                  : undefined
+            }
+            showConfirmSelection={
+              // Show confirm button when:
+              // 1. Artifact selection active and has selected artifact, OR
+              // 2. Artifact done and has selected exactly 2 cards
+              !!(
+                (artifactSelectionPhase && !artifactSelectionPhase.isComplete && selectedArtifact) ||
+                (artifactSelectionPhase?.isComplete && selectedMarketCards.size === 2)
+              )
+            }
+            confirmSelectionDisabled={false}
           />
         }
         leftSidebar={
@@ -315,16 +407,44 @@ export default function SinglePlayerGame() {
         }
         rightSidebar={
           <RightSidebar
+            bankCoins={createEmptyStonePool()}
             playerCoins={stones || EMPTY_STONE_POOL}
             playerName={playerName || 'Player'}
             isYourTurn={true}
             phase={multiplayerPhase}
             onTakeCoin={() => {}} // Single player doesn't use coin taking
             onReturnCoin={() => {}}
-            onConfirmSelection={selectedArtifact && phase === SinglePlayerPhase.DRAW ? confirmArtifact : undefined}  // Confirm artifact if selected
+            onConfirmSelection={
+              // Like multiplayer: handle both artifact and card confirmation
+              // 1. If artifact selection active and has selected artifact → confirm artifact
+              // 2. If artifact done and has selected cards → confirm card selection
+              (artifactSelectionPhase && !artifactSelectionPhase.isComplete && selectedArtifact)
+                ? confirmArtifact
+                : (artifactSelectionPhase?.isComplete && selectedMarketCards.size === 2)
+                  ? handleConfirmCardSelection
+                  : undefined
+            }
             onEndTurn={() => {}}
-            isYourArtifactTurn={!selectedArtifact && (availableArtifacts?.length || 0) > 0}
-            isArtifactSelectionActive={!selectedArtifact && (availableArtifacts?.length || 0) > 0}
+            isYourArtifactTurn={
+              // Like multiplayer: artifact selection is active and not complete
+              !!(artifactSelectionPhase && !artifactSelectionPhase.isComplete)
+            }
+            isArtifactSelectionActive={
+              // Like multiplayer: isExpansionMode && status=HUNTING && !artifactSelectionPhase.isComplete
+              !!(isExpansionMode && phase === SinglePlayerPhase.DRAW && artifactSelectionPhase && !artifactSelectionPhase.isComplete)
+            }
+            allPlayers={[{
+              playerId: 'single-player',
+              playerName: playerName || 'Player',
+              playerColor: 'green' as PlayerColor,
+              playerCoins: stones || EMPTY_STONE_POOL,
+            }]}
+            currentPlayerId="single-player"
+            currentPlayerStoneLimit={
+              // Check if Hestia (F001) is in field to add +2 stone limit
+              4 + (field?.some(card => card.cardId.startsWith('F001')) ? 2 : 0)
+            }
+            unprocessedActionCards={currentTurnCards?.length || 0}
           />
         }
         scoreBar={
@@ -338,7 +458,7 @@ export default function SinglePlayerGame() {
         }
         mainContent={
           <div className="w-full h-full overflow-auto custom-scrollbar">
-            {/* Market Area - Using shared HuntingPhaseUI during DRAW phase */}
+            {/* DRAW Phase - Using shared HuntingPhaseUI for artifact + card selection */}
             {phase === SinglePlayerPhase.DRAW ? (
               <HuntingPhaseUI
                 marketCards={market || []}
@@ -346,11 +466,11 @@ export default function SinglePlayerGame() {
                 currentPlayerName={playerName || 'Player'}
                 currentPlayerId="single-player"
                 currentRound={round}
-                onToggleCard={() => {}}  // DRAW phase: card selection disabled
-                onConfirmSelection={() => {}}  // Single player doesn't need confirmation
-                cardSelectionMap={new Map()}  // No multiplayer selection
-                mySelectedCardId={null}
-                hasSelectedCard={false}
+                onToggleCard={handleToggleCard}  // Card selection handler (active after artifact selection)
+                onConfirmSelection={handleConfirmCardSelection}  // Card confirmation handler
+                cardSelectionMap={cardSelectionMap}  // Show selected cards
+                mySelectedCardId={selectedMarketCards.size > 0 ? Array.from(selectedMarketCards)[0] : null}
+                hasSelectedCard={selectedMarketCards.size > 0}
                 isExpansionMode={isExpansionMode || false}  // Enable expansion mode for artifact selection
                 availableArtifacts={availableArtifacts || []}  // Available artifacts from store
                 usedArtifacts={[]}
@@ -359,12 +479,53 @@ export default function SinglePlayerGame() {
                 onSelectArtifact={selectArtifact}  // Artifact selection handler
                 playerName={playerName || 'Player'}
                 artifactSelectorPlayerName={playerName || 'Player'}
-                isYourArtifactTurn={!selectedArtifact}  // Can select artifact if not already selected
-                isArtifactSelectionActive={!selectedArtifact && (availableArtifacts?.length || 0) > 0}  // Show selector if artifacts available and not yet selected
+                isYourArtifactTurn={
+                  // Like multiplayer: artifact selection is active and not complete
+                  !!(artifactSelectionPhase && !artifactSelectionPhase.isComplete)
+                }
+                isArtifactSelectionActive={
+                  // Like multiplayer: isExpansionMode && status=HUNTING && !artifactSelectionPhase.isComplete
+                  !!(isExpansionMode && phase === SinglePlayerPhase.DRAW && artifactSelectionPhase && !artifactSelectionPhase.isComplete)
+                }
                 sevenLeagueBootsState={null}
                 isInSevenLeagueBootsSelection={false}
                 onSelectSevenLeagueBootsCard={() => {}}
                 onConfirmSevenLeagueBootsSelection={() => {}}
+              />
+            ) : phase === SinglePlayerPhase.ACTION ? (
+              // ACTION Phase - Using ActionPhaseUI like multiplayer
+              <ActionPhaseUI
+                playersFieldData={[fieldData]}
+                handCards={hand || []}
+                playerScores={playerScores}
+                currentPlayerId="single-player"
+                currentRound={round}
+                gameStatus={multiplayerPhase}
+                isYourTurn={true}
+                onCardPlay={(cardId: string) => {
+                  console.log('[SinglePlayerGame] onCardPlay:', cardId)
+                  void tameCreature // TODO: adapt tameCreature to work with ActionPhaseUI
+                  console.warn('[SinglePlayerGame] tameCreature needs adaptation for ActionPhaseUI')
+                }}
+                onCardSell={(_cardId) => {
+                  console.log('[SinglePlayerGame] onCardSell: not implemented in single player')
+                }}
+                onHandCardDiscard={(_cardId) => {
+                  console.log('[SinglePlayerGame] onHandCardDiscard: not implemented in single player')
+                }}
+                onCardReturn={(_playerId, _cardId) => {
+                  console.log('[SinglePlayerGame] onCardReturn: not implemented in single player')
+                }}
+                onCardDiscard={(_playerId, _cardId) => {
+                  console.log('[SinglePlayerGame] onCardDiscard: not implemented in single player')
+                }}
+                onScoreAdjust={(_playerId, _score) => {
+                  console.log('[SinglePlayerGame] onScoreAdjust: not implemented in single player')
+                }}
+                onFlipToggle={(_playerId) => {
+                  console.log('[SinglePlayerGame] onFlipToggle: not implemented in single player')
+                }}
+                canTameCard={canTameCard}
               />
             ) : (
               <div className="flex flex-col gap-4 h-full p-4">

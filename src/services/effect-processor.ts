@@ -1,9 +1,9 @@
 /**
  * Effect Processor for The Vale of Eternity
  * Handles all card effect processing (ON_TAME, PERMANENT, ON_SCORE)
- * @version 3.1.0
+ * @version 3.2.0 - Only execute fully implemented effects
  */
-console.log('[services/effect-processor.ts] v3.1.0 loaded')
+console.log('[services/effect-processor.ts] v3.2.0 loaded')
 
 import { ref, get, update } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -12,6 +12,7 @@ import type { CardEffect } from '@/types/cards'
 // Note: CardTemplate is used indirectly via getBaseCardById return type
 import { EffectType, EffectTrigger, StoneType, CardLocation } from '@/types/cards'
 import type { PlayerState, StonePool, CardInstanceData } from './multiplayer-game'
+import { isEffectFullyImplemented } from '@/utils/effect-implementation-status'
 
 // ============================================
 // TYPES
@@ -78,6 +79,15 @@ export class EffectProcessor {
    * Process a single effect
    */
   async processEffect(effect: CardEffect, context: EffectContext): Promise<EffectResult> {
+    // Check if effect is fully implemented
+    if (!isEffectFullyImplemented(effect.type)) {
+      console.log(`[EffectProcessor] Effect ${effect.type} is not fully implemented, skipping execution`)
+      return {
+        success: false,
+        message: `效果 ${effect.type} 尚未實現，不會自動執行`,
+      }
+    }
+
     switch (effect.type) {
       case EffectType.EARN_STONES:
         return this.processEarnStones(effect, context)

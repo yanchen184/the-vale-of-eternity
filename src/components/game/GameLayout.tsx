@@ -2,9 +2,9 @@
  * GameLayout Component
  * Symmetric layout container for multiplayer game
  * Fixed height, no scroll, left-right balanced design
- * @version 1.4.0 - Added cardScaleControls support to GameHeader
+ * @version 1.6.0 - Added prominent action buttons (Confirm/End Turn) to header center
  */
-console.log('[components/game/GameLayout.tsx] v1.4.0 loaded')
+console.log('[components/game/GameLayout.tsx] v1.6.0 loaded')
 
 import { memo, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
@@ -154,6 +154,14 @@ export interface GameHeaderProps {
   onPassTurn?: () => void
   /** Whether to show pass button */
   showPassTurn?: boolean
+  /** Confirm selection callback (hunting phase) */
+  onConfirmSelection?: () => void
+  /** Whether to show confirm selection button */
+  showConfirmSelection?: boolean
+  /** Whether confirm selection is disabled */
+  confirmSelectionDisabled?: boolean
+  /** Number of unprocessed action cards */
+  unprocessedActionCards?: number
   /** Optional card scale controls (React node) */
   cardScaleControls?: React.ReactNode
 }
@@ -187,6 +195,10 @@ export const GameHeader = memo(function GameHeader({
   onViewSanctuary,
   onPassTurn,
   showPassTurn = false,
+  onConfirmSelection,
+  showConfirmSelection = false,
+  confirmSelectionDisabled = false,
+  unprocessedActionCards = 0,
   cardScaleControls,
 }: GameHeaderProps) {
   return (
@@ -229,7 +241,7 @@ export const GameHeader = memo(function GameHeader({
         </div>
       </div>
 
-      {/* Center: Turn Indicator */}
+      {/* Center: Turn Indicator + Action Buttons */}
       {phase !== 'WAITING' && phase !== 'ENDED' && (
         <div className="flex items-center gap-3">
           <div
@@ -243,14 +255,75 @@ export const GameHeader = memo(function GameHeader({
             {isYourTurn ? '輪到你了！' : `${currentPlayerName} 的回合`}
           </div>
 
-          {/* Pass Turn Button */}
+          {/* Confirm Selection Button - Hunting Phase */}
+          {showConfirmSelection && isYourTurn && onConfirmSelection && (
+            <button
+              type="button"
+              onClick={confirmSelectionDisabled ? undefined : onConfirmSelection}
+              disabled={confirmSelectionDisabled}
+              className={cn(
+                'px-6 py-2.5 text-sm font-black rounded-lg border-2 shadow-lg transition-all duration-200',
+                confirmSelectionDisabled
+                  ? [
+                      'bg-gradient-to-br from-slate-600 to-slate-700',
+                      'text-slate-400',
+                      'border-slate-500/50',
+                      'shadow-slate-900/50',
+                      'cursor-not-allowed',
+                      'opacity-50',
+                    ]
+                  : [
+                      'bg-gradient-to-br from-emerald-600 to-emerald-700',
+                      'hover:from-emerald-500 hover:to-emerald-600',
+                      'active:from-emerald-700 active:to-emerald-800',
+                      'text-white',
+                      'border-emerald-400/70',
+                      'shadow-emerald-900/50',
+                      'hover:scale-110 active:scale-95',
+                      'animate-pulse',
+                    ]
+              )}
+            >
+              ✅ 確認選擇
+            </button>
+          )}
+
+          {/* End Turn Button - Action/Resolution Phase */}
           {showPassTurn && isYourTurn && onPassTurn && (
             <button
-              onClick={onPassTurn}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors"
-              data-testid="pass-turn-btn"
+              type="button"
+              onClick={unprocessedActionCards === 0 ? onPassTurn : undefined}
+              disabled={unprocessedActionCards > 0}
+              title={
+                unprocessedActionCards === 0
+                  ? '結束你的回合'
+                  : `還有 ${unprocessedActionCards} 張行動階段卡片未處理（需上手或賣出）`
+              }
+              className={cn(
+                'px-6 py-2.5 text-sm font-black rounded-lg border-2 shadow-lg transition-all duration-200',
+                unprocessedActionCards === 0
+                  ? [
+                      'bg-gradient-to-br from-red-600 to-red-700',
+                      'hover:from-red-500 hover:to-red-600',
+                      'active:from-red-700 active:to-red-800',
+                      'text-white',
+                      'border-red-400/70',
+                      'shadow-red-900/50',
+                      'hover:scale-110 active:scale-95',
+                      'animate-pulse',
+                      'cursor-pointer',
+                    ]
+                  : [
+                      'bg-gradient-to-br from-slate-600 to-slate-700',
+                      'text-slate-400',
+                      'border-slate-500/50',
+                      'shadow-slate-900/50',
+                      'cursor-not-allowed',
+                      'opacity-50',
+                    ]
+              )}
             >
-              結束回合
+              🔚 回合結束
             </button>
           )}
         </div>

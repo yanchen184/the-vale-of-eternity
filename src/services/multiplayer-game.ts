@@ -1,9 +1,9 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 4.8.0 - Fix market size: playerCount × 2 (Seven-League Boots +1)
+ * @version 4.11.0 - Added action logs to moveCurrentDrawnCardToHand and sellCurrentDrawnCard
  */
-console.log('[services/multiplayer-game.ts] v4.8.0 loaded')
+console.log('[services/multiplayer-game.ts] v4.11.0 loaded')
 
 import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -157,6 +157,21 @@ export interface ArtifactSelectionPhase {
 
 export type GamePhase = 'WAITING' | 'HUNTING' | 'ACTION' | 'RESOLUTION' | 'ENDED'
 
+/**
+ * Action Log Entry
+ * Records game actions for display in action log
+ */
+export interface ActionLogEntry {
+  id: string              // Unique log entry ID
+  timestamp: number       // When the action occurred
+  round: number          // Which round this action occurred in
+  playerId: string       // Player who performed the action
+  playerName: string     // Player's display name
+  action: string         // Action type: 'draw', 'sell', 'tame', 'pass', 'return', 'discard', etc.
+  cardName?: string      // Card name involved (if applicable)
+  details?: string       // Additional details (e.g., "獲得 2×6 + 1×3 石頭")
+}
+
 export interface GameRoom {
   gameId: string
   roomCode: string  // 6-digit room code
@@ -194,6 +209,9 @@ export interface GameRoom {
 
   // UI state synchronization
   showScoreModal?: boolean  // Synchronized modal state controlled by current turn player
+
+  // Action Log (v6.6.0)
+  actionLog?: ActionLogEntry[]  // Game action history
 
   createdAt: number
   updatedAt: number
@@ -1559,7 +1577,8 @@ export class MultiplayerGameService {
   async moveCurrentDrawnCardToHand(
     gameId: string,
     playerId: string,
-    cardInstanceId: string
+    cardInstanceId: string,
+    playerName?: string
   ): Promise<void> {
     const gameRef = ref(database, `games/${gameId}`)
     const snapshot = await get(gameRef)
@@ -1612,6 +1631,18 @@ export class MultiplayerGameService {
     })
 
     console.log(`[MultiplayerGame] Player ${playerId} moved card ${cardInstanceId} from currentDrawnCards to hand`)
+
+    // Record action log
+    if (playerName) {
+      const cardSnapshot = await get(ref(database, `games/${gameId}/cards/${cardInstanceId}`))
+      if (cardSnapshot.exists()) {
+        const cardData = cardSnapshot.val() as CardInstanceData
+        const { getCardById } = await import('@/data/cards/base-cards')
+        const cardTemplate = getCardById(cardData.cardId)
+        const cardName = cardTemplate?.nameTw || cardTemplate?.name || '未知卡片'
+        await this.addActionLog(gameId, playerId, playerName, 'move_to_hand', cardName, '上手')
+      }
+    }
   }
 
   /**
@@ -1621,7 +1652,8 @@ export class MultiplayerGameService {
   async sellCurrentDrawnCard(
     gameId: string,
     playerId: string,
-    cardInstanceId: string
+    cardInstanceId: string,
+    playerName?: string
   ): Promise<void> {
     const gameRef = ref(database, `games/${gameId}`)
     const snapshot = await get(gameRef)
@@ -1718,6 +1750,15 @@ export class MultiplayerGameService {
     console.log(
       `[MultiplayerGame] Player ${playerId} sold ${cardTemplate.element} card ${cardInstanceId} (${card.name}) from currentDrawnCards and received ${coinsDescription}`
     )
+
+    // Record action log
+    if (playerName) {
+      const { getCardById } = await import('@/data/cards/base-cards')
+      const template = getCardById(card.cardId)
+      const cardName = template?.nameTw || template?.name || '未知卡片'
+      const sellValue = template?.element ? getElementSellValue(template.element) : 0
+      await this.addActionLog(gameId, playerId, playerName, 'sell', cardName, `獲得 ${sellValue} 元`)
+    }
   }
 
   /**
@@ -3545,6 +3586,61 @@ export class MultiplayerGameService {
 
       console.log(`[MultiplayerGame] Firebase update completed: currentPlayerIndex = ${nextPlayerIndex}`)
     }
+  }
+
+  /**
+   * Add action log entry
+   * @param gameId Game ID
+   * @param playerId Player who performed the action
+   * @param playerName Player's display name
+   * @param action Action type
+   * @param cardName Optional card name
+   * @param details Optional details
+   */
+  async addActionLog(
+    gameId: string,
+    playerId: string,
+    playerName: string,
+    action: string,
+    cardName?: string,
+    details?: string
+  ): Promise<void> {
+    console.log(`[MultiplayerGame] Adding action log: ${playerName} ${action} ${cardName || ''}`)
+
+    const gameRef = ref(database, `games/${gameId}`)
+    const snapshot = await get(gameRef)
+
+    if (!snapshot.exists()) {
+      throw new Error('Game not found')
+    }
+
+    const gameData = snapshot.val() as GameRoom
+    const currentRound = gameData.currentRound || 1
+    const currentLogs = gameData.actionLog || []
+
+    const newLog: ActionLogEntry = {
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: Date.now(),
+      round: currentRound,
+      playerId,
+      playerName,
+      action,
+    }
+
+    // Only add optional fields if they have values (Firebase doesn't accept undefined)
+    if (cardName !== undefined) {
+      newLog.cardName = cardName
+    }
+    if (details !== undefined) {
+      newLog.details = details
+    }
+
+    await update(gameRef, {
+      actionLog: [...currentLogs, newLog],
+      updatedAt: Date.now(),
+    })
+
+    console.log(`[MultiplayerGame] Action log added successfully`)
   }
 }
 

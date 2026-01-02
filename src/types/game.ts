@@ -116,6 +116,10 @@ export interface SinglePlayerState {
   field: CardInstance[]
   /** Stone pool (7 types) */
   stones: StonePool
+  /** Cards drawn/selected this turn (for ACTION phase display) */
+  currentTurnCards?: CardInstance[]
+  /** Selected artifact for this game */
+  selectedArtifact?: CardInstance
 }
 
 /**
@@ -178,12 +182,21 @@ export interface SinglePlayerGameState {
   isExpansionMode?: boolean
   /** Available artifacts for selection */
   availableArtifacts?: string[]
-  /** Selected artifact */
+  /** Selected artifact (temporary selection before confirmation) */
   selectedArtifact?: string | null
   /** Initial cards for selection (2 cards) */
   initialCards?: CardInstance[]
   /** Selected initial card */
   selectedInitialCard?: string | null
+
+  // === Artifact Selection Phase (v3.3.0) - Like multiplayer ===
+  /** Artifact selection phase state (tracks if artifact selection is complete) */
+  artifactSelectionPhase?: {
+    /** Whether artifact selection is complete (can now select cards) */
+    isComplete: boolean
+    /** Confirmed artifact ID (after clicking confirm button) */
+    confirmedArtifactId?: string | null
+  }
 }
 
 /**

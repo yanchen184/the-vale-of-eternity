@@ -1,9 +1,9 @@
 /**
  * Card Gallery Page - Display all cards and artifacts
  * Supports Base Game (70 cards), DLC (28 cards), and Artifacts (11)
- * @version 4.5.0 - Added effect implementation status filter and statistics
+ * @version 4.6.0 - Added effect trigger type filter (閃電/常駐/結算階段)
  */
-console.log('[pages/CardGallery.tsx] v4.5.0 loaded')
+console.log('[pages/CardGallery.tsx] v4.6.0 loaded')
 
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -59,7 +59,7 @@ import {
   SEVEN_LEAGUE_BOOTS,
   GOLDEN_FLEECE,
 } from '@/data/artifacts'
-import { Element, ELEMENT_ICONS, ELEMENT_NAMES_TW } from '@/types/cards'
+import { Element, ELEMENT_ICONS, ELEMENT_NAMES_TW, EffectTrigger } from '@/types/cards'
 import type { CardTemplate } from '@/types/cards'
 import type { Artifact } from '@/types/artifacts'
 import { ArtifactType, ArtifactCategory } from '@/types/artifacts'
@@ -68,6 +68,7 @@ import { cn } from '@/lib/utils'
 import {
   ImplementationStatus,
   getCardImplementationStatus,
+  isEffectFullyImplemented,
 } from '@/utils/effect-implementation-status'
 
 // ============================================
@@ -79,6 +80,7 @@ type FilterElement = 'all' | Element
 type GalleryTab = 'base' | 'dlc' | 'artifacts'
 type ArtifactFilter = 'all' | 'core' | 'random' | 'player_based'
 type ImplementationFilter = 'all' | 'implemented' | 'partial' | 'not_implemented'
+type EffectTriggerFilter = 'all' | 'on_tame' | 'permanent' | 'on_score'
 
 // ============================================
 // CONSTANTS
@@ -703,6 +705,7 @@ export function CardGallery() {
   const [showImagePreview, setShowImagePreview] = useState(false)
   const [cardScale, setCardScale] = useState(100) // Card size: 75%, 100%, 125%, 150%
   const [implementationFilter, setImplementationFilter] = useState<ImplementationFilter>('all')
+  const [triggerFilter, setTriggerFilter] = useState<EffectTriggerFilter>('all')
 
   // Validate card data on mount
   const validation = useMemo(() => validateCardData(), [])
@@ -744,8 +747,31 @@ export function CardGallery() {
       })
     }
 
+    // Apply effect trigger filter
+    if (triggerFilter !== 'all') {
+      cards = cards.filter((card) => {
+        return card.effects.some((effect) => {
+          switch (triggerFilter) {
+            case 'on_tame':
+              // Only include ON_TAME effects that are fully implemented
+              // Use the official FULLY_IMPLEMENTED_EFFECTS list from effect-implementation-status.ts
+              return (
+                effect.trigger === EffectTrigger.ON_TAME &&
+                isEffectFullyImplemented(effect.type)
+              )
+            case 'permanent':
+              return effect.trigger === EffectTrigger.PERMANENT
+            case 'on_score':
+              return effect.trigger === EffectTrigger.ON_SCORE
+            default:
+              return true
+          }
+        })
+      })
+    }
+
     return cards
-  }, [activeTab, elementFilter, searchQuery, implementationFilter])
+  }, [activeTab, elementFilter, searchQuery, implementationFilter, triggerFilter])
 
   // Get filtered artifacts
   const filteredArtifacts = useMemo(() => {
@@ -811,6 +837,42 @@ export function CardGallery() {
     }
   }, [activeTab])
 
+  // Calculate effect trigger statistics for current tab
+  const triggerStats = useMemo(() => {
+    if (activeTab === 'artifacts') {
+      return { total: 0, onTame: 0, permanent: 0, onScore: 0 }
+    }
+
+    const isDlc = activeTab === 'dlc'
+    const allCards = getCardsByFilter('all', isDlc)
+
+    let onTame = 0
+    let permanent = 0
+    let onScore = 0
+
+    for (const card of allCards) {
+      // For ON_TAME, only count fully implemented effects
+      const hasOnTame = card.effects.some(
+        (effect) =>
+          effect.trigger === EffectTrigger.ON_TAME &&
+          isEffectFullyImplemented(effect.type)
+      )
+      const hasPermanent = card.effects.some((effect) => effect.trigger === EffectTrigger.PERMANENT)
+      const hasOnScore = card.effects.some((effect) => effect.trigger === EffectTrigger.ON_SCORE)
+
+      if (hasOnTame) onTame++
+      if (hasPermanent) permanent++
+      if (hasOnScore) onScore++
+    }
+
+    return {
+      total: allCards.length,
+      onTame,
+      permanent,
+      onScore,
+    }
+  }, [activeTab])
+
   // Handle image click for preview
   const handleImagePreview = () => {
     if (selectedCard || selectedArtifact) {
@@ -827,6 +889,7 @@ export function CardGallery() {
     setElementFilter('all')
     setArtifactFilter('all')
     setImplementationFilter('all')
+    setTriggerFilter('all')
   }
 
   // Get current cards based on active tab for element filter counts
@@ -1034,6 +1097,118 @@ export function CardGallery() {
             ))}
           </div>
         ) : null}
+
+        {/* Effect Trigger Type Filter - only for cards */}
+        {activeTab !== 'artifacts' && (
+          <div className="mb-6 space-y-3">
+            {/* Trigger Type Statistics Bar */}
+            <div className="flex flex-wrap items-center justify-center gap-4 p-3 rounded-xl bg-slate-800/30 border border-slate-700/30">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-slate-400">效果觸發類型：</span>
+                <span className="font-medium text-slate-200">
+                  共 {triggerStats.total} 張
+                </span>
+              </div>
+              <div className="h-4 w-px bg-slate-700" />
+              <div className="flex items-center gap-1.5">
+                <Zap className="w-4 h-4 text-yellow-400" />
+                <span className="text-sm text-yellow-300">{triggerStats.onTame} 閃電效果</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Infinity className="w-4 h-4 text-purple-400" />
+                <span className="text-sm text-purple-300">{triggerStats.permanent} 常駐效果</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Crown className="w-4 h-4 text-amber-400" />
+                <span className="text-sm text-amber-300">{triggerStats.onScore} 結算效果</span>
+              </div>
+            </div>
+
+            {/* Trigger Type Filters */}
+            <div className="flex flex-wrap gap-2 justify-center">
+              <button
+                onClick={() => setTriggerFilter('all')}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-2 rounded-xl',
+                  'transition-all duration-300 transform',
+                  'border-2',
+                  triggerFilter === 'all'
+                    ? 'bg-gradient-to-br from-vale-900/50 to-vale-950/70 border-vale-500/50 scale-105 shadow-lg'
+                    : 'bg-slate-800/50 border-slate-700/50 hover:border-slate-600 hover:bg-slate-800',
+                  'focus:outline-none focus:ring-2 focus:ring-vale-400'
+                )}
+              >
+                <Sparkles className={cn('w-4 h-4', triggerFilter === 'all' ? 'text-vale-400' : 'text-slate-400')} />
+                <span className={cn('font-medium text-sm', triggerFilter === 'all' ? 'text-slate-100' : 'text-slate-400')}>
+                  全部效果
+                </span>
+                <span className={cn('px-1.5 py-0.5 text-xs rounded-full', triggerFilter === 'all' ? 'bg-slate-900/50 text-slate-200' : 'bg-slate-700/50 text-slate-500')}>
+                  {triggerStats.total}
+                </span>
+              </button>
+              <button
+                onClick={() => setTriggerFilter('on_tame')}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-2 rounded-xl',
+                  'transition-all duration-300 transform',
+                  'border-2',
+                  triggerFilter === 'on_tame'
+                    ? 'bg-gradient-to-br from-yellow-900/50 to-yellow-950/70 border-yellow-500/50 scale-105 shadow-lg'
+                    : 'bg-slate-800/50 border-slate-700/50 hover:border-slate-600 hover:bg-slate-800',
+                  'focus:outline-none focus:ring-2 focus:ring-vale-400'
+                )}
+              >
+                <Zap className={cn('w-4 h-4', triggerFilter === 'on_tame' ? 'text-yellow-400' : 'text-slate-400')} />
+                <span className={cn('font-medium text-sm', triggerFilter === 'on_tame' ? 'text-slate-100' : 'text-slate-400')}>
+                  閃電效果
+                </span>
+                <span className={cn('px-1.5 py-0.5 text-xs rounded-full', triggerFilter === 'on_tame' ? 'bg-slate-900/50 text-slate-200' : 'bg-slate-700/50 text-slate-500')}>
+                  {triggerStats.onTame}
+                </span>
+              </button>
+              <button
+                onClick={() => setTriggerFilter('permanent')}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-2 rounded-xl',
+                  'transition-all duration-300 transform',
+                  'border-2',
+                  triggerFilter === 'permanent'
+                    ? 'bg-gradient-to-br from-purple-900/50 to-purple-950/70 border-purple-500/50 scale-105 shadow-lg'
+                    : 'bg-slate-800/50 border-slate-700/50 hover:border-slate-600 hover:bg-slate-800',
+                  'focus:outline-none focus:ring-2 focus:ring-vale-400'
+                )}
+              >
+                <Infinity className={cn('w-4 h-4', triggerFilter === 'permanent' ? 'text-purple-400' : 'text-slate-400')} />
+                <span className={cn('font-medium text-sm', triggerFilter === 'permanent' ? 'text-slate-100' : 'text-slate-400')}>
+                  常駐效果
+                </span>
+                <span className={cn('px-1.5 py-0.5 text-xs rounded-full', triggerFilter === 'permanent' ? 'bg-slate-900/50 text-slate-200' : 'bg-slate-700/50 text-slate-500')}>
+                  {triggerStats.permanent}
+                </span>
+              </button>
+              <button
+                onClick={() => setTriggerFilter('on_score')}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-2 rounded-xl',
+                  'transition-all duration-300 transform',
+                  'border-2',
+                  triggerFilter === 'on_score'
+                    ? 'bg-gradient-to-br from-amber-900/50 to-amber-950/70 border-amber-500/50 scale-105 shadow-lg'
+                    : 'bg-slate-800/50 border-slate-700/50 hover:border-slate-600 hover:bg-slate-800',
+                  'focus:outline-none focus:ring-2 focus:ring-vale-400'
+                )}
+              >
+                <Crown className={cn('w-4 h-4', triggerFilter === 'on_score' ? 'text-amber-400' : 'text-slate-400')} />
+                <span className={cn('font-medium text-sm', triggerFilter === 'on_score' ? 'text-slate-100' : 'text-slate-400')}>
+                  結算效果
+                </span>
+                <span className={cn('px-1.5 py-0.5 text-xs rounded-full', triggerFilter === 'on_score' ? 'bg-slate-900/50 text-slate-200' : 'bg-slate-700/50 text-slate-500')}>
+                  {triggerStats.onScore}
+                </span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Implementation Status Filter and Stats - only for cards */}
         {activeTab !== 'artifacts' && (
