@@ -1,9 +1,9 @@
 /**
- * Single Player Game Page v8.6.0
+ * Single Player Game Page v9.3.0
  * Main gameplay interface for single-player mode - With artifact selection and coin display
- * @version 8.6.0 - Added currentTurnCards and selectedArtifact to fieldData
+ * @version 9.3.0 - Fixed field card return/discard buttons in ActionPhaseUI
  */
-console.log('[pages/SinglePlayerGame.tsx] v8.6.0 loaded - Added currentTurnCards and selectedArtifact to fieldData')
+console.log('[pages/SinglePlayerGame.tsx] v9.3.0 loaded - Field card buttons implemented')
 
 import { useEffect, useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -88,13 +88,18 @@ export default function SinglePlayerGame() {
     gameState,
     startGame,
     drawCard,
+    drawCardInActionPhase,
     takeCardsFromMarket,
     tameCreature,
     moveCurrentCardToHand,
     sellCurrentCard,
     pass,
+    completeSettlement,
+    returnCardToHand,
     discardCard,
     moveToSanctuary,
+    takeCardFromDiscard,
+    takeCardFromSanctuary,
     resetGame,
     canTameCard,
     selectArtifact,
@@ -102,7 +107,7 @@ export default function SinglePlayerGame() {
     addStones,
     removeStones,
     getCurrentScore,
-    adjustScore,
+    toggleAreaBonus,
     error,
   } = useGameStore()
 
@@ -122,7 +127,8 @@ export default function SinglePlayerGame() {
   const [showAllFieldsModal, setShowAllFieldsModal] = useState(false)
   const [showScoreModal, setShowScoreModal] = useState(false)
   const [isFlipped, setIsFlipped] = useState(false)
-  const [zoneBonus, setZoneBonus] = useState(0) // 0, 1, or 2
+  const [manualScore, setManualScore] = useState<number | null>(null) // Manual score override
+  const [handViewMode, setHandViewMode] = useState<'minimized' | 'standard' | 'expanded'>('standard')
 
   // Card selection state for DRAW phase (after artifact selection)
   const [selectedMarketCards, setSelectedMarketCards] = useState<Set<string>>(new Set())
@@ -153,7 +159,8 @@ export default function SinglePlayerGame() {
     if (!phase) return 'WAITING' as const
     if (gameOver.isOver) return 'ENDED' as const
     if (phase === SinglePlayerPhase.DRAW) return 'HUNTING' as const
-    // Both ACTION and SCORE phases use 'ACTION' UI (SCORE is just settlement)
+    if (phase === SinglePlayerPhase.SCORE) return 'RESOLUTION' as const
+    // ACTION phase uses 'ACTION' UI
     return 'ACTION' as const
   }, [phase, gameOver.isOver])
 
@@ -170,14 +177,18 @@ export default function SinglePlayerGame() {
     playerId: 'single-player',
     playerName: playerName || 'Player',
     color: 'green' as const,
-    score: currentScore,
+    score: manualScore !== null ? manualScore : currentScore, // Use manual score if set
     isFlipped: isFlipped,
-  }], [playerName, currentScore, isFlipped])
+  }], [playerName, currentScore, isFlipped, manualScore])
 
   // Discard pile (single player doesn't have discard pile yet)
   const discardPile = useMemo(() => {
     return gameState?.discardPile || []
   }, [gameState?.discardPile])
+
+  const sanctuary = useMemo(() => {
+    return gameState?.sanctuary || []
+  }, [gameState?.sanctuary])
 
   // Artifact selection map for HuntingPhaseUI
   const artifactSelectionMap = useMemo(() => {
@@ -233,8 +244,8 @@ export default function SinglePlayerGame() {
     fieldCount: field?.length || 0,
     score: totalStoneValue,
     hasPassed: false,
-    zoneBonus: zoneBonus as 0 | 1 | 2,
-  }), [playerName, stones, hand, field, totalStoneValue, zoneBonus])
+    zoneBonus: (gameState?.player.areaBonus ?? 0) as 0 | 1 | 2,
+  }), [playerName, stones, hand, field, totalStoneValue, gameState?.player.areaBonus])
 
   // Prepare field data for PlayersFieldArea
   const fieldData: PlayerFieldData = useMemo(() => {
@@ -279,11 +290,17 @@ export default function SinglePlayerGame() {
     drawCard()
   }, [phase, drawCard])
 
-  // Handle pass action
+  // Handle pass action (ACTION → SCORE)
   const handlePass = useCallback(() => {
     if (phase !== SinglePlayerPhase.ACTION) return
     pass()
   }, [phase, pass])
+
+  // Handle complete settlement (SCORE → next DRAW)
+  const handleCompleteSettlement = useCallback(() => {
+    if (phase !== SinglePlayerPhase.SCORE) return
+    completeSettlement()
+  }, [phase, completeSettlement])
 
   // Handle move current card to hand
   const handleMoveCurrentCardToHand = useCallback((_playerId: string, cardId: string) => {
@@ -311,20 +328,30 @@ export default function SinglePlayerGame() {
 
   // Handle score adjustment (click on score track)
   const handleScoreAdjust = useCallback((_playerId: string, newScore: number) => {
-    const currentScoreValue = getCurrentScore()
-    const scoreDiff = newScore - currentScoreValue
-    adjustScore(scoreDiff, `手動調整分數到 ${newScore}`)
-  }, [getCurrentScore, adjustScore])
+    console.log('[SinglePlayerGame] handleScoreAdjust - setting manual score to:', newScore)
+    setManualScore(newScore)
+  }, [])
 
   // Handle flip toggle (+60/-60)
   const handleFlipToggle = useCallback((_playerId: string) => {
-    setIsFlipped(prev => !prev)
-  }, [])
+    console.log('[SinglePlayerGame] handleFlipToggle - current isFlipped:', isFlipped)
+    const newFlipState = !isFlipped
+    const scoreAdjustment = newFlipState ? 60 : -60
+
+    // Adjust manual score
+    setManualScore(prev => {
+      const baseScore = prev !== null ? prev : currentScore
+      return baseScore + scoreAdjustment
+    })
+
+    setIsFlipped(newFlipState)
+    console.log('[SinglePlayerGame] Flip toggled:', { newFlipState, scoreAdjustment })
+  }, [isFlipped, currentScore])
 
   // Handle zone bonus toggle (0→1→2→0)
   const handleToggleZoneBonus = useCallback(() => {
-    setZoneBonus(prev => (prev + 1) % 3) // 0→1→2→0
-  }, [])
+    toggleAreaBonus()
+  }, [toggleAreaBonus])
 
   // Reserved for ActionPhaseUI
   void handleScoreAdjust
@@ -439,8 +466,14 @@ export default function SinglePlayerGame() {
             onViewScore={() => setShowScoreModal(true)}
             onViewAllFields={() => setShowAllFieldsModal(true)}
             onViewSanctuary={() => setShowSanctuaryModal(true)}
-            onPassTurn={phase === SinglePlayerPhase.ACTION ? handlePass : undefined}
-            showPassTurn={phase === SinglePlayerPhase.ACTION}
+            onPassTurn={
+              phase === SinglePlayerPhase.ACTION
+                ? handlePass
+                : phase === SinglePlayerPhase.SCORE
+                  ? handleCompleteSettlement
+                  : undefined
+            }
+            showPassTurn={phase === SinglePlayerPhase.ACTION || phase === SinglePlayerPhase.SCORE}
             onConfirmSelection={
               // Like multiplayer: handle both artifact and card confirmation
               // 1. If artifact selection active and has selected artifact → confirm artifact
@@ -470,11 +503,16 @@ export default function SinglePlayerGame() {
             currentTurnPlayerId="single-player"
             phase={multiplayerPhase}
             deckCount={deckSize}
-            onDrawCard={(phase === SinglePlayerPhase.DRAW ||
-                         phase === SinglePlayerPhase.ACTION) ? handleDraw : undefined}
+            onDrawCard={
+              phase === SinglePlayerPhase.DRAW
+                ? handleDraw
+                : phase === SinglePlayerPhase.ACTION
+                  ? drawCardInActionPhase
+                  : undefined
+            }
             onToggleZoneBonus={handleToggleZoneBonus}
             currentRound={round}
-            mySelectedArtifacts={selectedArtifactCard ? [selectedArtifactCard.cardId] : []}
+            mySelectedArtifacts={artifactSelectionPhase?.confirmedArtifactId ? [artifactSelectionPhase.confirmedArtifactId] : []}
             allArtifactSelections={{}}
           />
         }
@@ -587,16 +625,24 @@ export default function SinglePlayerGame() {
                 onHandCardDiscard={(_cardId) => {
                   console.log('[SinglePlayerGame] onHandCardDiscard: not implemented in single player')
                 }}
-                onCardReturn={(_playerId, _cardId) => {
-                  console.log('[SinglePlayerGame] onCardReturn: not implemented in single player')
+                onCardReturn={(_playerId, cardId) => {
+                  console.log('[SinglePlayerGame] 場上卡片回手:', cardId)
+                  returnCardToHand(cardId)
                 }}
-                onCardDiscard={(_playerId, _cardId) => {
-                  console.log('[SinglePlayerGame] onCardDiscard: not implemented in single player')
+                onCardDiscard={(_playerId, cardId) => {
+                  console.log('[SinglePlayerGame] 場上卡片棄置:', cardId)
+                  discardCard(cardId)
                 }}
                 onScoreAdjust={handleScoreAdjust}
                 onFlipToggle={handleFlipToggle}
                 onCurrentCardMoveToHand={handleMoveCurrentCardToHand}
                 onCurrentCardSell={handleSellCurrentCard}
+                onCurrentTurnCardClick={(_playerId, _cardId) => {
+                  // When clicking current turn cards, expand hand panel if minimized
+                  if (handViewMode === 'minimized') {
+                    setHandViewMode('standard')
+                  }
+                }}
                 canTameCard={canTameCard}
               />
             ) : (
@@ -652,8 +698,14 @@ export default function SinglePlayerGame() {
                       const card = hand?.find(c => c.instanceId === cardId)
                       if (card) handleHandCardClick(card)
                     }}
-                    onCardDiscard={(_playerId, cardId) => discardCard(cardId)}
-                    onCardMoveToSanctuary={(_playerId, cardId) => moveToSanctuary(cardId)}
+                    onCardReturn={(_playerId, cardId) => {
+                      console.log('[SinglePlayerGame] 回手按鈕被點擊:', cardId)
+                      returnCardToHand(cardId)
+                    }}
+                    onCardDiscard={(_playerId, cardId) => {
+                      console.log('[SinglePlayerGame] 棄置按鈕被點擊:', cardId)
+                      discardCard(cardId)
+                    }}
                     onCurrentCardMoveToHand={handleMoveCurrentCardToHand}
                     onCurrentCardSell={handleSellCurrentCard}
                   />
@@ -725,6 +777,8 @@ export default function SinglePlayerGame() {
           return canTameCard(cardId)
         }}
         currentRound={round}
+        externalViewMode={handViewMode}
+        onViewModeChange={setHandViewMode}
       />
 
       {/* Discard Pile Modal */}
@@ -738,11 +792,45 @@ export default function SinglePlayerGame() {
           {discardPile.length === 0 ? (
             <div className="text-center text-slate-500 py-8">尚無棄置的卡片</div>
           ) : (
-            <div className="flex flex-wrap gap-6">
-              {discardPile.map((card, index) => (
-                <Card key={card.instanceId} card={card} index={index} />
-              ))}
-            </div>
+            <>
+              <p className="text-sm text-slate-400 mb-6">
+                共 {discardPile.length} 張卡片已棄置（點擊拿取按鈕拿回到手上）
+              </p>
+              <div className="flex flex-wrap gap-6 max-h-[70vh] overflow-y-auto justify-start px-4">
+                {discardPile.map((card, index) => (
+                  <div
+                    key={card.instanceId}
+                    className="animate-fade-in relative"
+                    style={{
+                      animationDelay: `${index * 30}ms`,
+                      width: '9rem',  // 144px - about 40% of original 358px
+                      height: '13.5rem'  // 216px - about 40% of original 538px
+                    }}
+                  >
+                    {/* Card scaled down */}
+                    <div className="transform scale-[0.4] origin-top-left">
+                      <Card card={card} index={index} compact={false} currentRound={round} />
+                    </div>
+                    {/* Take button - always available */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        takeCardFromDiscard(card.instanceId)
+                        setShowDiscardModal(false)
+                      }}
+                      className={cn(
+                        'absolute bottom-0 left-0 right-0 z-50 text-white text-xs font-bold py-2 px-3 rounded-lg transition-all shadow-lg hover:scale-105',
+                        'bg-blue-600 hover:bg-blue-500 hover:shadow-blue-500/50'
+                      )}
+                      type="button"
+                      title="拿到手上"
+                    >
+                      拿到手上
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
       </Modal>
@@ -787,10 +875,48 @@ export default function SinglePlayerGame() {
         isOpen={showSanctuaryModal}
         onClose={() => setShowSanctuaryModal(false)}
         size="wide"
-        title="棲息地"
+        title={`棲息地 (${sanctuary.length} 張)`}
       >
         <div className="p-4">
-          <div className="text-center text-slate-500">單人遊戲尚未支援棲息地功能</div>
+          {sanctuary.length === 0 ? (
+            <div className="text-center text-slate-500">棲息地中沒有卡片</div>
+          ) : (
+            <>
+              <div className="flex flex-wrap gap-6 max-h-[70vh] overflow-y-auto justify-start px-4">
+                {sanctuary.map((card, index) => (
+                  <div
+                    key={card.instanceId}
+                    className="animate-fade-in relative group"
+                    style={{
+                      animationDelay: `${index * 30}ms`,
+                      width: '9rem',
+                      height: '13.5rem'
+                    }}
+                  >
+                    <div className="transform scale-[0.4] origin-top-left">
+                      <Card card={card} index={index} compact={false} currentRound={round} />
+                    </div>
+                    {/* Return to Hand Button */}
+                    {phase === SinglePlayerPhase.ACTION && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          takeCardFromSanctuary(card.instanceId)
+                          if (sanctuary.length === 1) {
+                            setShowSanctuaryModal(false)
+                          }
+                        }}
+                        className="absolute bottom-0 left-0 right-0 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-lg"
+                        style={{ transform: 'scale(2.5)', transformOrigin: 'bottom left' }}
+                      >
+                        回手
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </Modal>
 

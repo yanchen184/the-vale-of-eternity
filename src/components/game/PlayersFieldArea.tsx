@@ -2,9 +2,9 @@
  * PlayersFieldArea Component
  * Displays all players' field cards - each player gets a horizontal row
  * Integrated with hand preview and current turn cards display
- * @version 5.3.0 - Fixed double modal issue for current turn cards
+ * @version 5.4.0 - 點擊行動回合手牌觸發展開底部手牌區回調
  */
-console.log('[components/game/PlayersFieldArea.tsx] v5.3.0 loaded')
+console.log('[components/game/PlayersFieldArea.tsx] v5.4.0 loaded')
 
 import { memo, useMemo, useCallback, useState } from 'react'
 import { Card } from './Card'
@@ -55,6 +55,8 @@ export interface PlayersFieldAreaProps {
   onCurrentCardMoveToHand?: (playerId: string, cardId: string) => void
   /** Callback when a current turn card is sold (optional) */
   onCurrentCardSell?: (playerId: string, cardId: string) => void
+  /** Callback when a current turn card is clicked - used to expand hand panel if minimized (optional) */
+  onCurrentTurnCardClick?: (playerId: string, cardId: string) => void
   /** Additional CSS classes */
   className?: string
 }
@@ -519,6 +521,7 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
   onCardMoveToSanctuary,
   onCurrentCardMoveToHand,
   onCurrentCardSell,
+  onCurrentTurnCardClick,
   className,
 }: PlayersFieldAreaProps) {
   console.log('[PlayersFieldArea] Props received:', {
@@ -564,7 +567,10 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
       // Show preview modal
       setPreviewCard(card)
     }
-  }, [players])
+
+    // Call the parent callback to potentially expand hand panel
+    onCurrentTurnCardClick?.(playerId, cardId)
+  }, [players, onCurrentTurnCardClick])
 
   const handlePlayerCardReturn = useCallback((playerId: string, cardId: string) => {
     onCardReturn?.(playerId, cardId)

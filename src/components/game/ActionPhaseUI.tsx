@@ -2,9 +2,9 @@
  * ActionPhaseUI Component
  * Shared action phase UI for both single-player and multiplayer games
  * Displays player field areas and resolution phase controls
- * @version 1.0.0
+ * @version 1.1.0 - 支援行動回合手牌點擊回調
  */
-console.log('[components/game/ActionPhaseUI.tsx] v1.0.0 loaded')
+console.log('[components/game/ActionPhaseUI.tsx] v1.1.0 loaded')
 
 import { PlayersFieldArea } from './PlayersFieldArea'
 import { Button } from '@/components/ui/Button'
@@ -37,6 +37,7 @@ export interface ActionPhaseUIProps {
   // Current turn card handlers (v2.0.0)
   onCurrentCardMoveToHand?: (playerId: string, cardId: string) => void
   onCurrentCardSell?: (playerId: string, cardId: string) => void
+  onCurrentTurnCardClick?: (playerId: string, cardId: string) => void
 }
 
 // ============================================
@@ -63,6 +64,7 @@ export function ActionPhaseUI({
   onFinishResolution,
   onCurrentCardMoveToHand,
   onCurrentCardSell,
+  onCurrentTurnCardClick,
 }: ActionPhaseUIProps) {
   // Reserved for future use
   void _handCards
@@ -94,6 +96,7 @@ export function ActionPhaseUI({
             onCardDiscard={onCardDiscard}
             onCurrentCardMoveToHand={onCurrentCardMoveToHand}
             onCurrentCardSell={onCurrentCardSell}
+            onCurrentTurnCardClick={onCurrentTurnCardClick}
           />
         )}
 

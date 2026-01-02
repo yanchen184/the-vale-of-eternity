@@ -2,9 +2,9 @@
  * FixedHandPanel Component
  * Fixed bottom hand panel with 3 view modes: minimized, standard, expanded
  * Replaces the floating DraggableHandWindow
- * @version 2.1.0 - 點擊最小化手牌自動展開為標準視圖
+ * @version 2.2.0 - 點擊行動回合手牌自動展開底部手牌區
  */
-console.log('[components/game/FixedHandPanel.tsx] v2.1.0 loaded')
+console.log('[components/game/FixedHandPanel.tsx] v2.2.0 loaded')
 
 import { memo, useState, useCallback } from 'react'
 import { Hand, Minus, LayoutGrid, Maximize2 } from 'lucide-react'
@@ -41,6 +41,10 @@ export interface FixedHandPanelProps {
   canTameCard?: (cardId: string) => boolean
   /** Current round number (for sell restriction) */
   currentRound?: number
+  /** External control for view mode (optional, for parent component control) */
+  externalViewMode?: HandViewMode
+  /** Callback when view mode changes (optional, for parent component sync) */
+  onViewModeChange?: (mode: HandViewMode) => void
 }
 
 // ============================================
@@ -116,8 +120,20 @@ export const FixedHandPanel = memo(function FixedHandPanel({
   showCardActions,
   canTameCard,
   currentRound, // Still needed for HandGridView and HorizontalCardStrip
+  externalViewMode,
+  onViewModeChange,
 }: FixedHandPanelProps) {
-  const [viewMode, setViewMode] = useHandViewPreference()
+  const [internalViewMode, setInternalViewMode] = useHandViewPreference()
+
+  // Use external view mode if provided, otherwise use internal
+  const viewMode = externalViewMode ?? internalViewMode
+  const setViewMode = useCallback((mode: HandViewMode) => {
+    if (onViewModeChange) {
+      onViewModeChange(mode)
+    } else {
+      setInternalViewMode(mode)
+    }
+  }, [onViewModeChange, setInternalViewMode])
 
   // Find selected card
   const selectedCard = cards.find(c => c.instanceId === selectedCardId)
