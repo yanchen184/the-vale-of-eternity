@@ -2,9 +2,9 @@
  * PlayersFieldArea Component
  * Displays all players' field cards - each player gets a horizontal row
  * Integrated with hand preview and current turn cards display
- * @version 5.4.0 - 點擊行動回合手牌觸發展開底部手牌區回調
+ * @version 5.5.0 - 支援點擊手牌縮略圖切換底部手牌區
  */
-console.log('[components/game/PlayersFieldArea.tsx] v5.4.0 loaded')
+console.log('[components/game/PlayersFieldArea.tsx] v5.5.0 loaded')
 
 import { memo, useMemo, useCallback, useState } from 'react'
 import { Card } from './Card'
@@ -57,6 +57,8 @@ export interface PlayersFieldAreaProps {
   onCurrentCardSell?: (playerId: string, cardId: string) => void
   /** Callback when a current turn card is clicked - used to expand hand panel if minimized (optional) */
   onCurrentTurnCardClick?: (playerId: string, cardId: string) => void
+  /** Callback when hand preview is clicked - used to toggle hand panel (optional) */
+  onHandPreviewClick?: (playerId: string) => void
   /** Additional CSS classes */
   className?: string
 }
@@ -78,11 +80,13 @@ interface PlayerFieldSectionProps {
   onCurrentCardMoveToHand?: (cardId: string) => void
   onCurrentCardSell?: (cardId: string) => void
   onCurrentTurnCardClick?: (cardId: string) => void
+  onHandPreviewClick?: () => void
 }
 
 const PlayerFieldSection = memo(function PlayerFieldSection({
   player,
   isCurrentPlayer,
+  onHandPreviewClick,
   position,
   phase,
   currentRound,
@@ -490,6 +494,7 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
         <PlayerHandPreview
           handCount={player.handCount}
           playerName={player.name}
+          onToggleHandPanel={isCurrentPlayer ? onHandPreviewClick : undefined}
         />
       </div>
 
@@ -522,6 +527,7 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
   onCurrentCardMoveToHand,
   onCurrentCardSell,
   onCurrentTurnCardClick,
+  onHandPreviewClick,
   className,
 }: PlayersFieldAreaProps) {
   console.log('[PlayersFieldArea] Props received:', {
@@ -640,6 +646,7 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
               onCurrentCardMoveToHand={(cardId) => handlePlayerCurrentCardMoveToHand(player.playerId, cardId)}
               onCurrentCardSell={(cardId) => handlePlayerCurrentCardSell(player.playerId, cardId)}
               onCurrentTurnCardClick={(cardId) => handleCurrentTurnCardClick(player.playerId, cardId)}
+              onHandPreviewClick={player.playerId === currentPlayerId ? () => onHandPreviewClick?.(player.playerId) : undefined}
             />
           ))}
         </div>

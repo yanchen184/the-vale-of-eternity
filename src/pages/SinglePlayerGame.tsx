@@ -643,6 +643,10 @@ export default function SinglePlayerGame() {
                     setHandViewMode('standard')
                   }
                 }}
+                onHandPreviewClick={(_playerId) => {
+                  // Toggle hand panel between minimized and standard
+                  setHandViewMode(prev => prev === 'minimized' ? 'standard' : 'minimized')
+                }}
                 canTameCard={canTameCard}
               />
             ) : (

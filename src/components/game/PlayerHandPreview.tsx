@@ -1,9 +1,9 @@
 /**
  * PlayerHandPreview Component
  * Displays a player's hand as card backs with 20% overlap
- * @version 1.0.0
+ * @version 1.1.0 - 點擊卡片縮略圖切換底部手牌區
  */
-console.log('[components/game/PlayerHandPreview.tsx] v1.0.0 loaded')
+console.log('[components/game/PlayerHandPreview.tsx] v1.1.0 loaded')
 
 import { memo } from 'react'
 import { cn } from '@/lib/utils'
@@ -31,6 +31,8 @@ export interface PlayerHandPreviewProps {
   playerName: string
   /** Additional CSS classes */
   className?: string
+  /** Callback when clicking the hand preview to toggle hand panel */
+  onToggleHandPanel?: () => void
 }
 
 // ============================================
@@ -89,6 +91,7 @@ export const PlayerHandPreview = memo(function PlayerHandPreview({
   handCount,
   playerName,
   className,
+  onToggleHandPanel,
 }: PlayerHandPreviewProps) {
   // Calculate container width based on card count
   const containerWidth = handCount > 0
@@ -119,15 +122,20 @@ export const PlayerHandPreview = memo(function PlayerHandPreview({
         </span>
       </div>
 
-      {/* Card Stack Container */}
+      {/* Card Stack Container - Clickable to toggle hand panel */}
       <div
-        className="relative mb-2"
+        className={cn(
+          'relative mb-2',
+          onToggleHandPanel && 'cursor-pointer hover:opacity-80 transition-opacity'
+        )}
         style={{
           width: `${containerWidth}px`,
           height: `${CARD_WIDTH * 1.4}px`,
           minHeight: `${CARD_WIDTH * 1.4}px`,
         }}
-        title={`${playerName} 的手牌：${handCount} 張`}
+        title={onToggleHandPanel ? `點擊以${playerName === '我' ? '展開/收起' : '查看'}手牌` : `${playerName} 的手牌：${handCount} 張`}
+        onClick={onToggleHandPanel}
+        data-testid="hand-preview-clickable"
       >
         {Array.from({ length: handCount }).map((_, index) => (
           <CardBack
