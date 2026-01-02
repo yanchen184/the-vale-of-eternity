@@ -227,6 +227,7 @@ export function MultiplayerGame() {
   const [showSanctuaryModal, setShowSanctuaryModal] = useState(false)
   const [scores, setScores] = useState<{ playerId: string; name: string; score: number }[]>([])
   // cardScale removed - now using FixedHandPanel with自適應 sizing
+  const [handViewMode, setHandViewMode] = useState<'minimized' | 'standard' | 'expanded'>('standard')
 
   // Extract state from location or redirect
   const originalPlayerId = state?.playerId
@@ -1653,6 +1654,16 @@ export function MultiplayerGame() {
                 canTameCard={() => true}
                 onCurrentCardMoveToHand={handleMoveCurrentDrawnCardToHand}
                 onCurrentCardSell={handleSellCurrentDrawnCard}
+                onCurrentTurnCardClick={(_playerId, _cardId) => {
+                  // When clicking current turn cards, expand hand panel if minimized
+                  if (handViewMode === 'minimized') {
+                    setHandViewMode('standard')
+                  }
+                }}
+                onHandPreviewClick={(_playerId) => {
+                  // Toggle hand panel between minimized and standard
+                  setHandViewMode(prev => prev === 'minimized' ? 'standard' : 'minimized')
+                }}
               />
             )}
 
@@ -1684,6 +1695,16 @@ export function MultiplayerGame() {
                   } catch (err: any) {
                     setError(err.message || 'Failed to finish resolution')
                   }
+                }}
+                onCurrentTurnCardClick={(_playerId, _cardId) => {
+                  // When clicking current turn cards, expand hand panel if minimized
+                  if (handViewMode === 'minimized') {
+                    setHandViewMode('standard')
+                  }
+                }}
+                onHandPreviewClick={(_playerId) => {
+                  // Toggle hand panel between minimized and standard
+                  setHandViewMode(prev => prev === 'minimized' ? 'standard' : 'minimized')
                 }}
               />
             )}
@@ -2154,6 +2175,8 @@ export function MultiplayerGame() {
           return true
         }}
         currentRound={gameRoom?.currentRound}
+        externalViewMode={handViewMode}
+        onViewModeChange={setHandViewMode}
       />
 
       {/* Action Log - Fixed position in bottom-left */}
