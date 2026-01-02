@@ -2,9 +2,9 @@
  * FixedHandPanel Component
  * Fixed bottom hand panel with 3 view modes: minimized, standard, expanded
  * Replaces the floating DraggableHandWindow
- * @version 2.0.0 - Right sidebar action panel
+ * @version 2.1.0 - 點擊最小化手牌自動展開為標準視圖
  */
-console.log('[components/game/FixedHandPanel.tsx] v2.0.0 loaded')
+console.log('[components/game/FixedHandPanel.tsx] v2.1.0 loaded')
 
 import { memo, useState, useCallback } from 'react'
 import { Hand, Minus, LayoutGrid, Maximize2 } from 'lucide-react'
@@ -125,6 +125,16 @@ export const FixedHandPanel = memo(function FixedHandPanel({
 
   // Removed: canSell - hand cards can no longer be sold (v3.1.0)
 
+  // Wrap onCardClick to auto-expand from minimized mode
+  const handleCardClick = useCallback((card: CardInstance) => {
+    // If in minimized mode, expand to standard view first
+    if (viewMode === 'minimized') {
+      setViewMode('standard')
+    }
+    // Then call the original onCardClick
+    onCardClick?.(card)
+  }, [viewMode, setViewMode, onCardClick])
+
   return (
     <div
       className={cn(
@@ -175,13 +185,37 @@ export const FixedHandPanel = memo(function FixedHandPanel({
           </div>
         </div>
 
-        {/* Content Area - Hidden when minimized */}
-        {viewMode !== 'minimized' && (
+        {/* Content Area */}
+        {viewMode === 'minimized' ? (
+          /* Minimized View: Small clickable thumbnail strip */
+          <div
+            className="px-4 py-2 overflow-x-auto"
+            data-testid="minimized-hand-view"
+          >
+            <div className="flex gap-1">
+              {cards.slice(0, 5).map((card) => (
+                <button
+                  key={card.instanceId}
+                  onClick={() => handleCardClick(card)}
+                  className="w-8 h-12 bg-purple-900/40 border border-purple-700/50 rounded hover:bg-purple-700/40 transition-colors flex-shrink-0"
+                  title={`點擊展開手牌並選擇: ${card.nameTw}`}
+                  data-testid={`minimized-card-${card.instanceId}`}
+                />
+              ))}
+              {cards.length > 5 && (
+                <div className="w-8 h-12 bg-slate-900/40 border border-slate-700/50 rounded flex items-center justify-center text-slate-400 text-xs flex-shrink-0">
+                  +{cards.length - 5}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          /* Standard/Expanded View: Full card display */
           <div className="overflow-hidden flex-1">
             {viewMode === 'standard' ? (
               <HorizontalCardStrip
                 cards={cards}
-                onCardClick={onCardClick}
+                onCardClick={handleCardClick}
                 selectedCardId={selectedCardId}
                 canTameCard={canTameCard}
                 currentRound={currentRound}
@@ -189,7 +223,7 @@ export const FixedHandPanel = memo(function FixedHandPanel({
             ) : (
               <HandGridView
                 cards={cards}
-                onCardClick={onCardClick}
+                onCardClick={handleCardClick}
                 selectedCardId={selectedCardId}
                 canTameCard={canTameCard}
                 currentRound={currentRound}
