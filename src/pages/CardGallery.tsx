@@ -1,9 +1,9 @@
 /**
  * Card Gallery Page - Display all cards and artifacts
  * Supports Base Game (70 cards), DLC (28 cards), and Artifacts (11)
- * @version 4.4.0 - Added card size control, enlarged card names, artifacts 75% size
+ * @version 4.5.0 - Added effect implementation status filter and statistics
  */
-console.log('[pages/CardGallery.tsx] v4.4.0 loaded')
+console.log('[pages/CardGallery.tsx] v4.5.0 loaded')
 
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -28,6 +28,9 @@ import {
   Package,
   Maximize2,
   Minimize2,
+  CheckCircle2,
+  AlertTriangle,
+  CircleSlash,
 } from 'lucide-react'
 import { Button, ImagePreviewModal } from '@/components/ui'
 import { Card } from '@/components/game'
@@ -62,6 +65,10 @@ import type { Artifact } from '@/types/artifacts'
 import { ArtifactType, ArtifactCategory } from '@/types/artifacts'
 import { getCardImagePath } from '@/lib/card-images'
 import { cn } from '@/lib/utils'
+import {
+  ImplementationStatus,
+  getCardImplementationStatus,
+} from '@/utils/effect-implementation-status'
 
 // ============================================
 // TYPES
@@ -71,6 +78,7 @@ type ViewMode = 'grid' | 'list'
 type FilterElement = 'all' | Element
 type GalleryTab = 'base' | 'dlc' | 'artifacts'
 type ArtifactFilter = 'all' | 'core' | 'random' | 'player_based'
+type ImplementationFilter = 'all' | 'implemented' | 'partial' | 'not_implemented'
 
 // ============================================
 // CONSTANTS
@@ -307,6 +315,59 @@ function ArtifactFilterBadge({ filter, label, count, isActive, onClick }: Artifa
       <span
         className={cn(
           'ml-1 px-2 py-0.5 text-xs rounded-full',
+          isActive ? 'bg-slate-900/50 text-slate-200' : 'bg-slate-700/50 text-slate-500'
+        )}
+      >
+        {count}
+      </span>
+    </button>
+  )
+}
+
+interface ImplementationFilterBadgeProps {
+  filter: ImplementationFilter
+  label: string
+  count: number
+  isActive: boolean
+  onClick: () => void
+  icon: typeof CheckCircle2
+  colorClass: string
+  bgGradient: string
+  borderColor: string
+}
+
+function ImplementationFilterBadge({
+  filter,
+  label,
+  count,
+  isActive,
+  onClick,
+  icon: Icon,
+  colorClass,
+  bgGradient,
+  borderColor,
+}: ImplementationFilterBadgeProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'flex items-center gap-2 px-3 py-2 rounded-xl',
+        'transition-all duration-300 transform',
+        'border-2',
+        isActive
+          ? `bg-gradient-to-br ${bgGradient} ${borderColor} scale-105 shadow-lg`
+          : 'bg-slate-800/50 border-slate-700/50 hover:border-slate-600 hover:bg-slate-800',
+        'focus:outline-none focus:ring-2 focus:ring-vale-400'
+      )}
+      data-testid={`filter-impl-${filter}`}
+    >
+      <Icon className={cn('w-4 h-4', isActive ? colorClass : 'text-slate-400')} />
+      <span className={cn('font-medium text-sm', isActive ? 'text-slate-100' : 'text-slate-400')}>
+        {label}
+      </span>
+      <span
+        className={cn(
+          'px-1.5 py-0.5 text-xs rounded-full',
           isActive ? 'bg-slate-900/50 text-slate-200' : 'bg-slate-700/50 text-slate-500'
         )}
       >
@@ -641,6 +702,7 @@ export function CardGallery() {
   const [searchQuery, setSearchQuery] = useState('')
   const [showImagePreview, setShowImagePreview] = useState(false)
   const [cardScale, setCardScale] = useState(100) // Card size: 75%, 100%, 125%, 150%
+  const [implementationFilter, setImplementationFilter] = useState<ImplementationFilter>('all')
 
   // Validate card data on mount
   const validation = useMemo(() => validateCardData(), [])
@@ -663,8 +725,27 @@ export function CardGallery() {
       )
     }
 
+    // Apply implementation status filter
+    if (implementationFilter !== 'all') {
+      cards = cards.filter((card) => {
+        const cardInstance = createCardInstance(card, 0)
+        const status = getCardImplementationStatus(cardInstance)
+
+        switch (implementationFilter) {
+          case 'implemented':
+            return status === ImplementationStatus.FULLY_IMPLEMENTED || status === ImplementationStatus.NO_EFFECTS
+          case 'partial':
+            return status === ImplementationStatus.PARTIALLY_IMPLEMENTED
+          case 'not_implemented':
+            return status === ImplementationStatus.NOT_IMPLEMENTED
+          default:
+            return true
+        }
+      })
+    }
+
     return cards
-  }, [activeTab, elementFilter, searchQuery])
+  }, [activeTab, elementFilter, searchQuery, implementationFilter])
 
   // Get filtered artifacts
   const filteredArtifacts = useMemo(() => {
@@ -691,6 +772,45 @@ export function CardGallery() {
     return filteredCards.map((template) => createCardInstance(template, 0))
   }, [filteredCards])
 
+  // Calculate implementation status statistics for current tab
+  const implementationStats = useMemo(() => {
+    if (activeTab === 'artifacts') {
+      return { total: 0, implemented: 0, partial: 0, notImplemented: 0 }
+    }
+
+    const isDlc = activeTab === 'dlc'
+    const allCards = getCardsByFilter('all', isDlc)
+
+    let implemented = 0
+    let partial = 0
+    let notImplemented = 0
+
+    for (const card of allCards) {
+      const cardInstance = createCardInstance(card, 0)
+      const status = getCardImplementationStatus(cardInstance)
+
+      switch (status) {
+        case ImplementationStatus.FULLY_IMPLEMENTED:
+        case ImplementationStatus.NO_EFFECTS:
+          implemented++
+          break
+        case ImplementationStatus.PARTIALLY_IMPLEMENTED:
+          partial++
+          break
+        case ImplementationStatus.NOT_IMPLEMENTED:
+          notImplemented++
+          break
+      }
+    }
+
+    return {
+      total: allCards.length,
+      implemented,
+      partial,
+      notImplemented,
+    }
+  }, [activeTab])
+
   // Handle image click for preview
   const handleImagePreview = () => {
     if (selectedCard || selectedArtifact) {
@@ -706,6 +826,7 @@ export function CardGallery() {
     setSearchQuery('')
     setElementFilter('all')
     setArtifactFilter('all')
+    setImplementationFilter('all')
   }
 
   // Get current cards based on active tab for element filter counts
@@ -912,7 +1033,86 @@ export function CardGallery() {
               />
             ))}
           </div>
-        ) : (
+        ) : null}
+
+        {/* Implementation Status Filter and Stats - only for cards */}
+        {activeTab !== 'artifacts' && (
+          <div className="mb-6 space-y-3">
+            {/* Implementation Statistics Bar */}
+            <div className="flex flex-wrap items-center justify-center gap-4 p-3 rounded-xl bg-slate-800/30 border border-slate-700/30">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-slate-400">效果實現狀態：</span>
+                <span className="font-medium text-slate-200">
+                  共 {implementationStats.total} 張
+                </span>
+              </div>
+              <div className="h-4 w-px bg-slate-700" />
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-green-400" />
+                <span className="text-sm text-green-300">{implementationStats.implemented} 已實現</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-yellow-400" />
+                <span className="text-sm text-yellow-300">{implementationStats.partial} 部分</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <CircleSlash className="w-4 h-4 text-red-400" />
+                <span className="text-sm text-red-300">{implementationStats.notImplemented} 未實現</span>
+              </div>
+            </div>
+
+            {/* Implementation Status Filters */}
+            <div className="flex flex-wrap gap-2 justify-center">
+              <ImplementationFilterBadge
+                filter="all"
+                label="全部效果"
+                count={implementationStats.total}
+                isActive={implementationFilter === 'all'}
+                onClick={() => setImplementationFilter('all')}
+                icon={Sparkles}
+                colorClass="text-vale-400"
+                bgGradient="from-vale-900/50 to-vale-950/70"
+                borderColor="border-vale-500/50"
+              />
+              <ImplementationFilterBadge
+                filter="implemented"
+                label="已實現"
+                count={implementationStats.implemented}
+                isActive={implementationFilter === 'implemented'}
+                onClick={() => setImplementationFilter('implemented')}
+                icon={CheckCircle2}
+                colorClass="text-green-400"
+                bgGradient="from-green-900/50 to-green-950/70"
+                borderColor="border-green-500/50"
+              />
+              <ImplementationFilterBadge
+                filter="partial"
+                label="部分實現"
+                count={implementationStats.partial}
+                isActive={implementationFilter === 'partial'}
+                onClick={() => setImplementationFilter('partial')}
+                icon={AlertTriangle}
+                colorClass="text-yellow-400"
+                bgGradient="from-yellow-900/50 to-yellow-950/70"
+                borderColor="border-yellow-500/50"
+              />
+              <ImplementationFilterBadge
+                filter="not_implemented"
+                label="未實現"
+                count={implementationStats.notImplemented}
+                isActive={implementationFilter === 'not_implemented'}
+                onClick={() => setImplementationFilter('not_implemented')}
+                icon={CircleSlash}
+                colorClass="text-red-400"
+                bgGradient="from-red-900/50 to-red-950/70"
+                borderColor="border-red-500/50"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Artifact Filters */}
+        {activeTab === 'artifacts' && (
           <div className="mb-6 flex flex-wrap gap-2 justify-center">
             <ArtifactFilterBadge
               filter="all"

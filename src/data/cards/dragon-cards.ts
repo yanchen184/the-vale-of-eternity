@@ -253,13 +253,12 @@ export const DRAGON_CARDS: readonly CardTemplate[] = [
         type: EffectType.EARN_STONES,
         trigger: EffectTrigger.ON_TAME,
         stones: [
-          { type: StoneType.SIX, amount: 1 },
-          { type: StoneType.WATER, amount: 1 },
-          { type: StoneType.SIX, amount: 1 },
+          { type: StoneType.ONE, amount: 1 },
           { type: StoneType.THREE, amount: 1 },
+          { type: StoneType.SIX, amount: 1 },
         ],
-        description: 'Earn 6, Water, 6, and 3.',
-        descriptionTw: '獲得 6 點石頭、水石頭、6 點石頭和 3 點石頭。',
+        description: 'Earn 1, 3, and 6.',
+        descriptionTw: '獲得 1 點、3 點和 6 點石頭各一個。',
       },
       {
         type: EffectType.DRAW_CARD,

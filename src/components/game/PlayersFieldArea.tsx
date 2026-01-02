@@ -2,9 +2,9 @@
  * PlayersFieldArea Component
  * Displays all players' field cards - each player gets a horizontal row
  * Integrated with hand preview and current turn cards display
- * @version 4.0.0 - Merged currentTurnCards into same row as field cards
+ * @version 5.0.0 - Fixed slots for action phase & field cards with visual divider
  */
-console.log('[components/game/PlayersFieldArea.tsx] v4.0.0 loaded')
+console.log('[components/game/PlayersFieldArea.tsx] v5.0.0 loaded')
 
 import { memo, useMemo, useCallback, useState } from 'react'
 import { Card } from './Card'
@@ -30,6 +30,7 @@ export interface PlayerFieldData {
   currentTurnCards?: CardInstance[]  // Cards drawn/selected this turn
   isCurrentTurn: boolean
   hasPassed: boolean
+  maxFieldSlots?: number  // Maximum field slots available (default: 10)
 }
 
 export interface PlayersFieldAreaProps {
@@ -179,179 +180,231 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              {/* Phase label for current turn cards */}
-              {player.currentTurnCards && player.currentTurnCards.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-blue-400">
-                    {getPhaseLabel()}
-                  </span>
-                  {player.isCurrentTurn && (
-                    <span className="text-xs text-blue-300 bg-blue-500/20 px-2 py-0.5 rounded-full">
-                      進行中
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* Cards Row - Current Turn Cards + Field Cards together */}
-              <div className="flex flex-wrap gap-2">
-                {/* Current Turn Cards - with special border and actions */}
-                {player.currentTurnCards && player.currentTurnCards.map((card, index) => (
-                  <div
-                    key={card.instanceId}
-                    className={cn(
-                      'relative group transform transition-transform duration-200 hover:scale-105',
-                      'ring-2 ring-blue-400/50' // Blue ring to distinguish from field cards
-                    )}
-                    style={{
-                      zIndex: index
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.zIndex = '999'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.zIndex = String(index)
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onCurrentTurnCardClick?.(card.instanceId)
-                    }}
-                  >
-                    <Card
-                      card={card}
-                      index={index}
-                      compact={true}
-                      currentRound={currentRound}
-                      className="shadow-md"
-                    />
-
-                    {/* Action buttons for Current Turn Cards - only for current player */}
-                    {isCurrentPlayer && player.isCurrentTurn && (
-                      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
-                        {/* Move to Hand button */}
-                        {onCurrentCardMoveToHand && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleCurrentCardMoveToHand(card.instanceId)
-                            }}
-                            className={cn(
-                              'px-2 py-1 text-xs rounded-md',
-                              'bg-green-600 hover:bg-green-500 text-white',
-                              'shadow-lg border border-green-400/50',
-                              'whitespace-nowrap'
-                            )}
-                            type="button"
-                            title="加入手牌"
-                          >
-                            上手
-                          </button>
-                        )}
-
-                        {/* Sell button */}
-                        {onCurrentCardSell && (() => {
-                          const sellValue = getElementSellValue(card.element)
-                          return (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleCurrentCardSell(card.instanceId)
-                              }}
-                              className={cn(
-                                'px-2 py-1 text-xs rounded-md',
-                                'bg-amber-600 hover:bg-amber-500 text-white',
-                                'shadow-lg border border-amber-400/50',
-                                'whitespace-nowrap'
-                              )}
-                              type="button"
-                              title={`賣掉換 ${sellValue} 元`}
-                            >
-                              賣 {sellValue}元
-                            </button>
-                          )
-                        })()}
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-                {/* Field Cards */}
-                {player.fieldCards.map((card, index) => (
-                  <div
-                    key={card.instanceId}
-                    className="relative group transform transition-transform duration-200 hover:scale-105"
-                    style={{
-                      zIndex: index + (player.currentTurnCards?.length || 0)
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.zIndex = '999'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.zIndex = String(index + (player.currentTurnCards?.length || 0))
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      e.currentTarget.style.zIndex = '999'
-                    }}
-                  >
-                    <Card
-                      card={card}
-                      index={index}
-                      compact={true}
-                      currentRound={currentRound}
-                      onClick={onCardClick ? () => handleCardClick(card.instanceId) : undefined}
-                      className={cn(
-                        'shadow-md',
-                        player.isCurrentTurn && 'ring-1 ring-vale-500/30'
+              {/* Cards Row - Action Phase Slots + Divider + Field Cards */}
+              <div className="flex gap-4 items-start">
+                {/* Action Phase Section - Fixed 2 slots */}
+                {(player.currentTurnCards && player.currentTurnCards.length > 0) || player.isCurrentTurn ? (
+                  <div className="flex-shrink-0">
+                    {/* Phase Label */}
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs font-semibold text-blue-400">
+                        {getPhaseLabel()}
+                      </span>
+                      {player.isCurrentTurn && (
+                        <span className="text-xs text-blue-300 bg-blue-500/20 px-2 py-0.5 rounded-full">
+                          進行中
+                        </span>
                       )}
-                    />
+                    </div>
 
-                    {/* Action buttons for Field Cards - only for current player */}
-                    {isCurrentPlayer && (
-                      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
-                        {/* Return to Hand button */}
-                        {player.isCurrentTurn && !player.hasPassed && (phase === 'ACTION' || phase === 'RESOLUTION') && onCardReturn && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleCardReturn(card.instanceId)
-                            }}
+                    {/* Fixed 2 Slots for Action Phase Cards */}
+                    <div className="flex gap-2">
+                      {[0, 1].map((slotIndex) => {
+                        const card = player.currentTurnCards?.[slotIndex]
+                        return (
+                          <div
+                            key={`action-slot-${slotIndex}`}
                             className={cn(
-                              'px-2 py-1 text-xs rounded-md',
-                              'bg-blue-600 hover:bg-blue-500 text-white',
-                              'shadow-lg border border-blue-400/50',
-                              'whitespace-nowrap'
+                              'relative w-[140px] h-[190px] rounded-lg transition-all duration-200',
+                              card
+                                ? 'bg-transparent'
+                                : 'border-2 border-dashed border-blue-400/30 bg-blue-900/10'
                             )}
-                            type="button"
-                            title="回到手牌"
                           >
-                            回手
-                          </button>
-                        )}
+                            {card ? (
+                              <div className="relative group h-full">
+                                <div
+                                  className="relative h-full"
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.zIndex = '999'
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.zIndex = String(slotIndex)
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    onCurrentTurnCardClick?.(card.instanceId)
+                                  }}
+                                >
+                                  <Card
+                                    card={card}
+                                    index={slotIndex}
+                                    compact={true}
+                                    currentRound={currentRound}
+                                    className="shadow-md ring-2 ring-blue-400/50"
+                                  />
 
-                        {/* Discard button */}
-                        {onCardDiscard && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleCardDiscard(card.instanceId)
-                            }}
-                            className={cn(
-                              'px-2 py-1 text-xs rounded-md',
-                              'bg-red-600 hover:bg-red-500 text-white',
-                              'shadow-lg border border-red-400/50',
-                              'whitespace-nowrap'
+                                  {/* Action buttons for Current Turn Cards */}
+                                  {isCurrentPlayer && player.isCurrentTurn && (
+                                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
+                                      {/* Move to Hand button */}
+                                      {onCurrentCardMoveToHand && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleCurrentCardMoveToHand(card.instanceId)
+                                          }}
+                                          className={cn(
+                                            'px-2 py-1 text-xs rounded-md',
+                                            'bg-green-600 hover:bg-green-500 text-white',
+                                            'shadow-lg border border-green-400/50',
+                                            'whitespace-nowrap'
+                                          )}
+                                          type="button"
+                                          title="加入手牌"
+                                        >
+                                          上手
+                                        </button>
+                                      )}
+
+                                      {/* Sell button */}
+                                      {onCurrentCardSell && (() => {
+                                        const sellValue = getElementSellValue(card.element)
+                                        return (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              handleCurrentCardSell(card.instanceId)
+                                            }}
+                                            className={cn(
+                                              'px-2 py-1 text-xs rounded-md',
+                                              'bg-amber-600 hover:bg-amber-500 text-white',
+                                              'shadow-lg border border-amber-400/50',
+                                              'whitespace-nowrap'
+                                            )}
+                                            type="button"
+                                            title={`賣掉換 ${sellValue} 元`}
+                                          >
+                                            賣 {sellValue}元
+                                          </button>
+                                        )
+                                      })()}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              // Empty slot placeholder
+                              <div className="flex items-center justify-center h-full">
+                                <span className="text-xs text-blue-400/50">
+                                  空位 {slotIndex + 1}
+                                </span>
+                              </div>
                             )}
-                            type="button"
-                            title="棄置到棄牌堆"
-                          >
-                            棄置
-                          </button>
-                        )}
-                      </div>
-                    )}
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
-                ))}
+                ) : null}
+
+                {/* Vertical Divider */}
+                {(player.currentTurnCards && player.currentTurnCards.length > 0) || player.isCurrentTurn ? (
+                  <div className="flex-shrink-0 w-px bg-gradient-to-b from-transparent via-slate-600 to-transparent self-stretch" />
+                ) : null}
+
+                {/* Field Cards Section */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap gap-2">
+                    {/* Render slots with cards or empty placeholders */}
+                    {Array.from({ length: player.maxFieldSlots || 10 }).map((_, slotIndex) => {
+                      const card = player.fieldCards[slotIndex]
+                      return (
+                        <div
+                          key={`field-slot-${slotIndex}`}
+                          className={cn(
+                            'relative w-[140px] h-[190px] rounded-lg transition-all duration-200',
+                            card
+                              ? 'bg-transparent'
+                              : 'border-2 border-dashed border-slate-600/30 bg-slate-800/20'
+                          )}
+                        >
+                          {card ? (
+                            <div className="relative group h-full">
+                              <div
+                                className="relative h-full"
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.zIndex = '999'
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.zIndex = String(slotIndex)
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  e.currentTarget.style.zIndex = '999'
+                                }}
+                              >
+                                <Card
+                                  card={card}
+                                  index={slotIndex}
+                                  compact={true}
+                                  currentRound={currentRound}
+                                  onClick={onCardClick ? () => handleCardClick(card.instanceId) : undefined}
+                                  className={cn(
+                                    'shadow-md',
+                                    player.isCurrentTurn && 'ring-1 ring-vale-500/30'
+                                  )}
+                                />
+
+                                {/* Action buttons for Field Cards - only for current player */}
+                                {isCurrentPlayer && (
+                                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
+                                    {/* Return to Hand button */}
+                                    {player.isCurrentTurn && !player.hasPassed && (phase === 'ACTION' || phase === 'RESOLUTION') && onCardReturn && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleCardReturn(card.instanceId)
+                                        }}
+                                        className={cn(
+                                          'px-2 py-1 text-xs rounded-md',
+                                          'bg-blue-600 hover:bg-blue-500 text-white',
+                                          'shadow-lg border border-blue-400/50',
+                                          'whitespace-nowrap'
+                                        )}
+                                        type="button"
+                                        title="回到手牌"
+                                      >
+                                        回手
+                                      </button>
+                                    )}
+
+                                    {/* Discard button */}
+                                    {onCardDiscard && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleCardDiscard(card.instanceId)
+                                        }}
+                                        className={cn(
+                                          'px-2 py-1 text-xs rounded-md',
+                                          'bg-red-600 hover:bg-red-500 text-white',
+                                          'shadow-lg border border-red-400/50',
+                                          'whitespace-nowrap'
+                                        )}
+                                        type="button"
+                                        title="棄置到棄牌堆"
+                                      >
+                                        棄置
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            // Empty slot placeholder
+                            <div className="flex items-center justify-center h-full">
+                              <span className="text-xs text-slate-500/50">
+                                {slotIndex + 1}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
           )}

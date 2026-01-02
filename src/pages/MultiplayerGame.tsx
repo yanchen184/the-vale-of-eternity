@@ -699,6 +699,9 @@ export function MultiplayerGame() {
         .map(convertToCardInstance)
         .filter((c): c is CardInstance => c !== null)
 
+      // Calculate max field slots (base: 10, can be increased by certain cards)
+      const maxFieldSlots = 10 // TODO: Calculate based on field cards effects
+
       return {
         playerId: player.playerId,
         name: player.name,
@@ -709,6 +712,7 @@ export function MultiplayerGame() {
         currentTurnCards: currentTurnCardInstances,
         isCurrentTurn: player.playerId === currentTurnPlayerId,
         hasPassed: player.hasPassed ?? false,
+        maxFieldSlots: maxFieldSlots,
       }
     })
   }, [players, currentTurnPlayerId, convertToCardInstance])

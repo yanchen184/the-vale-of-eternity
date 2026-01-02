@@ -1,11 +1,11 @@
 /**
  * Card Component with Image Display
  * Renders a game card with its image and stats
- * @version 2.22.0 - Removed black background overlay, show card name only at bottom
+ * @version 2.23.0 - Added effect implementation status badge
  */
-console.log('[components/game/Card.tsx] v2.22.0 loaded')
+console.log('[components/game/Card.tsx] v2.23.0 loaded')
 
-import { useState, useCallback, memo } from 'react'
+import { useState, useCallback, memo, useMemo } from 'react'
 import { Flame, Droplets, TreePine, Wind, Crown, Gem } from 'lucide-react'
 import { getCardImagePath } from '@/lib/card-images'
 import type { CardInstance } from '@/types/cards'
@@ -14,6 +14,7 @@ import { PlayerMarker } from './PlayerMarker'
 import type { PlayerColor } from '@/types/player-color'
 import { getElementSellCoins } from '@/services/multiplayer-game'
 import { Modal } from '@/components/ui/Modal'
+import { getImplementationStatusDisplay } from '@/utils/effect-implementation-status'
 
 // ============================================
 // ELEMENT ICON COMPONENTS
@@ -104,6 +105,8 @@ export interface CardProps {
   isNewMarker?: boolean
   /** Current round number (for showing "new this round" badge) */
   currentRound?: number
+  /** Whether to show implementation status badge (for development/debugging) */
+  showImplementationStatus?: boolean
   /** Additional CSS classes */
   className?: string
 }
@@ -314,12 +317,19 @@ export const Card = memo(function Card({
   isConfirmed = false,
   isNewMarker = false,
   currentRound,
+  showImplementationStatus = true,
   className = '',
 }: CardProps) {
   const [imageError, setImageError] = useState(false)
   const [scrollOffset, setScrollOffset] = useState(0)
   const [isHovered, setIsHovered] = useState(false)
   const [showFullCard, setShowFullCard] = useState(false)
+
+  // Memoized implementation status calculation
+  const implementationStatus = useMemo(() => {
+    if (!showImplementationStatus) return null
+    return getImplementationStatusDisplay(card)
+  }, [card, showImplementationStatus])
 
   const handleImageError = useCallback(() => {
     setImageError(true)
@@ -433,6 +443,22 @@ export const Card = memo(function Card({
               {card.nameTw}
             </div>
           </div>
+
+          {/* Implementation Status Badge - compact mode */}
+          {implementationStatus?.show && (
+            <div
+              className="absolute top-1 right-12 z-20"
+              title={implementationStatus.tooltip}
+            >
+              <div className={`
+                px-1.5 py-0.5 rounded text-[8px] font-bold
+                ${implementationStatus.colorClass}
+                shadow-sm border border-white/20
+              `}>
+                {implementationStatus.text}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Full Card Modal for compact cards */}
@@ -562,6 +588,22 @@ export const Card = memo(function Card({
           {card.nameTw}
         </div>
       </div>
+
+      {/* Implementation Status Badge - full mode */}
+      {implementationStatus?.show && (
+        <div
+          className="absolute top-2 right-16 z-20"
+          title={implementationStatus.tooltip}
+        >
+          <div className={`
+            px-2 py-1 rounded text-[10px] font-bold
+            ${implementationStatus.colorClass}
+            shadow-md border border-white/20
+          `}>
+            {implementationStatus.text}
+          </div>
+        </div>
+      )}
 
       {/* "New This Round" Badge - shown when card was acquired in current round */}
       {currentRound !== undefined &&
