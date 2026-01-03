@@ -1,10 +1,10 @@
 /**
- * Single Player Game Engine for Vale of Eternity v7.24.0
+ * Single Player Game Engine for Vale of Eternity v7.25.0
  * Core game logic for single-player mode with Stone Economy System
  * Based on GAME_FLOW.md specifications
- * @version 7.24.0 - Added Seven-League Boots INSTANT artifact implementation
+ * @version 7.25.0 - Resolution effects MUST be activated: choosing "No" doesn't process the effect
  */
-console.log('[lib/single-player-engine.ts] v7.24.0 loaded - Seven-League Boots artifact')
+console.log('[lib/single-player-engine.ts] v7.25.0 loaded - Resolution effects must be activated')
 
 import type { CardInstance, CardEffect, StoneConfig } from '@/types/cards'
 import { CardLocation, Element, EffectType, EffectTrigger, StoneType } from '@/types/cards'
@@ -1524,6 +1524,7 @@ export class SinglePlayerEngine {
 
     let newField = this.state.player.field
     let newHand = this.state.player.hand
+    let processedResolutionCards = this.state.processedResolutionCards ?? []
 
     if (activate) {
       // Find card in field
@@ -1543,13 +1544,15 @@ export class SinglePlayerEngine {
       }
       newHand = [...this.state.player.hand, returnedCard]
 
+      // ✅ Only mark as processed if player chose to activate (return to hand)
+      processedResolutionCards = [...processedResolutionCards, cardInstanceId]
+
       console.log('[SinglePlayerEngine] Resolution effect activated: returned card to hand:', cardInstanceId)
     } else {
-      console.log('[SinglePlayerEngine] Resolution effect skipped: card stays on field:', cardInstanceId)
+      // ❌ Player chose NOT to activate - card stays on field AND stays in pending list
+      // The card is NOT marked as processed, so player cannot end turn yet
+      console.log('[SinglePlayerEngine] Resolution effect declined: card stays on field and in pending list:', cardInstanceId)
     }
-
-    // Mark card as processed
-    const processedResolutionCards = [...(this.state.processedResolutionCards ?? []), cardInstanceId]
 
     this.state = {
       ...this.state,
@@ -2084,6 +2087,9 @@ export class SinglePlayerEngine {
           WIND: result.stonesGained?.WIND ?? 0,
         }
         result.stonesGained = addStonesToPool(currentPool, effectResult.stonesGained)
+      }
+      if (effectResult.scoreModifier) {
+        result.scoreModifier = (result.scoreModifier ?? 0) + effectResult.scoreModifier
       }
       if (effectResult.cardsDrawn) {
         result.cardsDrawn = [
