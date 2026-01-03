@@ -1,9 +1,9 @@
 /**
  * Resolution Confirm Modal Component
  * Modal for confirming resolution phase card effects (e.g., Imp's RECOVER_CARD)
- * @version 1.0.0 - Initial implementation for Imp card resolution
+ * @version 1.1.0 - Updated text to clarify effect must be processed
  */
-console.log('[components/game/ResolutionConfirmModal.tsx] v1.0.0 loaded')
+console.log('[components/game/ResolutionConfirmModal.tsx] v1.1.0 loaded')
 
 import { memo } from 'react'
 import { Modal } from '@/components/ui/Modal'
@@ -83,7 +83,7 @@ export const ResolutionConfirmModal = memo(function ResolutionConfirmModal({
             是否要讓 <span className="text-amber-400 font-semibold">{card.nameTw}</span> 回到手上？
           </p>
           <p className="text-sm text-slate-400 mt-2">
-            此效果可選擇是否執行
+            此效果必須處理才能結束回合
           </p>
         </div>
 

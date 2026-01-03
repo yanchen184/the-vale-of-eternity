@@ -418,7 +418,7 @@ export class SinglePlayerEngine {
   /**
    * Get random artifacts for selection
    */
-  private getRandomArtifacts(count: number): string[] {
+  private getRandomArtifacts(_count: number): string[] {
     // All artifact IDs from the game (matching artifacts.ts)
     const allArtifactIds = [
       'incense_burner',        // Core
@@ -433,8 +433,8 @@ export class SinglePlayerEngine {
       'philosopher_stone',     // Random
       'ring_of_wishes',        // Random
     ]
-    const shuffled = [...allArtifactIds].sort(() => Math.random() - 0.5)
-    return shuffled.slice(0, count)
+    // Return ALL artifacts for testing in single-player mode
+    return allArtifactIds
   }
 
   /**
