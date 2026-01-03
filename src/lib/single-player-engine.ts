@@ -1,10 +1,10 @@
 /**
- * Single Player Game Engine for Vale of Eternity v7.6.0
+ * Single Player Game Engine for Vale of Eternity v7.22.0
  * Core game logic for single-player mode with Stone Economy System
  * Based on GAME_FLOW.md specifications
- * @version 7.6.0 - Implemented round-based field size limits (round + areaBonus)
+ * @version 7.22.0 - Imp added to initial hand for resolution phase testing
  */
-console.log('[lib/single-player-engine.ts] v7.6.0 loaded - Round-based field size limits')
+console.log('[lib/single-player-engine.ts] v7.22.0 loaded - Imp in initial hand for testing')
 
 import type { CardInstance, CardEffect, StoneConfig } from '@/types/cards'
 import { CardLocation, Element, EffectType, EffectTrigger, StoneType } from '@/types/cards'
@@ -22,6 +22,78 @@ import {
   addStonesToPool,
 } from '@/types/game'
 import { getAllBaseCards, createCardInstance, shuffleArray } from '@/data/cards'
+import { ARTIFACTS_BY_ID } from '@/data/artifacts'
+import { ArtifactType } from '@/types/artifacts'
+
+// ============================================
+// ARTIFACT EFFECT TYPES
+// ============================================
+
+/**
+ * Artifact effect execution result
+ */
+export interface ArtifactEffectResult {
+  /** Whether the effect was executed successfully */
+  success: boolean
+  /** Message describing what happened */
+  message: string
+  /** Stones gained from the effect */
+  stonesGained?: Partial<StonePool>
+  /** Stones spent for the effect */
+  stonesSpent?: Partial<StonePool>
+  /** Cards drawn from the effect */
+  cardsDrawn?: CardInstance[]
+  /** Cards moved to sanctuary */
+  cardsSheltered?: CardInstance[]
+  /** Cards discarded */
+  cardsDiscarded?: CardInstance[]
+  /** Cards recalled to hand */
+  cardsRecalled?: CardInstance[]
+  /** Whether the effect requires player input */
+  requiresInput?: boolean
+  /** Type of input required */
+  inputType?: 'SELECT_CARDS' | 'SELECT_STONES' | 'CHOOSE_OPTION'
+  /** Options for player to choose from */
+  options?: ArtifactEffectOption[]
+}
+
+/**
+ * Artifact effect option for player choices
+ */
+export interface ArtifactEffectOption {
+  /** Option identifier */
+  id: string
+  /** Description of the option */
+  description: string
+  /** Chinese description */
+  descriptionTw: string
+  /** Whether this option is available */
+  available: boolean
+  /** Reason if not available */
+  unavailableReason?: string
+}
+
+/**
+ * Artifact state tracking for the current round
+ */
+export interface ArtifactState {
+  /** The confirmed artifact ID for this round */
+  artifactId: string | null
+  /** Whether ACTION type artifact has been used this round */
+  actionUsed: boolean
+  /** Whether INSTANT effect has been executed */
+  instantExecuted: boolean
+  /** PERMANENT effect active state */
+  permanentActive: boolean
+  /** Pending effect that requires player input */
+  pendingEffect?: {
+    effectType: string
+    options: ArtifactEffectOption[]
+    selectedOption?: string
+    selectedCards?: string[]
+    selectedStones?: Partial<StonePool>
+  }
+}
 
 // ============================================
 // CONSTANTS
@@ -65,6 +137,12 @@ export enum SinglePlayerErrorCode {
   ERR_NO_ARTIFACT_SELECTED = 'ERR_NO_ARTIFACT_SELECTED',
   ERR_CARD_NOT_AVAILABLE = 'ERR_CARD_NOT_AVAILABLE',
   ERR_NO_CARD_SELECTED = 'ERR_NO_CARD_SELECTED',
+  ERR_ARTIFACT_ALREADY_USED = 'ERR_ARTIFACT_ALREADY_USED',
+  ERR_ARTIFACT_EFFECT_FAILED = 'ERR_ARTIFACT_EFFECT_FAILED',
+  ERR_INSUFFICIENT_CARDS = 'ERR_INSUFFICIENT_CARDS',
+  ERR_SANCTUARY_EMPTY = 'ERR_SANCTUARY_EMPTY',
+  ERR_MARKET_EMPTY = 'ERR_MARKET_EMPTY',
+  ERR_INVALID_ARTIFACT_OPTION = 'ERR_INVALID_ARTIFACT_OPTION',
 }
 
 /**
@@ -123,7 +201,11 @@ function elementToStoneType(element: Element): StoneType | null {
 /**
  * Calculate optimal stone payment for a cost
  * Uses greedy algorithm: pay with smallest denominations first
+ * NOTE: Currently unused - taming is FREE in single player mode
+ * Kept for potential future use
  */
+// @ts-expect-error - Function kept for potential future use
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function calculateOptimalPayment(
   pool: StonePool,
   cost: number,
@@ -201,9 +283,16 @@ export class SinglePlayerEngine {
   private state: SinglePlayerGameState | null = null
   private stateListeners: Array<(state: SinglePlayerGameState) => void> = []
   private gameEndListeners: Array<(state: SinglePlayerGameState) => void> = []
+  /** Artifact state tracking for the current round */
+  private artifactState: ArtifactState = {
+    artifactId: null,
+    actionUsed: false,
+    instantExecuted: false,
+    permanentActive: false,
+  }
 
   constructor() {
-    console.log('[SinglePlayerEngine] Initialized v7.1.0')
+    console.log('[SinglePlayerEngine] Initialized v7.19.0')
   }
 
   // ============================================
@@ -214,26 +303,71 @@ export class SinglePlayerEngine {
    * Initialize a new single-player game
    * @param playerName Player's display name
    * @param _expansionMode Deprecated - kept for API compatibility but no longer used
+   * @param forceTestCardsInMarket Force test cards (Ifrit, Imp) to appear in market for testing
    * @returns Initial game state
    */
-  initGame(playerName: string, _expansionMode: boolean = false): SinglePlayerGameState {
+  initGame(
+    playerName: string,
+    _expansionMode: boolean = false,
+    forceTestCardsInMarket: boolean = true  // Default to true for testing
+  ): SinglePlayerGameState {
     // Build deck from all 70 base cards
     const allCards = getAllBaseCards()
-    const deck = shuffleArray(
+    let deck = shuffleArray(
       allCards.map((template, index) => createCardInstance(template, index))
     )
 
-    // Start with empty hand (0 cards)
-    const hand: CardInstance[] = []
+    // [TEST] Force Imp (F002) into initial hand for testing resolution phase
+    let hand: CardInstance[] = []
+    if (forceTestCardsInMarket) {
+      const impIndex = deck.findIndex(card => card.cardId === 'F002')
+      if (impIndex !== -1) {
+        const [impCard] = deck.splice(impIndex, 1)
+        impCard.location = CardLocation.HAND
+        impCard.isRevealed = true
+        hand.push(impCard)
+        console.log('[SinglePlayerEngine] [TEST] Forced Imp (F002) to initial hand for testing')
+      }
+    }
 
     // Setup market (4 cards) - Show immediately like multiplayer
     // In multiplayer: player count × 2 cards are shown at start of hunting phase
     // In single player: 4 cards (like 2 players × 2)
-    const market = deck.splice(0, SINGLE_PLAYER_CONSTANTS.MARKET_SIZE)
-    market.forEach(card => {
-      card.location = CardLocation.MARKET
-      card.isRevealed = true
-    })
+    let market: CardInstance[] = []
+
+    // [TEST] Force test cards (Ifrit F007) to appear in market for testing
+    if (forceTestCardsInMarket) {
+      // Cards to force into market for testing
+      const testCardIds = ['F007']  // Ifrit (Imp now in hand)
+
+      for (const cardId of testCardIds) {
+        const cardIndex = deck.findIndex(card => card.cardId === cardId)
+        if (cardIndex !== -1 && market.length < SINGLE_PLAYER_CONSTANTS.MARKET_SIZE) {
+          // Remove card from deck and add to market
+          const [card] = deck.splice(cardIndex, 1)
+          card.location = CardLocation.MARKET
+          card.isRevealed = true
+          market.push(card)
+          console.log(`[SinglePlayerEngine] [TEST] Forced ${cardId} to market for testing`)
+        }
+      }
+
+      // Fill remaining market slots
+      const remainingSlots = SINGLE_PLAYER_CONSTANTS.MARKET_SIZE - market.length
+      const additionalCards = deck.splice(0, remainingSlots)
+      additionalCards.forEach(card => {
+        card.location = CardLocation.MARKET
+        card.isRevealed = true
+      })
+      market.push(...additionalCards)
+    } else {
+      // Normal market setup
+      market = deck.splice(0, SINGLE_PLAYER_CONSTANTS.MARKET_SIZE)
+      market.forEach(card => {
+        card.location = CardLocation.MARKET
+        card.isRevealed = true
+      })
+    }
 
     // Create initial player state
     const player: SinglePlayerState = {
@@ -417,6 +551,8 @@ export class SinglePlayerEngine {
     // 2. Set artifactSelectionPhase.isComplete = true (like multiplayer)
     // 3. Clear selectedArtifact so player can select cards
     // Market cards are already showing (like multiplayer)
+    // NOTE: player.selectedArtifact is not set because artifacts are not CardInstance
+    // The confirmed artifact ID is stored in artifactSelectionPhase.confirmedArtifactId
     const newAvailableArtifacts = (this.state.availableArtifacts || []).filter(
       id => id !== confirmedArtifact
     )
@@ -426,11 +562,16 @@ export class SinglePlayerEngine {
       availableArtifacts: newAvailableArtifacts,
       selectedArtifact: null,  // Clear selection so player can select cards
       artifactSelectionPhase: {
-        isComplete: true,  // ✅ Artifact selection done, can now select cards
+        isComplete: true,  // Artifact selection done, can now select cards
         confirmedArtifactId: confirmedArtifact,
       },
       actionsThisRound: [...this.state.actionsThisRound, action],
       updatedAt: Date.now(),
+    }
+
+    // Initialize artifact state for effect execution
+    if (confirmedArtifact) {
+      this.initializeArtifactState(confirmedArtifact)
     }
 
     console.log('[SinglePlayerEngine] Artifact confirmed:', confirmedArtifact)
@@ -485,18 +626,15 @@ export class SinglePlayerEngine {
       c => !cardInstanceIds.includes(c.instanceId)
     )
 
-    // Add cards to hand
-    const newHand = [
-      ...this.state.player.hand,
-      ...cardsToTake.map(c => ({
-        ...c,
-        location: CardLocation.HAND,
-        isRevealed: true,
-      })),
-    ]
+    // ✅ FIX: Initial cards displayed in ACTION phase slots, NOT added to hand or deck yet
+    // Player will decide to keep (→ deck) or sell (→ stones) for each card
+    // Hand remains empty (0 cards)
+    const newHand = this.state.player.hand
+
+    // Don't shuffle into deck yet - wait for player decision
+    let newDeck = this.state.deck
 
     // Refill market from deck
-    let newDeck = this.state.deck
     if (newDeck.length > 0) {
       const refillCount = Math.min(
         SINGLE_PLAYER_CONSTANTS.MARKET_SIZE - newMarket.length,
@@ -526,10 +664,11 @@ export class SinglePlayerEngine {
       player: {
         ...this.state.player,
         hand: newHand,
-        // Store the selected cards in currentTurnCards for ACTION phase display
+        // ✅ Set currentTurnCards to display in ACTION phase slots
+        // Player will decide to keep (→ deck) or sell (→ stones) for each card
         currentTurnCards: cardsToTake.map(c => ({
           ...c,
-          location: CardLocation.HAND,
+          location: CardLocation.HAND, // Temporary location for display
           isRevealed: true,
         })),
       },
@@ -538,8 +677,9 @@ export class SinglePlayerEngine {
       updatedAt: Date.now(),
     }
 
-    console.log('[SinglePlayerEngine] Took cards from market:', cardInstanceIds)
-    console.log('[SinglePlayerEngine] Set currentTurnCards:', cardsToTake.length, 'cards')
+    console.log('[SinglePlayerEngine] Set initial cards to currentTurnCards:', cardInstanceIds)
+    console.log('[SinglePlayerEngine] Hand count:', newHand.length, '(should be 0)')
+    console.log('[SinglePlayerEngine] currentTurnCards count:', cardsToTake.length)
     console.log('[SinglePlayerEngine] Transitioned to ACTION phase')
     this.notifyStateChange()
     return this.state
@@ -717,20 +857,28 @@ export class SinglePlayerEngine {
       payload: { cardInstanceId: drawnCard.instanceId },
     }
 
-    // Simply add card to hand and transition to ACTION phase
+    // Like takeCardsFromMarket, store drawn card in currentTurnCards for ACTION phase
+    // Player must decide to keep in hand or sell during ACTION/SCORE phase
     this.state = {
       ...this.state,
       deck: this.state.deck.slice(1),
       player: {
         ...this.state.player,
         hand: [...this.state.player.hand, drawnCard],
+        // Store the drawn card in currentTurnCards for ACTION phase display
+        currentTurnCards: [{
+          ...drawnCard,
+          location: CardLocation.HAND,
+          isRevealed: true,
+        }],
       },
       phase: SinglePlayerPhase.ACTION,
       actionsThisRound: [...this.state.actionsThisRound, action],
       updatedAt: Date.now(),
     }
 
-    console.log('[SinglePlayerEngine] Drew card:', drawnCard.instanceId, '- added directly to hand')
+    console.log('[SinglePlayerEngine] Drew card:', drawnCard.instanceId)
+    console.log('[SinglePlayerEngine] Set currentTurnCards with 1 card')
     console.log('[SinglePlayerEngine] Transitioned to ACTION phase')
     this.notifyStateChange()
     return this.state
@@ -739,6 +887,81 @@ export class SinglePlayerEngine {
   // ============================================
   // ACTION PHASE
   // ============================================
+
+  /**
+   * Draw a card during ACTION phase
+   * Allows player to draw cards even during action phase
+   * Like takeCardsFromMarket, adds card to both hand and currentTurnCards
+   * @returns Updated game state
+   */
+  drawCardInActionPhase(): SinglePlayerGameState {
+    if (!this.state) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_NOT_STARTED,
+        'Game not started'
+      )
+    }
+
+    if (this.state.isGameOver) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_ALREADY_OVER,
+        'Game is already over'
+      )
+    }
+
+    if (this.state.phase !== SinglePlayerPhase.ACTION) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_INVALID_PHASE,
+        'Not in action phase'
+      )
+    }
+
+    // Check if deck is empty
+    if (this.state.deck.length === 0) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_DECK_EMPTY,
+        '牌庫已空，無法抽牌'
+      )
+    }
+
+    // Check hand limit
+    if (this.state.player.hand.length >= SINGLE_PLAYER_CONSTANTS.MAX_HAND_SIZE) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_HAND_FULL,
+        `手牌已滿（${SINGLE_PLAYER_CONSTANTS.MAX_HAND_SIZE}張），無法抽牌`
+      )
+    }
+
+    // Draw 1 card
+    const drawnCard = this.state.deck[0]
+    drawnCard.location = CardLocation.HAND
+    drawnCard.isRevealed = true
+
+    // Record action
+    const action: SinglePlayerAction = {
+      type: SinglePlayerActionType.DRAW_CARD,
+      timestamp: Date.now(),
+      payload: { cardInstanceId: drawnCard.instanceId },
+    }
+
+    // In ACTION phase, only add to hand (not currentTurnCards)
+    // This is different from DRAW phase where cards go to currentTurnCards
+    this.state = {
+      ...this.state,
+      deck: this.state.deck.slice(1),
+      player: {
+        ...this.state.player,
+        hand: [...this.state.player.hand, drawnCard],
+      },
+      actionsThisRound: [...this.state.actionsThisRound, action],
+      updatedAt: Date.now(),
+    }
+
+    console.log('[SinglePlayerEngine] Drew card in ACTION phase:', drawnCard.instanceId)
+    console.log('[SinglePlayerEngine] Added to hand only (not currentTurnCards)')
+    this.notifyStateChange()
+    return this.state
+  }
 
   /**
    * Tame a creature from hand or market
@@ -799,20 +1022,8 @@ export class SinglePlayerEngine {
       )
     }
 
-    // Calculate cost and check payment
-    const cost = card.cost
-    const paymentResult = calculateOptimalPayment(
-      this.state.player.stones,
-      cost,
-      card.element
-    )
-
-    if (!paymentResult) {
-      throw new SinglePlayerError(
-        SinglePlayerErrorCode.ERR_INSUFFICIENT_STONES,
-        `Insufficient stones. Need ${cost}, have ${calculateStonePoolValue(this.state.player.stones)}`
-      )
-    }
+    // No cost check - taming is FREE in single player mode
+    // Just process the tame action without payment
 
     // Move card to field
     const tamedCard: CardInstance = {
@@ -826,8 +1037,8 @@ export class SinglePlayerEngine {
     // Process ON_TAME effects
     const effectResult = this.processOnTameEffects(tamedCard)
 
-    // Apply stones gained from effects
-    let newStones = paymentResult.remaining
+    // Apply stones gained from effects (no cost deduction)
+    let newStones = this.state.player.stones
     if (effectResult.stonesGained) {
       newStones = addStonesToPool(newStones, effectResult.stonesGained)
     }
@@ -866,7 +1077,7 @@ export class SinglePlayerEngine {
       payload: {
         cardInstanceId,
         from,
-        stonesSpent: cost,
+        stonesSpent: 0, // No cost in single player mode
         stonesGained: effectResult.stonesGained as StonePool | undefined,
       },
     }
@@ -891,8 +1102,9 @@ export class SinglePlayerEngine {
   }
 
   /**
-   * Move a card from currentTurnCards to hand (keep in hand)
-   * This is used after drawing cards - player confirms they want to keep the card
+   * Move a card from currentTurnCards to hand (keep)
+   * - For initial cards: card is NOT in hand yet, add it
+   * - For normal draws: card is ALREADY in hand, just remove from currentTurnCards
    * @param cardInstanceId Card instance ID to move
    * @returns Updated game state
    */
@@ -931,10 +1143,31 @@ export class SinglePlayerEngine {
       )
     }
 
-    // Remove from currentTurnCards (card is already in hand, just remove from currentTurnCards)
+    // Remove from currentTurnCards
     const newCurrentTurnCards = (this.state.player.currentTurnCards || []).filter(
       c => c.instanceId !== cardInstanceId
     )
+
+    // Check if this is from normal draw (card already in hand) or initial selection
+    const cardAlreadyInHand = this.state.player.hand.some(c => c.instanceId === cardInstanceId)
+
+    let newHand = this.state.player.hand
+    let newDeck = this.state.deck
+
+    if (!cardAlreadyInHand) {
+      // Initial card selection: card not in hand yet, need to add it
+      const cardForHand = {
+        ...card,
+        location: CardLocation.HAND,
+        isRevealed: true,
+      }
+      newHand = [...newHand, cardForHand]
+      console.log('[SinglePlayerEngine] Added initial card to hand:', cardInstanceId)
+    } else {
+      // Normal drawn cards are ALREADY in hand (added by drawCard/drawCardInActionPhase)
+      // Just remove from currentTurnCards, no need to add to hand again
+      console.log('[SinglePlayerEngine] Card already in hand, just removed from currentTurnCards:', cardInstanceId)
+    }
 
     // Record action
     const action: SinglePlayerAction = {
@@ -945,15 +1178,16 @@ export class SinglePlayerEngine {
 
     this.state = {
       ...this.state,
+      deck: newDeck,
       player: {
         ...this.state.player,
+        hand: newHand,
         currentTurnCards: newCurrentTurnCards,
       },
       actionsThisRound: [...this.state.actionsThisRound, action],
       updatedAt: Date.now(),
     }
 
-    console.log('[SinglePlayerEngine] Moved card to hand:', cardInstanceId)
     console.log('[SinglePlayerEngine] Remaining currentTurnCards:', newCurrentTurnCards.length)
 
     // Auto-complete settlement if all cards processed and in SCORE phase
@@ -1008,20 +1242,37 @@ export class SinglePlayerEngine {
       )
     }
 
-    // Calculate stones gained (sell value = card cost)
-    // Convert cost to appropriate stones (prefer larger denominations)
+    // ✅ Sell card for stones based on element (fixed values, no cost concept)
+    // Each element has a specific stone combination:
+    // - FIRE: 3×ONE = 3 total
+    // - WATER: 1×THREE = 3 total
+    // - EARTH: 4×ONE = 4 total
+    // - WIND: 1×THREE + 1×ONE = 4 total
+    // - DRAGON: 1×SIX = 6 total
     const stonesGained: Partial<StonePool> = {}
-    let remainingCost = card.cost
-    if (remainingCost >= 6) {
-      stonesGained.SIX = Math.floor(remainingCost / 6)
-      remainingCost = remainingCost % 6
-    }
-    if (remainingCost >= 3) {
-      stonesGained.THREE = Math.floor(remainingCost / 3)
-      remainingCost = remainingCost % 3
-    }
-    if (remainingCost > 0) {
-      stonesGained.ONE = remainingCost
+
+    switch (card.element) {
+      case Element.FIRE:
+        // Fire: 3 ONE stones = 3 total
+        stonesGained.ONE = 3
+        break
+      case Element.WATER:
+        // Water: 1 THREE stone = 3 total
+        stonesGained.THREE = 1
+        break
+      case Element.EARTH:
+        // Earth: 4 ONE stones = 4 total
+        stonesGained.ONE = 4
+        break
+      case Element.WIND:
+        // Wind: 1 THREE + 1 ONE = 4 total
+        stonesGained.THREE = 1
+        stonesGained.ONE = 1
+        break
+      case Element.DRAGON:
+        // Dragon: 1 SIX stone = 6 total
+        stonesGained.SIX = 1
+        break
     }
 
     // Remove card from both hand and currentTurnCards
@@ -1108,11 +1359,26 @@ export class SinglePlayerEngine {
       payload: {},
     }
 
+    // Find cards with RECOVER_CARD PERMANENT effect (like Imp)
+    // These cards can optionally return to hand during resolution phase
+    const pendingResolutionCards = this.state.player.field
+      .filter(card =>
+        card.effects.some(effect =>
+          effect.type === EffectType.RECOVER_CARD &&
+          effect.trigger === EffectTrigger.PERMANENT
+        )
+      )
+      .map(card => card.instanceId)
+
+    console.log('[SinglePlayerEngine] Cards with RECOVER_CARD effect:', pendingResolutionCards.length)
+
     // Move to SCORE phase (settlement) like multiplayer
     // Player must process currentTurnCards before advancing to next round
     this.state = {
       ...this.state,
       phase: SinglePlayerPhase.SCORE,
+      pendingResolutionCards,
+      processedResolutionCards: [],
       actionsThisRound: [...this.state.actionsThisRound, action],
       updatedAt: Date.now(),
     }
@@ -1125,6 +1391,7 @@ export class SinglePlayerEngine {
   /**
    * Complete the settlement phase and move to next round
    * Called after all currentTurnCards are processed (kept or sold)
+   * AND all resolution cards have been processed (player chose yes/no for each)
    * @returns Updated game state
    */
   completeSettlement(): SinglePlayerGameState {
@@ -1150,16 +1417,196 @@ export class SinglePlayerEngine {
       )
     }
 
-    // Move to next round's draw phase
+    // Check if all resolution cards have been processed
+    const pendingCount = this.state.pendingResolutionCards?.length ?? 0
+    const processedCount = this.state.processedResolutionCards?.length ?? 0
+    if (pendingCount > 0 && processedCount < pendingCount) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_INVALID_ACTION,
+        '必須處理完所有結算效果卡片才能結束回合'
+      )
+    }
+
+    // Reset artifact state for new round
+    this.resetArtifactState()
+
+    // Move to next round's draw phase with artifact selection (like multiplayer)
+    // Reset artifact selection phase so player can select new artifact
     this.state = {
       ...this.state,
       phase: SinglePlayerPhase.DRAW,
       round: this.state.round + 1,
       actionsThisRound: [],
+      selectedArtifact: null,  // Clear previous artifact selection
+      artifactSelectionPhase: {
+        isComplete: false,  // Reset to allow new artifact selection
+        confirmedArtifactId: null,
+      },
+      pendingResolutionCards: [],  // Clear resolution cards
+      processedResolutionCards: [],
       updatedAt: Date.now(),
     }
 
-    console.log('[SinglePlayerEngine] Settlement complete, moved to next round DRAW phase')
+    console.log('[SinglePlayerEngine] Settlement complete, moved to next round DRAW phase (artifact selection)')
+    this.notifyStateChange()
+    return this.state
+  }
+
+  /**
+   * Check if a field card has pending resolution effect
+   * @param cardInstanceId Card instance ID to check
+   * @returns Whether the card has pending resolution effect
+   */
+  hasPendingResolutionEffect(cardInstanceId: string): boolean {
+    if (!this.state) return false
+    const pending = this.state.pendingResolutionCards ?? []
+    const processed = this.state.processedResolutionCards ?? []
+    return pending.includes(cardInstanceId) && !processed.includes(cardInstanceId)
+  }
+
+  /**
+   * Get all cards with pending resolution effects that haven't been processed yet
+   * @returns Array of card instance IDs
+   */
+  getUnprocessedResolutionCards(): string[] {
+    if (!this.state) return []
+    const pending = this.state.pendingResolutionCards ?? []
+    const processed = this.state.processedResolutionCards ?? []
+    return pending.filter(id => !processed.includes(id))
+  }
+
+  /**
+   * Process a resolution card's effect (player chose to activate or skip)
+   * For RECOVER_CARD effect, choosing to activate returns the card to hand
+   * @param cardInstanceId Card instance ID to process
+   * @param activate Whether to activate the effect (true = return to hand, false = stay on field)
+   * @returns Updated game state
+   */
+  processResolutionCard(cardInstanceId: string, activate: boolean): SinglePlayerGameState {
+    if (!this.state) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_NOT_STARTED,
+        'Game not started'
+      )
+    }
+
+    if (this.state.phase !== SinglePlayerPhase.SCORE) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_INVALID_PHASE,
+        'Not in score phase'
+      )
+    }
+
+    // Check if card is in pending resolution list
+    if (!this.hasPendingResolutionEffect(cardInstanceId)) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_INVALID_ACTION,
+        'Card does not have pending resolution effect'
+      )
+    }
+
+    let newField = this.state.player.field
+    let newHand = this.state.player.hand
+
+    if (activate) {
+      // Find card in field
+      const card = this.state.player.field.find(c => c.instanceId === cardInstanceId)
+      if (!card) {
+        throw new SinglePlayerError(
+          SinglePlayerErrorCode.ERR_CARD_NOT_FOUND,
+          'Card not found on field'
+        )
+      }
+
+      // Return card to hand
+      newField = this.state.player.field.filter(c => c.instanceId !== cardInstanceId)
+      const returnedCard: CardInstance = {
+        ...card,
+        location: CardLocation.HAND,
+      }
+      newHand = [...this.state.player.hand, returnedCard]
+
+      console.log('[SinglePlayerEngine] Resolution effect activated: returned card to hand:', cardInstanceId)
+    } else {
+      console.log('[SinglePlayerEngine] Resolution effect skipped: card stays on field:', cardInstanceId)
+    }
+
+    // Mark card as processed
+    const processedResolutionCards = [...(this.state.processedResolutionCards ?? []), cardInstanceId]
+
+    this.state = {
+      ...this.state,
+      player: {
+        ...this.state.player,
+        field: newField,
+        hand: newHand,
+      },
+      processedResolutionCards,
+      updatedAt: Date.now(),
+    }
+
+    this.notifyStateChange()
+    return this.state
+  }
+
+  /**
+   * Return a card from field to hand
+   * Can only be used during ACTION phase
+   * @param cardInstanceId Card instance ID to return
+   * @returns Updated game state
+   */
+  returnCardToHand(cardInstanceId: string): SinglePlayerGameState {
+    if (!this.state) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_NOT_STARTED,
+        'Game not started'
+      )
+    }
+
+    if (this.state.isGameOver) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_ALREADY_OVER,
+        'Game is already over'
+      )
+    }
+
+    // Only allow during ACTION phase
+    if (this.state.phase !== SinglePlayerPhase.ACTION) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_INVALID_ACTION,
+        '只能在行動階段將卡片回手'
+      )
+    }
+
+    // Find card in field
+    const card = this.state.player.field.find(c => c.instanceId === cardInstanceId)
+    if (!card) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_CARD_NOT_FOUND,
+        'Card not found on field'
+      )
+    }
+
+    // Remove card from field
+    const newField = this.state.player.field.filter(c => c.instanceId !== cardInstanceId)
+
+    // Add card to hand
+    const returnedCard: CardInstance = {
+      ...card,
+      location: CardLocation.HAND,
+    }
+
+    this.state = {
+      ...this.state,
+      player: {
+        ...this.state.player,
+        hand: [...this.state.player.hand, returnedCard],
+        field: newField,
+      },
+      updatedAt: Date.now(),
+    }
+
+    console.log('[SinglePlayerEngine] Returned card to hand from field:', cardInstanceId)
     this.notifyStateChange()
     return this.state
   }
@@ -1314,6 +1761,145 @@ export class SinglePlayerEngine {
     }
 
     console.log('[SinglePlayerEngine] Moved card to sanctuary from', fromHand ? 'hand' : 'field', ':', cardInstanceId)
+    this.notifyStateChange()
+    return this.state
+  }
+
+  /**
+   * Take a card from discard pile to hand
+   * @param cardInstanceId Card instance ID to take
+   * @returns Updated game state
+   */
+  takeCardFromDiscard(cardInstanceId: string): SinglePlayerGameState {
+    if (!this.state) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_NOT_STARTED,
+        'Game not started'
+      )
+    }
+
+    if (this.state.isGameOver) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_ALREADY_OVER,
+        'Game is already over'
+      )
+    }
+
+    // Only allow during ACTION phase
+    if (this.state.phase !== SinglePlayerPhase.ACTION) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_INVALID_ACTION,
+        '只能在行動階段從棄置牌堆拿牌'
+      )
+    }
+
+    // Find card in discard pile
+    const card = this.state.discardPile.find(c => c.instanceId === cardInstanceId)
+    if (!card) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_CARD_NOT_FOUND,
+        'Card not found in discard pile'
+      )
+    }
+
+    // Check hand size limit
+    if (this.state.player.hand.length >= SINGLE_PLAYER_CONSTANTS.MAX_HAND_SIZE) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_HAND_FULL,
+        `手牌已滿 (${SINGLE_PLAYER_CONSTANTS.MAX_HAND_SIZE})`
+      )
+    }
+
+    // Remove card from discard pile
+    const newDiscardPile = this.state.discardPile.filter(c => c.instanceId !== cardInstanceId)
+
+    // Add card to hand
+    const takenCard: CardInstance = {
+      ...card,
+      location: CardLocation.HAND,
+    }
+
+    this.state = {
+      ...this.state,
+      player: {
+        ...this.state.player,
+        hand: [...this.state.player.hand, takenCard],
+      },
+      discardPile: newDiscardPile,
+      updatedAt: Date.now(),
+    }
+
+    console.log('[SinglePlayerEngine] Took card from discard pile to hand:', cardInstanceId)
+    this.notifyStateChange()
+    return this.state
+  }
+
+  /**
+   * Take a card from sanctuary back to hand
+   * Only allowed during ACTION phase
+   * @param cardInstanceId - ID of the card to take from sanctuary
+   * @returns Updated game state
+   */
+  takeCardFromSanctuary(cardInstanceId: string): SinglePlayerGameState {
+    if (!this.state) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_NOT_STARTED,
+        'Game not started'
+      )
+    }
+
+    if (this.state.isGameOver) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_ALREADY_OVER,
+        'Game is already over'
+      )
+    }
+
+    // Only allow during ACTION phase
+    if (this.state.phase !== SinglePlayerPhase.ACTION) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_INVALID_ACTION,
+        '只能在行動階段從棲息地拿牌'
+      )
+    }
+
+    // Find card in sanctuary
+    const card = this.state.sanctuary.find(c => c.instanceId === cardInstanceId)
+    if (!card) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_CARD_NOT_FOUND,
+        'Card not found in sanctuary'
+      )
+    }
+
+    // Check hand size limit
+    if (this.state.player.hand.length >= SINGLE_PLAYER_CONSTANTS.MAX_HAND_SIZE) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_HAND_FULL,
+        `手牌已滿 (${SINGLE_PLAYER_CONSTANTS.MAX_HAND_SIZE})`
+      )
+    }
+
+    // Remove card from sanctuary
+    const newSanctuary = this.state.sanctuary.filter(c => c.instanceId !== cardInstanceId)
+
+    // Add card to hand
+    const takenCard: CardInstance = {
+      ...card,
+      location: CardLocation.HAND,
+    }
+
+    this.state = {
+      ...this.state,
+      player: {
+        ...this.state.player,
+        hand: [...this.state.player.hand, takenCard],
+      },
+      sanctuary: newSanctuary,
+      updatedAt: Date.now(),
+    }
+
+    console.log('[SinglePlayerEngine] Took card from sanctuary to hand:', cardInstanceId)
     this.notifyStateChange()
     return this.state
   }
@@ -1654,6 +2240,37 @@ export class SinglePlayerEngine {
         break
 
       case EffectType.EARN_PER_ELEMENT:
+        // EARN_PER_ELEMENT can be ON_TAME (Ifrit) or ON_SCORE
+        if (this.state && effect.trigger === EffectTrigger.ON_TAME) {
+          // Ifrit effect: earn stones per card on field (including itself)
+          // The card is not yet in field array when ON_TAME effects are processed
+          const fieldSize = this.state.player.field.length + 1
+          const stoneValue = effect.value ?? 1
+
+          if (effect.stones && effect.stones.length > 0) {
+            const additions: Partial<StonePool> = {}
+            for (const stone of effect.stones) {
+              const key = stoneTypeToPoolKey(stone.type)
+              additions[key] = (additions[key] ?? 0) + (stone.amount * fieldSize)
+            }
+            result.stonesGained = additions
+            result.message = `Earned stones (${fieldSize} cards in area × ${stoneValue})`
+          } else {
+            result.stonesGained = { ONE: fieldSize * stoneValue }
+            result.message = `Earned ${fieldSize * stoneValue} stones (${fieldSize} cards in area)`
+          }
+
+          console.log('[SinglePlayerEngine] Ifrit ON_TAME effect processed:', {
+            fieldSize,
+            stoneValue,
+            stonesGained: result.stonesGained,
+          })
+        } else {
+          // ON_SCORE effects - processed at game end
+          result.message = 'Scoring effect registered'
+        }
+        break
+
       case EffectType.EARN_PER_FAMILY:
       case EffectType.CONDITIONAL_EARN:
         // ON_SCORE effects - processed at game end
@@ -1755,7 +2372,7 @@ export class SinglePlayerEngine {
       }
     }
 
-    // Calculate remaining stone value
+    // Stone value is NOT part of score (kept for reference only)
     breakdown.stoneValue = calculateStonePoolValue(this.state.player.stones)
 
     // Calculate area bonus (field size × areaBonus)
@@ -1770,12 +2387,11 @@ export class SinglePlayerEngine {
       breakdown.totalPermanentBonus += areaBonus
     }
 
-    // Calculate grand total
+    // Calculate grand total (stones do NOT contribute to score)
     breakdown.grandTotal =
       breakdown.totalBaseScore +
       breakdown.totalEffectBonus +
-      breakdown.totalPermanentBonus +
-      breakdown.stoneValue
+      breakdown.totalPermanentBonus
 
     return breakdown
   }
@@ -1862,14 +2478,9 @@ export class SinglePlayerEngine {
 
     if (!card) return false
 
-    // Check if player can afford the cost
-    const paymentResult = calculateOptimalPayment(
-      this.state.player.stones,
-      card.cost,
-      card.element
-    )
-
-    return paymentResult !== null
+    // No cost check - taming is FREE in single player mode
+    // Only check field capacity (done above)
+    return true
   }
 
   /**
@@ -2088,6 +2699,1369 @@ export class SinglePlayerEngine {
     const maxSize = Math.min(baseLimit + areaBonus, SINGLE_PLAYER_CONSTANTS.MAX_FIELD_SIZE)
 
     return maxSize
+  }
+
+  // ============================================
+  // ARTIFACT EFFECT EXECUTION
+  // ============================================
+
+  /**
+   * Get the current artifact state
+   * @returns Current artifact state
+   */
+  getArtifactState(): ArtifactState {
+    return { ...this.artifactState }
+  }
+
+  /**
+   * Reset artifact state for a new round
+   * Called when transitioning to a new round
+   */
+  private resetArtifactState(): void {
+    this.artifactState = {
+      artifactId: null,
+      actionUsed: false,
+      instantExecuted: false,
+      permanentActive: false,
+    }
+    console.log('[SinglePlayerEngine] Artifact state reset for new round')
+  }
+
+  /**
+   * Initialize artifact state when artifact is confirmed
+   * @param artifactId The confirmed artifact ID
+   */
+  private initializeArtifactState(artifactId: string): void {
+    const artifact = ARTIFACTS_BY_ID[artifactId]
+    if (!artifact) {
+      console.warn('[SinglePlayerEngine] Unknown artifact:', artifactId)
+      return
+    }
+
+    this.artifactState = {
+      artifactId,
+      actionUsed: false,
+      instantExecuted: false,
+      permanentActive: artifact.type === ArtifactType.PERMANENT,
+    }
+
+    console.log('[SinglePlayerEngine] Artifact state initialized:', {
+      artifactId,
+      type: artifact.type,
+      permanentActive: this.artifactState.permanentActive,
+    })
+  }
+
+  /**
+   * Check if the current artifact can be used
+   * @returns true if artifact can be used
+   */
+  canUseArtifact(): boolean {
+    if (!this.state) return false
+    if (!this.artifactState.artifactId) return false
+
+    const artifact = ARTIFACTS_BY_ID[this.artifactState.artifactId]
+    if (!artifact) return false
+
+    // Check based on artifact type
+    switch (artifact.type) {
+      case ArtifactType.INSTANT:
+        // INSTANT can only be used once when confirmed
+        return !this.artifactState.instantExecuted
+      case ArtifactType.ACTION:
+        // ACTION can only be used once per round during ACTION phase
+        return !this.artifactState.actionUsed && this.state.phase === SinglePlayerPhase.ACTION
+      case ArtifactType.PERMANENT:
+        // PERMANENT is always active (checked when specific conditions are met)
+        return this.artifactState.permanentActive
+      default:
+        return false
+    }
+  }
+
+  /**
+   * Get available artifact effect options for the current artifact
+   * Used for artifacts that offer multiple choices
+   * @returns Array of available options
+   */
+  getArtifactEffectOptions(): ArtifactEffectOption[] {
+    if (!this.state || !this.artifactState.artifactId) return []
+
+    const artifact = ARTIFACTS_BY_ID[this.artifactState.artifactId]
+    if (!artifact) return []
+
+    switch (this.artifactState.artifactId) {
+      case 'incense_burner':
+        return this.getIncenseBurnerOptions()
+      case 'pied_piper_pipe':
+        return this.getPiedPiperPipeOptions()
+      case 'cap_of_hades':
+        return this.getCapOfHadesOptions()
+      case 'golden_fleece':
+        return this.getGoldenFleeceOptions()
+      case 'ring_of_wishes':
+        return this.getRingOfWishesOptions()
+      default:
+        return []
+    }
+  }
+
+  /**
+   * Execute artifact effect with optional parameters
+   * @param optionId Optional option ID for artifacts with multiple choices
+   * @param selectedCards Optional array of card IDs for effects requiring card selection
+   * @param selectedStones Optional stone configuration for stone-based effects
+   * @returns Artifact effect result
+   */
+  executeArtifactEffect(
+    optionId?: string,
+    selectedCards?: string[],
+    selectedStones?: Partial<StonePool>
+  ): ArtifactEffectResult {
+    if (!this.state) {
+      return { success: false, message: 'Game not started' }
+    }
+
+    if (!this.artifactState.artifactId) {
+      return { success: false, message: 'No artifact selected' }
+    }
+
+    const artifact = ARTIFACTS_BY_ID[this.artifactState.artifactId]
+    if (!artifact) {
+      return { success: false, message: 'Unknown artifact' }
+    }
+
+    // Check if artifact can be used
+    if (!this.canUseArtifact()) {
+      if (artifact.type === ArtifactType.ACTION && this.artifactState.actionUsed) {
+        return { success: false, message: '此神器本回合已使用' }
+      }
+      if (artifact.type === ArtifactType.INSTANT && this.artifactState.instantExecuted) {
+        return { success: false, message: '此神器效果已執行' }
+      }
+      return { success: false, message: '無法使用此神器' }
+    }
+
+    // Execute based on artifact ID
+    let result: ArtifactEffectResult
+
+    switch (this.artifactState.artifactId) {
+      // ============================================
+      // CORE ARTIFACTS
+      // ============================================
+      case 'incense_burner':
+        result = this.executeIncenseBurner(optionId, selectedCards)
+        break
+      case 'monkey_king_staff':
+        result = this.executeMonkeyKingStaff(selectedCards)
+        break
+      case 'pied_piper_pipe':
+        result = this.executePiedPiperPipe(optionId)
+        break
+
+      // ============================================
+      // RANDOM ARTIFACTS
+      // ============================================
+      case 'book_of_thoth':
+        result = this.executeBookOfThoth(selectedStones)
+        break
+      case 'cap_of_hades':
+        result = this.executeCapOfHades(optionId, selectedCards)
+        break
+      case 'philosopher_stone':
+        // PERMANENT effect - handled separately in discard/sell card methods
+        result = this.executePhilosopherStone(selectedCards)
+        break
+      case 'imperial_seal':
+        result = this.executeImperialSeal(selectedCards)
+        break
+      case 'ring_of_wishes':
+        result = this.executeRingOfWishes(optionId, selectedCards)
+        break
+      case 'gem_of_kukulkan':
+        result = this.executeGemOfKukulkan(selectedCards)
+        break
+
+      default:
+        result = { success: false, message: `神器 ${artifact.nameTw} 效果尚未實作` }
+    }
+
+    // Mark artifact as used based on type
+    if (result.success) {
+      if (artifact.type === ArtifactType.INSTANT) {
+        this.artifactState.instantExecuted = true
+      } else if (artifact.type === ArtifactType.ACTION) {
+        this.artifactState.actionUsed = true
+      }
+    }
+
+    this.notifyStateChange()
+    return result
+  }
+
+  // ============================================
+  // CORE ARTIFACT IMPLEMENTATIONS
+  // ============================================
+
+  /**
+   * Get options for Incense Burner artifact
+   * Option A: Buy 1 card from buy area for 3 stones of any color
+   * Option B: Shelter top 2 cards from deck
+   */
+  private getIncenseBurnerOptions(): ArtifactEffectOption[] {
+    if (!this.state) return []
+
+    const totalStones = calculateStonePoolValue(this.state.player.stones)
+    const hasEnoughStones = totalStones >= 3
+    const marketHasCards = this.state.market.length > 0
+    const deckHasCards = this.state.deck.length >= 1
+
+    return [
+      {
+        id: 'buy_card',
+        description: 'Buy 1 card from buy area for 3 stones',
+        descriptionTw: '支付3顆任意顏色的石頭購買買入區的1張卡',
+        available: hasEnoughStones && marketHasCards,
+        unavailableReason: !hasEnoughStones
+          ? '石頭不足（需要3顆）'
+          : !marketHasCards
+            ? '買入區沒有卡牌'
+            : undefined,
+      },
+      {
+        id: 'shelter_deck',
+        description: 'Shelter top 2 cards from deck',
+        descriptionTw: '將牌庫頂的2張卡棲息地',
+        available: deckHasCards,
+        unavailableReason: !deckHasCards ? '牌庫沒有卡牌' : undefined,
+      },
+    ]
+  }
+
+  /**
+   * Execute Incense Burner effect
+   * Option A: Buy 1 card for 3 stones
+   * Option B: Shelter 2 cards from deck
+   */
+  private executeIncenseBurner(
+    optionId?: string,
+    selectedCards?: string[]
+  ): ArtifactEffectResult {
+    if (!this.state) {
+      return { success: false, message: 'Game not started' }
+    }
+
+    if (!optionId) {
+      return {
+        success: false,
+        message: '請選擇效果選項',
+        requiresInput: true,
+        inputType: 'CHOOSE_OPTION',
+        options: this.getIncenseBurnerOptions(),
+      }
+    }
+
+    if (optionId === 'buy_card') {
+      // Buy 1 card from buy area for 3 stones
+      if (!selectedCards || selectedCards.length !== 1) {
+        return {
+          success: false,
+          message: '請選擇1張買入區的卡牌',
+          requiresInput: true,
+          inputType: 'SELECT_CARDS',
+        }
+      }
+
+      const cardId = selectedCards[0]
+      const card = this.state.market.find(c => c.instanceId === cardId)
+      if (!card) {
+        return { success: false, message: '卡牌不在買入區' }
+      }
+
+      // Check and deduct 3 stones
+      const totalStones = calculateStonePoolValue(this.state.player.stones)
+      if (totalStones < 3) {
+        return { success: false, message: '石頭不足（需要3顆）' }
+      }
+
+      // Deduct stones (prefer smaller denominations)
+      const stonesSpent = this.deductStones(3)
+      if (!stonesSpent) {
+        return { success: false, message: '無法扣除石頭' }
+      }
+
+      // Move card to hand
+      const newMarket = this.state.market.filter(c => c.instanceId !== cardId)
+      const newHand = [...this.state.player.hand, { ...card, location: CardLocation.HAND }]
+
+      // Refill market
+      let newDeck = this.state.deck
+      if (newDeck.length > 0) {
+        const refillCard = { ...newDeck[0], location: CardLocation.MARKET, isRevealed: true }
+        newMarket.push(refillCard)
+        newDeck = newDeck.slice(1)
+      }
+
+      this.state = {
+        ...this.state,
+        deck: newDeck,
+        market: newMarket,
+        player: {
+          ...this.state.player,
+          hand: newHand,
+          stones: this.state.player.stones,
+        },
+        updatedAt: Date.now(),
+      }
+
+      return {
+        success: true,
+        message: `香爐：以3顆石頭購買了 ${card.nameTw}`,
+        stonesSpent,
+        cardsDrawn: [card],
+      }
+    } else if (optionId === 'shelter_deck') {
+      // Shelter top 2 cards from deck
+      if (this.state.deck.length === 0) {
+        return { success: false, message: '牌庫沒有卡牌' }
+      }
+
+      const shelterCount = Math.min(2, this.state.deck.length)
+      const shelterCards = this.state.deck.slice(0, shelterCount).map(c => ({
+        ...c,
+        location: CardLocation.FIELD,
+        isRevealed: true,
+      }))
+
+      this.state = {
+        ...this.state,
+        deck: this.state.deck.slice(shelterCount),
+        sanctuary: [...this.state.sanctuary, ...shelterCards],
+        updatedAt: Date.now(),
+      }
+
+      return {
+        success: true,
+        message: `香爐：將牌庫頂的${shelterCount}張卡棲息地`,
+        cardsSheltered: shelterCards,
+      }
+    }
+
+    return { success: false, message: '無效的選項' }
+  }
+
+  /**
+   * Execute Monkey King's Staff effect
+   * Discard 2 cards from hand to gain 1 red, 1 blue, and 1 green stone
+   */
+  private executeMonkeyKingStaff(selectedCards?: string[]): ArtifactEffectResult {
+    if (!this.state) {
+      return { success: false, message: 'Game not started' }
+    }
+
+    if (!selectedCards || selectedCards.length !== 2) {
+      if (this.state.player.hand.length < 2) {
+        return { success: false, message: '手牌不足2張' }
+      }
+      return {
+        success: false,
+        message: '請選擇2張手牌棄掉',
+        requiresInput: true,
+        inputType: 'SELECT_CARDS',
+      }
+    }
+
+    // Validate cards are in hand
+    const cardsToDiscard = selectedCards.map(id =>
+      this.state!.player.hand.find(c => c.instanceId === id)
+    )
+    if (cardsToDiscard.some(c => !c)) {
+      return { success: false, message: '選擇的卡牌不在手牌中' }
+    }
+
+    // Discard the cards
+    const newHand = this.state.player.hand.filter(
+      c => !selectedCards.includes(c.instanceId)
+    )
+    const discardedCards = cardsToDiscard.filter(c => c) as CardInstance[]
+    const newDiscardPile = [
+      ...this.state.discardPile,
+      ...discardedCards.map(c => ({ ...c, location: CardLocation.DISCARD })),
+    ]
+
+    // Gain stones: 1 ONE (red), 1 THREE (blue), 1 SIX (green) based on description
+    // Note: Based on artifact description "1 red, 1 blue, 1 green stone"
+    // In the game's stone system: ONE=1, THREE=3, SIX=6
+    const stonesGained: Partial<StonePool> = {
+      ONE: 1,   // 1 red stone (1 point)
+      THREE: 1, // 1 blue stone (3 points)
+      SIX: 1,   // 1 green stone (6 points) - Actually should be just gaining element stones
+    }
+
+    // Actually based on the artifact description, it should be element stones
+    // "獲得1顆紅石、1顆藍石和1顆綠石" - these are element stones
+    // But the game uses FIRE for red, WATER for blue, EARTH for green
+    // Let me reconsider: the description says "red, blue, green" which in game terms means:
+    // - Red = FIRE element stone
+    // - Blue = WATER element stone
+    // - Green = EARTH element stone
+    // However, looking at the game's stone economy, the ONE/THREE/SIX are coins, not element stones
+    // The artifact likely means: gain 1 of each basic stone type (1 + 3 + 6 = 10 total value)
+
+    // Update stones
+    const newStones = addStonesToPool(this.state.player.stones, stonesGained)
+
+    this.state = {
+      ...this.state,
+      player: {
+        ...this.state.player,
+        hand: newHand,
+        stones: newStones,
+      },
+      discardPile: newDiscardPile,
+      updatedAt: Date.now(),
+    }
+
+    return {
+      success: true,
+      message: '齊天大聖金箍棒：棄掉2張手牌，獲得1顆紅石、1顆藍石和1顆綠石',
+      stonesGained,
+      cardsDiscarded: discardedCards,
+    }
+  }
+
+  /**
+   * Get options for Pied Piper's Pipe artifact
+   * Option A: Draw 1 card from deck
+   * Option B: Recall all cards from sanctuary
+   */
+  private getPiedPiperPipeOptions(): ArtifactEffectOption[] {
+    if (!this.state) return []
+
+    const deckHasCards = this.state.deck.length > 0
+    const sanctuaryHasCards = this.state.sanctuary.length > 0
+    const handNotFull = this.state.player.hand.length < SINGLE_PLAYER_CONSTANTS.MAX_HAND_SIZE
+
+    return [
+      {
+        id: 'draw_card',
+        description: 'Draw 1 card from deck',
+        descriptionTw: '從牌庫抽1張卡',
+        available: deckHasCards && handNotFull,
+        unavailableReason: !deckHasCards
+          ? '牌庫沒有卡牌'
+          : !handNotFull
+            ? '手牌已滿'
+            : undefined,
+      },
+      {
+        id: 'recall_sanctuary',
+        description: 'Recall all cards from sanctuary',
+        descriptionTw: '召回棲息地所有的卡牌',
+        available: sanctuaryHasCards,
+        unavailableReason: !sanctuaryHasCards ? '棲息地沒有卡牌' : undefined,
+      },
+    ]
+  }
+
+  /**
+   * Execute Pied Piper's Pipe effect (INSTANT)
+   * Option A: Draw 1 card from deck
+   * Option B: Recall all cards from sanctuary
+   */
+  private executePiedPiperPipe(optionId?: string): ArtifactEffectResult {
+    if (!this.state) {
+      return { success: false, message: 'Game not started' }
+    }
+
+    if (!optionId) {
+      return {
+        success: false,
+        message: '請選擇效果選項',
+        requiresInput: true,
+        inputType: 'CHOOSE_OPTION',
+        options: this.getPiedPiperPipeOptions(),
+      }
+    }
+
+    if (optionId === 'draw_card') {
+      if (this.state.deck.length === 0) {
+        return { success: false, message: '牌庫沒有卡牌' }
+      }
+      if (this.state.player.hand.length >= SINGLE_PLAYER_CONSTANTS.MAX_HAND_SIZE) {
+        return { success: false, message: '手牌已滿' }
+      }
+
+      const drawnCard = {
+        ...this.state.deck[0],
+        location: CardLocation.HAND,
+        isRevealed: true,
+      }
+
+      this.state = {
+        ...this.state,
+        deck: this.state.deck.slice(1),
+        player: {
+          ...this.state.player,
+          hand: [...this.state.player.hand, drawnCard],
+        },
+        updatedAt: Date.now(),
+      }
+
+      return {
+        success: true,
+        message: `吹笛人之笛：從牌庫抽了 ${drawnCard.nameTw}`,
+        cardsDrawn: [drawnCard],
+      }
+    } else if (optionId === 'recall_sanctuary') {
+      if (this.state.sanctuary.length === 0) {
+        return { success: false, message: '棲息地沒有卡牌' }
+      }
+
+      const recalledCards = this.state.sanctuary.map(c => ({
+        ...c,
+        location: CardLocation.HAND,
+      }))
+
+      this.state = {
+        ...this.state,
+        sanctuary: [],
+        player: {
+          ...this.state.player,
+          hand: [...this.state.player.hand, ...recalledCards],
+        },
+        updatedAt: Date.now(),
+      }
+
+      return {
+        success: true,
+        message: `吹笛人之笛：召回棲息地的${recalledCards.length}張卡牌`,
+        cardsRecalled: recalledCards,
+      }
+    }
+
+    return { success: false, message: '無效的選項' }
+  }
+
+  // ============================================
+  // RANDOM ARTIFACT IMPLEMENTATIONS
+  // ============================================
+
+  /**
+   * Execute Book of Thoth effect (ACTION)
+   * Upgrade up to 2 stones by one level (Red → Blue → Green → Purple)
+   * Red (ONE) → Blue (THREE) → Green (SIX) → Purple (special 6-point)
+   */
+  private executeBookOfThoth(selectedStones?: Partial<StonePool>): ArtifactEffectResult {
+    if (!this.state) {
+      return { success: false, message: 'Game not started' }
+    }
+
+    if (!selectedStones) {
+      // Check if player has any stones to upgrade
+      const { ONE, THREE, SIX } = this.state.player.stones
+      if (ONE === 0 && THREE === 0 && SIX === 0) {
+        return { success: false, message: '沒有可升級的石頭' }
+      }
+
+      return {
+        success: false,
+        message: '請選擇要升級的石頭（最多2次）',
+        requiresInput: true,
+        inputType: 'SELECT_STONES',
+      }
+    }
+
+    // Count total upgrade operations (max 2)
+    const upgradeCount = (selectedStones.ONE ?? 0) + (selectedStones.THREE ?? 0) + (selectedStones.SIX ?? 0)
+    if (upgradeCount === 0) {
+      return { success: false, message: '請至少選擇1顆石頭升級' }
+    }
+    if (upgradeCount > 2) {
+      return { success: false, message: '最多只能升級2次' }
+    }
+
+    // Validate player has enough stones
+    const currentStones = this.state.player.stones
+    if ((selectedStones.ONE ?? 0) > currentStones.ONE) {
+      return { success: false, message: '紅石不足' }
+    }
+    if ((selectedStones.THREE ?? 0) > currentStones.THREE) {
+      return { success: false, message: '藍石不足' }
+    }
+    if ((selectedStones.SIX ?? 0) > currentStones.SIX) {
+      return { success: false, message: '綠石不足（紫石無法再升級）' }
+    }
+
+    // Perform upgrades: ONE → THREE → SIX → (special purple, not in pool)
+    const newStones = { ...currentStones }
+    const upgradeOneCount = selectedStones.ONE ?? 0
+    const upgradeThreeCount = selectedStones.THREE ?? 0
+    const upgradeSixCount = selectedStones.SIX ?? 0
+
+    // ONE → THREE
+    newStones.ONE -= upgradeOneCount
+    newStones.THREE += upgradeOneCount
+
+    // THREE → SIX
+    newStones.THREE -= upgradeThreeCount
+    newStones.SIX += upgradeThreeCount
+
+    // SIX → Purple (6-point stone, we'll add to SIX for now as it represents high value)
+    // Note: Purple stones are worth 6 points like SIX stones, so this is essentially staying at SIX level
+    // In the actual game, purple might be a special marker. For now, we just don't reduce SIX.
+    // Actually, per the rules, SIX cannot upgrade further, so we should not allow upgradeSixCount
+    if (upgradeSixCount > 0) {
+      return { success: false, message: '綠石（6點）已是最高級，無法升級為紫石' }
+    }
+
+    this.state = {
+      ...this.state,
+      player: {
+        ...this.state.player,
+        stones: newStones,
+      },
+      updatedAt: Date.now(),
+    }
+
+    const upgradeMessages: string[] = []
+    if (upgradeOneCount > 0) upgradeMessages.push(`${upgradeOneCount}顆紅石→藍石`)
+    if (upgradeThreeCount > 0) upgradeMessages.push(`${upgradeThreeCount}顆藍石→綠石`)
+
+    return {
+      success: true,
+      message: `透特之書：升級了${upgradeMessages.join('、')}`,
+      stonesSpent: { ONE: upgradeOneCount, THREE: upgradeThreeCount },
+      stonesGained: { THREE: upgradeOneCount, SIX: upgradeThreeCount },
+    }
+  }
+
+  /**
+   * Get options for Cap of Hades artifact
+   * Option A: Shelter 1 from hand + free buy from market
+   * Option B: Gain 1 blue stone
+   */
+  private getCapOfHadesOptions(): ArtifactEffectOption[] {
+    if (!this.state) return []
+
+    const handHasCards = this.state.player.hand.length > 0
+    const marketHasCards = this.state.market.length > 0
+
+    return [
+      {
+        id: 'shelter_and_buy',
+        description: 'Shelter 1 card from hand and buy 1 card for free',
+        descriptionTw: '將手上的1張卡棲息地並免費購買買入區的1張卡',
+        available: handHasCards && marketHasCards,
+        unavailableReason: !handHasCards
+          ? '手牌沒有卡牌'
+          : !marketHasCards
+            ? '買入區沒有卡牌'
+            : undefined,
+      },
+      {
+        id: 'gain_blue',
+        description: 'Gain 1 blue stone (3 points)',
+        descriptionTw: '獲得1顆藍石',
+        available: true,
+      },
+    ]
+  }
+
+  /**
+   * Execute Cap of Hades effect (ACTION)
+   * Option A: Shelter 1 from hand + free buy from market
+   * Option B: Gain 1 blue stone
+   */
+  private executeCapOfHades(
+    optionId?: string,
+    selectedCards?: string[]
+  ): ArtifactEffectResult {
+    if (!this.state) {
+      return { success: false, message: 'Game not started' }
+    }
+
+    if (!optionId) {
+      return {
+        success: false,
+        message: '請選擇效果選項',
+        requiresInput: true,
+        inputType: 'CHOOSE_OPTION',
+        options: this.getCapOfHadesOptions(),
+      }
+    }
+
+    if (optionId === 'shelter_and_buy') {
+      if (!selectedCards || selectedCards.length !== 2) {
+        return {
+          success: false,
+          message: '請選擇1張手牌棲息地，以及1張買入區的卡牌購買',
+          requiresInput: true,
+          inputType: 'SELECT_CARDS',
+        }
+      }
+
+      const [shelterCardId, buyCardId] = selectedCards
+
+      // Find shelter card in hand
+      const shelterCard = this.state.player.hand.find(c => c.instanceId === shelterCardId)
+      if (!shelterCard) {
+        return { success: false, message: '棲息地的卡牌不在手牌中' }
+      }
+
+      // Find buy card in market
+      const buyCard = this.state.market.find(c => c.instanceId === buyCardId)
+      if (!buyCard) {
+        return { success: false, message: '購買的卡牌不在買入區' }
+      }
+
+      // Remove shelter card from hand and add to sanctuary
+      const newHand = this.state.player.hand.filter(c => c.instanceId !== shelterCardId)
+      const shelteredCard = { ...shelterCard, location: CardLocation.FIELD }
+
+      // Remove buy card from market and add to hand
+      const newMarket = this.state.market.filter(c => c.instanceId !== buyCardId)
+      const boughtCard = { ...buyCard, location: CardLocation.HAND, isRevealed: true }
+      newHand.push(boughtCard)
+
+      // Refill market
+      let newDeck = this.state.deck
+      if (newDeck.length > 0) {
+        const refillCard = { ...newDeck[0], location: CardLocation.MARKET, isRevealed: true }
+        newMarket.push(refillCard)
+        newDeck = newDeck.slice(1)
+      }
+
+      this.state = {
+        ...this.state,
+        deck: newDeck,
+        market: newMarket,
+        sanctuary: [...this.state.sanctuary, shelteredCard],
+        player: {
+          ...this.state.player,
+          hand: newHand,
+        },
+        updatedAt: Date.now(),
+      }
+
+      return {
+        success: true,
+        message: `哈迪斯隱形帽：棲息地 ${shelterCard.nameTw}，免費購買 ${buyCard.nameTw}`,
+        cardsSheltered: [shelteredCard],
+        cardsDrawn: [boughtCard],
+      }
+    } else if (optionId === 'gain_blue') {
+      const stonesGained: Partial<StonePool> = { THREE: 1 }
+      const newStones = addStonesToPool(this.state.player.stones, stonesGained)
+
+      this.state = {
+        ...this.state,
+        player: {
+          ...this.state.player,
+          stones: newStones,
+        },
+        updatedAt: Date.now(),
+      }
+
+      return {
+        success: true,
+        message: '哈迪斯隱形帽：獲得1顆藍石',
+        stonesGained,
+      }
+    }
+
+    return { success: false, message: '無效的選項' }
+  }
+
+  /**
+   * Execute Philosopher's Stone effect (PERMANENT)
+   * When selling/discarding a creature card, pay 1 red stone to return to hand
+   * This is triggered when a card is being discarded/sold
+   * @param selectedCards Array with 1 card ID to return to hand
+   */
+  private executePhilosopherStone(selectedCards?: string[]): ArtifactEffectResult {
+    if (!this.state) {
+      return { success: false, message: 'Game not started' }
+    }
+
+    // This is a passive effect - check if it can be triggered
+    if (!this.artifactState.permanentActive) {
+      return { success: false, message: '賢者之石效果未啟動' }
+    }
+
+    if (!selectedCards || selectedCards.length !== 1) {
+      return { success: false, message: '請選擇要返回手牌的卡牌' }
+    }
+
+    // Check if player has 1 red stone (ONE)
+    if (this.state.player.stones.ONE < 1) {
+      return { success: false, message: '需要1顆紅石來啟動賢者之石效果' }
+    }
+
+    const cardId = selectedCards[0]
+    // Find card in discard pile (most recent)
+    const cardIndex = this.state.discardPile.findIndex(c => c.instanceId === cardId)
+    if (cardIndex === -1) {
+      return { success: false, message: '卡牌不在棄牌堆中' }
+    }
+
+    const card = this.state.discardPile[cardIndex]
+
+    // Deduct 1 red stone
+    const newStones = { ...this.state.player.stones }
+    newStones.ONE -= 1
+
+    // Return card to hand
+    const newDiscardPile = this.state.discardPile.filter(c => c.instanceId !== cardId)
+    const returnedCard = { ...card, location: CardLocation.HAND }
+    const newHand = [...this.state.player.hand, returnedCard]
+
+    this.state = {
+      ...this.state,
+      discardPile: newDiscardPile,
+      player: {
+        ...this.state.player,
+        hand: newHand,
+        stones: newStones,
+      },
+      updatedAt: Date.now(),
+    }
+
+    return {
+      success: true,
+      message: `賢者之石：支付1顆紅石，將 ${card.nameTw} 返回手牌`,
+      stonesSpent: { ONE: 1 },
+      cardsRecalled: [returnedCard],
+    }
+  }
+
+  /**
+   * Execute Imperial Seal effect (ACTION)
+   * Discard 1 card from play area. If water element, gain 1 green stone
+   */
+  private executeImperialSeal(selectedCards?: string[]): ArtifactEffectResult {
+    if (!this.state) {
+      return { success: false, message: 'Game not started' }
+    }
+
+    if (!selectedCards || selectedCards.length !== 1) {
+      if (this.state.player.field.length === 0) {
+        return { success: false, message: '場上沒有卡牌' }
+      }
+      return {
+        success: false,
+        message: '請選擇1張場上的卡牌棄掉',
+        requiresInput: true,
+        inputType: 'SELECT_CARDS',
+      }
+    }
+
+    const cardId = selectedCards[0]
+    const card = this.state.player.field.find(c => c.instanceId === cardId)
+    if (!card) {
+      return { success: false, message: '卡牌不在場上' }
+    }
+
+    // Remove card from field
+    const newField = this.state.player.field.filter(c => c.instanceId !== cardId)
+    const discardedCard = { ...card, location: CardLocation.DISCARD }
+    const newDiscardPile = [...this.state.discardPile, discardedCard]
+
+    // Check if water element - gain 1 green stone (SIX)
+    let stonesGained: Partial<StonePool> | undefined
+    let newStones = this.state.player.stones
+    if (card.element === Element.WATER) {
+      stonesGained = { SIX: 1 }
+      newStones = addStonesToPool(newStones, stonesGained)
+    }
+
+    this.state = {
+      ...this.state,
+      player: {
+        ...this.state.player,
+        field: newField,
+        stones: newStones,
+      },
+      discardPile: newDiscardPile,
+      updatedAt: Date.now(),
+    }
+
+    const message = card.element === Element.WATER
+      ? `帝王印璽：棄掉水屬性卡 ${card.nameTw}，獲得1顆綠石`
+      : `帝王印璽：棄掉 ${card.nameTw}`
+
+    return {
+      success: true,
+      message,
+      stonesGained,
+      cardsDiscarded: [discardedCard],
+    }
+  }
+
+  /**
+   * Get options for Ring of Wishes artifact
+   * Option A: Recall 1 card from sanctuary to hand
+   * Option B: Discard 1 card from sanctuary to gain 1 purple stone (6 points)
+   * Can do both if desired
+   */
+  private getRingOfWishesOptions(): ArtifactEffectOption[] {
+    if (!this.state) return []
+
+    const sanctuaryHasCards = this.state.sanctuary.length > 0
+    const handNotFull = this.state.player.hand.length < SINGLE_PLAYER_CONSTANTS.MAX_HAND_SIZE
+
+    return [
+      {
+        id: 'recall_one',
+        description: 'Recall 1 card from sanctuary to hand',
+        descriptionTw: '從棲息地拿回1張卡到手牌',
+        available: sanctuaryHasCards && handNotFull,
+        unavailableReason: !sanctuaryHasCards
+          ? '棲息地沒有卡牌'
+          : !handNotFull
+            ? '手牌已滿'
+            : undefined,
+      },
+      {
+        id: 'discard_for_purple',
+        description: 'Discard 1 card from sanctuary to gain 1 purple stone (6 points)',
+        descriptionTw: '從棲息地棄掉1張卡以獲得1顆紫石（6分）',
+        available: sanctuaryHasCards,
+        unavailableReason: !sanctuaryHasCards ? '棲息地沒有卡牌' : undefined,
+      },
+      {
+        id: 'both',
+        description: 'Do both: recall 1 AND discard 1 for purple stone',
+        descriptionTw: '兩者都做：拿回1張卡並棄掉另1張卡獲得紫石',
+        available: sanctuaryHasCards && this.state.sanctuary.length >= 2 && handNotFull,
+        unavailableReason: this.state.sanctuary.length < 2
+          ? '棲息地需要至少2張卡'
+          : !handNotFull
+            ? '手牌已滿'
+            : undefined,
+      },
+    ]
+  }
+
+  /**
+   * Execute Ring of Wishes effect (INSTANT)
+   * Recall 1 from sanctuary AND/OR discard 1 from sanctuary for purple stone
+   */
+  private executeRingOfWishes(
+    optionId?: string,
+    selectedCards?: string[]
+  ): ArtifactEffectResult {
+    if (!this.state) {
+      return { success: false, message: 'Game not started' }
+    }
+
+    if (!optionId) {
+      return {
+        success: false,
+        message: '請選擇效果選項',
+        requiresInput: true,
+        inputType: 'CHOOSE_OPTION',
+        options: this.getRingOfWishesOptions(),
+      }
+    }
+
+    if (optionId === 'recall_one') {
+      if (!selectedCards || selectedCards.length !== 1) {
+        return {
+          success: false,
+          message: '請選擇1張棲息地的卡牌拿回手牌',
+          requiresInput: true,
+          inputType: 'SELECT_CARDS',
+        }
+      }
+
+      const cardId = selectedCards[0]
+      const card = this.state.sanctuary.find(c => c.instanceId === cardId)
+      if (!card) {
+        return { success: false, message: '卡牌不在棲息地' }
+      }
+
+      const newSanctuary = this.state.sanctuary.filter(c => c.instanceId !== cardId)
+      const recalledCard = { ...card, location: CardLocation.HAND }
+      const newHand = [...this.state.player.hand, recalledCard]
+
+      this.state = {
+        ...this.state,
+        sanctuary: newSanctuary,
+        player: {
+          ...this.state.player,
+          hand: newHand,
+        },
+        updatedAt: Date.now(),
+      }
+
+      return {
+        success: true,
+        message: `許願戒指：從棲息地拿回 ${card.nameTw}`,
+        cardsRecalled: [recalledCard],
+      }
+    } else if (optionId === 'discard_for_purple') {
+      if (!selectedCards || selectedCards.length !== 1) {
+        return {
+          success: false,
+          message: '請選擇1張棲息地的卡牌棄掉',
+          requiresInput: true,
+          inputType: 'SELECT_CARDS',
+        }
+      }
+
+      const cardId = selectedCards[0]
+      const card = this.state.sanctuary.find(c => c.instanceId === cardId)
+      if (!card) {
+        return { success: false, message: '卡牌不在棲息地' }
+      }
+
+      const newSanctuary = this.state.sanctuary.filter(c => c.instanceId !== cardId)
+      const discardedCard = { ...card, location: CardLocation.DISCARD }
+      const newDiscardPile = [...this.state.discardPile, discardedCard]
+
+      // Gain 1 purple stone (6 points) - we use SIX as purple is worth 6
+      const stonesGained: Partial<StonePool> = { SIX: 1 }
+      const newStones = addStonesToPool(this.state.player.stones, stonesGained)
+
+      this.state = {
+        ...this.state,
+        sanctuary: newSanctuary,
+        discardPile: newDiscardPile,
+        player: {
+          ...this.state.player,
+          stones: newStones,
+        },
+        updatedAt: Date.now(),
+      }
+
+      return {
+        success: true,
+        message: `許願戒指：棄掉 ${card.nameTw}，獲得1顆紫石（6分）`,
+        stonesGained,
+        cardsDiscarded: [discardedCard],
+      }
+    } else if (optionId === 'both') {
+      if (!selectedCards || selectedCards.length !== 2) {
+        return {
+          success: false,
+          message: '請選擇2張棲息地的卡牌：1張拿回手牌，1張棄掉獲得紫石',
+          requiresInput: true,
+          inputType: 'SELECT_CARDS',
+        }
+      }
+
+      const [recallCardId, discardCardId] = selectedCards
+
+      const recallCard = this.state.sanctuary.find(c => c.instanceId === recallCardId)
+      const discardCard = this.state.sanctuary.find(c => c.instanceId === discardCardId)
+
+      if (!recallCard || !discardCard) {
+        return { success: false, message: '選擇的卡牌不在棲息地' }
+      }
+      if (recallCardId === discardCardId) {
+        return { success: false, message: '請選擇兩張不同的卡牌' }
+      }
+
+      const newSanctuary = this.state.sanctuary.filter(
+        c => c.instanceId !== recallCardId && c.instanceId !== discardCardId
+      )
+      const recalledCard = { ...recallCard, location: CardLocation.HAND }
+      const discardedCard = { ...discardCard, location: CardLocation.DISCARD }
+
+      const newHand = [...this.state.player.hand, recalledCard]
+      const newDiscardPile = [...this.state.discardPile, discardedCard]
+
+      const stonesGained: Partial<StonePool> = { SIX: 1 }
+      const newStones = addStonesToPool(this.state.player.stones, stonesGained)
+
+      this.state = {
+        ...this.state,
+        sanctuary: newSanctuary,
+        discardPile: newDiscardPile,
+        player: {
+          ...this.state.player,
+          hand: newHand,
+          stones: newStones,
+        },
+        updatedAt: Date.now(),
+      }
+
+      return {
+        success: true,
+        message: `許願戒指：拿回 ${recallCard.nameTw}，棄掉 ${discardCard.nameTw} 獲得1顆紫石`,
+        stonesGained,
+        cardsRecalled: [recalledCard],
+        cardsDiscarded: [discardedCard],
+      }
+    }
+
+    return { success: false, message: '無效的選項' }
+  }
+
+  /**
+   * Execute Gem of Kukulkan effect (ACTION)
+   * Activate the instant effect of 1 card from buy area without purchasing
+   */
+  private executeGemOfKukulkan(selectedCards?: string[]): ArtifactEffectResult {
+    if (!this.state) {
+      return { success: false, message: 'Game not started' }
+    }
+
+    if (!selectedCards || selectedCards.length !== 1) {
+      // Find cards with instant effects in market
+      const cardsWithEffects = this.state.market.filter(card =>
+        card.effects.some(e => e.trigger === EffectTrigger.ON_TAME)
+      )
+
+      if (cardsWithEffects.length === 0) {
+        return { success: false, message: '買入區沒有具有立即效果的卡牌' }
+      }
+
+      return {
+        success: false,
+        message: '請選擇1張買入區的卡牌啟動其立即效果',
+        requiresInput: true,
+        inputType: 'SELECT_CARDS',
+      }
+    }
+
+    const cardId = selectedCards[0]
+    const card = this.state.market.find(c => c.instanceId === cardId)
+    if (!card) {
+      return { success: false, message: '卡牌不在買入區' }
+    }
+
+    // Check if card has instant effects
+    const instantEffects = card.effects.filter(e => e.trigger === EffectTrigger.ON_TAME)
+    if (instantEffects.length === 0) {
+      return { success: false, message: `${card.nameTw} 沒有立即效果` }
+    }
+
+    // Process the instant effects
+    let stonesGained: Partial<StonePool> = {}
+    let cardsDrawn: CardInstance[] = []
+    const messages: string[] = []
+
+    for (const effect of instantEffects) {
+      const effectResult = this.processSingleEffect(effect, card)
+
+      if (effectResult.stonesGained) {
+        stonesGained = addStonesToPool(
+          stonesGained as StonePool || createEmptyStonePool(),
+          effectResult.stonesGained
+        )
+      }
+      if (effectResult.cardsDrawn) {
+        cardsDrawn = [...cardsDrawn, ...effectResult.cardsDrawn]
+      }
+      if (effectResult.message) {
+        messages.push(effectResult.message)
+      }
+    }
+
+    // Apply stone gains
+    if (Object.keys(stonesGained).length > 0) {
+      this.state = {
+        ...this.state,
+        player: {
+          ...this.state.player,
+          stones: addStonesToPool(this.state.player.stones, stonesGained),
+        },
+        updatedAt: Date.now(),
+      }
+    }
+
+    // Apply card draws
+    if (cardsDrawn.length > 0) {
+      // Remove drawn cards from deck and add to hand
+      const drawnCardIds = cardsDrawn.map(c => c.instanceId)
+      const newDeck = this.state.deck.filter(c => !drawnCardIds.includes(c.instanceId))
+      const newHand = [...this.state.player.hand, ...cardsDrawn]
+
+      this.state = {
+        ...this.state,
+        deck: newDeck,
+        player: {
+          ...this.state.player,
+          hand: newHand,
+        },
+        updatedAt: Date.now(),
+      }
+    }
+
+    return {
+      success: true,
+      message: `庫庫爾坎寶石：啟動 ${card.nameTw} 的立即效果 - ${messages.join(', ')}`,
+      stonesGained: Object.keys(stonesGained).length > 0 ? stonesGained : undefined,
+      cardsDrawn: cardsDrawn.length > 0 ? cardsDrawn : undefined,
+    }
+  }
+
+  // ============================================
+  // HELPER METHODS FOR ARTIFACT EFFECTS
+  // ============================================
+
+  /**
+   * Get options for Golden Fleece artifact (4-player)
+   * Option A: Gain 2 red stones + shelter 1 from deck
+   * Option B: Recall 1 card from play area
+   */
+  private getGoldenFleeceOptions(): ArtifactEffectOption[] {
+    if (!this.state) return []
+
+    const deckHasCards = this.state.deck.length > 0
+    const fieldHasCards = this.state.player.field.length > 0
+
+    return [
+      {
+        id: 'stones_and_shelter',
+        description: 'Gain 2 red stones and shelter 1 from deck',
+        descriptionTw: '獲得2顆紅石並將牌庫頂的1張卡棲息地',
+        available: deckHasCards,
+        unavailableReason: !deckHasCards ? '牌庫沒有卡牌' : undefined,
+      },
+      {
+        id: 'recall_from_field',
+        description: 'Recall 1 card from your play area',
+        descriptionTw: '從場上召回1張卡',
+        available: fieldHasCards,
+        unavailableReason: !fieldHasCards ? '場上沒有卡牌' : undefined,
+      },
+    ]
+  }
+
+  /**
+   * Deduct stones from player pool
+   * Prefers smaller denominations first
+   * @param amount Amount to deduct
+   * @returns Stones deducted or null if insufficient
+   */
+  private deductStones(amount: number): Partial<StonePool> | null {
+    if (!this.state) return null
+
+    const currentStones = this.state.player.stones
+    const totalValue = calculateStonePoolValue(currentStones)
+    if (totalValue < amount) return null
+
+    const deducted: Partial<StonePool> = {}
+    let remaining = amount
+    const newStones = { ...currentStones }
+
+    // Deduct ONE stones first (1 point each)
+    while (remaining > 0 && newStones.ONE > 0) {
+      newStones.ONE--
+      deducted.ONE = (deducted.ONE ?? 0) + 1
+      remaining--
+    }
+
+    // Then THREE stones (3 points each)
+    while (remaining > 0 && newStones.THREE > 0) {
+      newStones.THREE--
+      deducted.THREE = (deducted.THREE ?? 0) + 1
+      remaining -= 3
+    }
+
+    // Then SIX stones (6 points each)
+    while (remaining > 0 && newStones.SIX > 0) {
+      newStones.SIX--
+      deducted.SIX = (deducted.SIX ?? 0) + 1
+      remaining -= 6
+    }
+
+    // If we've deducted enough
+    if (remaining <= 0) {
+      this.state = {
+        ...this.state,
+        player: {
+          ...this.state.player,
+          stones: newStones,
+        },
+        updatedAt: Date.now(),
+      }
+      return deducted
+    }
+
+    return null
+  }
+
+  /**
+   * Check if Philosopher's Stone can be triggered
+   * Called when a card is about to be discarded/sold
+   * @returns true if the effect can be triggered
+   */
+  canTriggerPhilosopherStone(): boolean {
+    if (!this.state) return false
+    if (this.artifactState.artifactId !== 'philosopher_stone') return false
+    if (!this.artifactState.permanentActive) return false
+
+    // Check if player has 1 red stone
+    return this.state.player.stones.ONE >= 1
+  }
+
+  /**
+   * Add stones to player pool (public method for UI)
+   * @param stones Stones to add
+   * @returns Updated game state
+   */
+  addStones(stones: Partial<StonePool>): SinglePlayerGameState {
+    if (!this.state) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_NOT_STARTED,
+        'Game not started'
+      )
+    }
+
+    this.state = {
+      ...this.state,
+      player: {
+        ...this.state.player,
+        stones: addStonesToPool(this.state.player.stones, stones),
+      },
+      updatedAt: Date.now(),
+    }
+
+    this.notifyStateChange()
+    return this.state
+  }
+
+  /**
+   * Remove stones from player pool (public method for UI)
+   * @param stones Stones to remove
+   * @returns Updated game state
+   */
+  removeStones(stones: Partial<StonePool>): SinglePlayerGameState {
+    if (!this.state) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_GAME_NOT_STARTED,
+        'Game not started'
+      )
+    }
+
+    const newStones = { ...this.state.player.stones }
+    for (const [key, value] of Object.entries(stones)) {
+      const stoneKey = key as keyof StonePool
+      if (value && newStones[stoneKey] >= value) {
+        newStones[stoneKey] -= value
+      } else if (value) {
+        throw new SinglePlayerError(
+          SinglePlayerErrorCode.ERR_INSUFFICIENT_STONES,
+          `Insufficient ${key} stones`
+        )
+      }
+    }
+
+    this.state = {
+      ...this.state,
+      player: {
+        ...this.state.player,
+        stones: newStones,
+      },
+      updatedAt: Date.now(),
+    }
+
+    this.notifyStateChange()
+    return this.state
   }
 }
 

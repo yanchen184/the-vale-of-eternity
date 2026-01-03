@@ -1,9 +1,9 @@
 /**
  * Effect Implementation Status Checker
  * Tracks which card effects have been implemented in the game
- * @version 1.2.0 - Only lightning effects (EARN_STONES, DRAW_CARD) marked as implemented
+ * @version 1.4.0 - Added Imp (F002) effects: EARN_STONES + RECOVER_CARD
  */
-console.log('[utils/effect-implementation-status.ts] v1.2.0 loaded')
+console.log('[utils/effect-implementation-status.ts] v1.4.0 loaded')
 
 import type { CardInstance } from '@/types/cards'
 import { EffectType } from '@/types/cards'
@@ -13,12 +13,16 @@ import { EffectType } from '@/types/cards'
 // ============================================
 
 /**
- * Fully implemented effects - ONLY lightning effects (閃電效果)
- * These are instant effects that trigger automatically
+ * Fully implemented effects - ONLY lightning effects (閃電效果) and resolution effects
+ * These are instant effects that trigger automatically or resolution effects
  * Manual review in progress - effects will be added one by one after verification
  */
 export const FULLY_IMPLEMENTED_EFFECTS: readonly EffectType[] = [
-  // ALL EFFECTS TEMPORARILY MARKED AS NOT IMPLEMENTED FOR MANUAL REVIEW
+  // Ifrit (F007) - Earn 1 stone per card on field
+  EffectType.EARN_PER_ELEMENT,
+  // Imp (F002) - Earn stones on tame + resolution phase return to hand
+  EffectType.EARN_STONES,
+  EffectType.RECOVER_CARD,
 ] as const
 
 /**

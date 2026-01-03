@@ -1,9 +1,9 @@
 /**
  * Game core type definitions
  * Supports both multiplayer and single-player modes
- * @version 3.2.0 - Fixed calculateStonePoolValue to only count coins (1,3,6)
+ * @version 3.3.0 - Added pendingResolutionCards for resolution phase tracking
  */
-console.log('[types/game.ts] v3.2.0 loaded')
+console.log('[types/game.ts] v3.3.0 loaded')
 
 import type { CardInstance, StoneType } from './cards'
 import type { Player } from './player'
@@ -37,6 +37,8 @@ export enum SinglePlayerPhase {
   DRAW = 'DRAW',
   /** Action phase - tame creatures or pass */
   ACTION = 'ACTION',
+  /** Resolution phase - process cards with resolution effects */
+  RESOLUTION = 'RESOLUTION',
   /** Scoring phase - calculate final score */
   SCORE = 'SCORE',
   /** Game Over */
@@ -81,6 +83,10 @@ export enum SinglePlayerActionType {
   DISCARD_CARD = 'DISCARD_CARD',
   /** Move a card from field to sanctuary */
   MOVE_TO_SANCTUARY = 'MOVE_TO_SANCTUARY',
+  /** Process resolution effect (return card to hand) */
+  PROCESS_RESOLUTION = 'PROCESS_RESOLUTION',
+  /** Skip resolution effect (keep card on field) */
+  SKIP_RESOLUTION = 'SKIP_RESOLUTION',
 }
 
 // ============================================
@@ -205,6 +211,12 @@ export interface SinglePlayerGameState {
     /** Confirmed artifact ID (after clicking confirm button) */
     confirmedArtifactId?: string | null
   }
+
+  // === Resolution Phase (v3.4.0) ===
+  /** Cards with pending resolution effects (e.g., Imp's RECOVER_CARD) */
+  pendingResolutionCards?: string[]
+  /** Whether player has processed a resolution card (chose yes/no) */
+  processedResolutionCards?: string[]
 }
 
 /**
