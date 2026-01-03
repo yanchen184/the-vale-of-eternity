@@ -296,12 +296,14 @@ export const StoneUpgradeModal = memo(function StoneUpgradeModal({
     const pendingChange = pendingChanges[fromType] || 0
     if (currentCount + pendingChange <= 0) return
 
-    // RULE: Cannot upgrade the same stone type twice
-    // This prevents: Red->Blue, Red->Blue (using 2 different red stones)
-    // But allows: Red->Blue, Blue->Green (upgrading different stone types)
-    const alreadyUpgradedFromThis = upgrades.some(u => u.from === fromType)
-    if (alreadyUpgradedFromThis) {
-      console.log('[StoneUpgradeModal] Cannot upgrade the same stone type twice')
+    // RULE: Cannot chain-upgrade the same stone instance
+    // ALLOWED: Red->Blue, Red->Blue (2 different red stones each become blue)
+    // FORBIDDEN: Red->Blue, Blue->Purple (upgrading the blue stone that was just created from red)
+    //
+    // Check if we're trying to upgrade a stone that was created by a previous upgrade
+    const wouldCreateChain = upgrades.some(u => u.to === fromType)
+    if (wouldCreateChain) {
+      console.log('[StoneUpgradeModal] Cannot chain-upgrade: a stone just created from upgrade cannot be upgraded again')
       return
     }
 
@@ -354,7 +356,7 @@ export const StoneUpgradeModal = memo(function StoneUpgradeModal({
               將你的石頭提升一級，最多2次（紅→藍→紫）
             </p>
             <p className="text-xs text-slate-500">
-              剩餘升級次數: {maxUpgrades - upgrades.length} · 不能升級同一種石頭類型兩次
+              剩餘升級次數: {maxUpgrades - upgrades.length} · 不能連鎖升級同一個石頭
             </p>
           </div>
         </GlassCard>
