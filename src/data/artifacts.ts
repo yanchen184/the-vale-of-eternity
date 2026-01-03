@@ -126,14 +126,14 @@ export const BOOK_OF_THOTH: Artifact = {
   type: ArtifactType.ACTION,
   category: ArtifactCategory.RANDOM,
   description:
-    'Action: Upgrade up to 2 of your stones by one level (Red → Blue → Green → Purple). You can upgrade the same stone twice.',
+    'Action: Upgrade up to 2 of your stones by one level (Red → Blue → Purple). Cannot upgrade the same stone type twice.',
   descriptionTw:
-    '行動：將你的石頭提升一級，最多2次（紅→藍→綠→紫）。你可以將同一顆石頭升級兩次。',
+    '行動：將你的石頭提升一級，最多2次（紅→藍→紫）。不能將同一種石頭類型升級兩次。',
   image: '/the-vale-of-eternity/assets/artifacts/Random Artifacts/Snipaste_2025-12-31_18-40-27.png',
   implemented: true,
   effectDetails: {
     affectsStones: true,
-    implementationNotes: 'Stone upgrade chain: R→B→G→P. Can apply twice to same stone or split.',
+    implementationNotes: 'Stone upgrade chain: Red(1)→Blue(3)→Purple(6). Each stone type can only be upgraded once per use.',
   },
 }
 

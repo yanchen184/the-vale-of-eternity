@@ -3290,7 +3290,7 @@ export class SinglePlayerEngine {
       return { success: false, message: '藍石不足' }
     }
     if ((selectedStones.SIX ?? 0) > currentStones.SIX) {
-      return { success: false, message: '綠石不足（紫石無法再升級）' }
+      return { success: false, message: '紫石不足（紫石無法再升級）' }
     }
 
     // Perform upgrades: ONE → THREE → SIX → (special purple, not in pool)
@@ -3307,12 +3307,10 @@ export class SinglePlayerEngine {
     newStones.THREE -= upgradeThreeCount
     newStones.SIX += upgradeThreeCount
 
-    // SIX → Purple (6-point stone, we'll add to SIX for now as it represents high value)
-    // Note: Purple stones are worth 6 points like SIX stones, so this is essentially staying at SIX level
-    // In the actual game, purple might be a special marker. For now, we just don't reduce SIX.
-    // Actually, per the rules, SIX cannot upgrade further, so we should not allow upgradeSixCount
+    // SIX → Purple (6-point stone is already the highest level)
+    // Purple stones (SIX) are worth 6 points and cannot be upgraded further
     if (upgradeSixCount > 0) {
-      return { success: false, message: '綠石（6點）已是最高級，無法升級為紫石' }
+      return { success: false, message: '紫石（6點）已是最高級，無法升級' }
     }
 
     this.state = {
@@ -3326,7 +3324,7 @@ export class SinglePlayerEngine {
 
     const upgradeMessages: string[] = []
     if (upgradeOneCount > 0) upgradeMessages.push(`${upgradeOneCount}顆紅石→藍石`)
-    if (upgradeThreeCount > 0) upgradeMessages.push(`${upgradeThreeCount}顆藍石→綠石`)
+    if (upgradeThreeCount > 0) upgradeMessages.push(`${upgradeThreeCount}顆藍石→紫石`)
 
     return {
       success: true,
