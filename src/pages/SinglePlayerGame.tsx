@@ -186,10 +186,6 @@ export default function SinglePlayerGame() {
     useGameStore.getState().removeStones(type, amount)
   }, [])
 
-  const getCurrentScore = useCallback(() => {
-    return useGameStore.getState().getCurrentScore()
-  }, [])
-
   const toggleAreaBonus = useCallback(() => {
     useGameStore.getState().toggleAreaBonus()
   }, [])
@@ -257,10 +253,12 @@ export default function SinglePlayerGame() {
     return stones ? calculateStonePoolValue(stones) : 0
   }, [stones])
 
-  // Get current score from field cards
+  // Get current score from field cards + instant bonus
   const currentScore = useMemo(() => {
-    return getCurrentScore()
-  }, [field]) // Remove getCurrentScore from dependencies to avoid infinite loop
+    const baseFieldScore = (field || []).reduce((sum, card) => sum + card.baseScore, 0)
+    const instantBonus = gameState?.player.instantBonusScore || 0
+    return baseFieldScore + instantBonus
+  }, [field, gameState?.player.instantBonusScore])
 
   // Initialize game if not started - directly to DRAW phase with expansion mode
   useEffect(() => {
@@ -291,16 +289,23 @@ export default function SinglePlayerGame() {
   }, [])
 
   const handleLightningOpenModal = useCallback(() => {
-    console.log('[SinglePlayerGame] Opening score modal from lightning effect')
-    setShowScoreModal(true)
-  }, [])
+    // Only open score modal if the effect requires it (e.g., Ifrit gives score, Imp gives stones)
+    if (ifritEffectTriggered?.showScoreModal) {
+      console.log('[SinglePlayerGame] Opening score modal from lightning effect')
+      setShowScoreModal(true)
+    } else {
+      console.log('[SinglePlayerGame] Skipping score modal (stone effect only)')
+    }
+  }, [ifritEffectTriggered])
 
   const handleLightningEffectComplete = useCallback(() => {
     console.log('[SinglePlayerGame] Lightning effect complete, closing modal')
-    setShowScoreModal(false)
+    if (ifritEffectTriggered?.showScoreModal) {
+      setShowScoreModal(false)
+    }
     setShowLightningEffect(false)
     useGameStore.setState({ ifritEffectTriggered: null })
-  }, [])
+  }, [ifritEffectTriggered])
 
   // Convert SinglePlayerPhase to multiplayer phase format
   const multiplayerPhase = useMemo(() => {
@@ -665,6 +670,28 @@ export default function SinglePlayerGame() {
     // Get effect options from engine
     const options = useGameStore.getState().getArtifactEffectOptions()
     console.log('[SinglePlayerGame] INSTANT artifact options:', options)
+
+    // Special handling for Seven-League Boots: directly execute and show card selection
+    if (confirmedArtifactId === 'seven_league_boots') {
+      console.log('[SinglePlayerGame] Seven-League Boots: Executing flip card effect')
+      const result = executeArtifactEffect()
+
+      if (result.requiresInput && result.inputType === 'SELECT_CARDS') {
+        // Show card selection modal for sheltering
+        setArtifactEffectInputType('SELECT_CARDS')
+        setArtifactSelectableCards(market || [])
+        setArtifactCardSelectionLabel('選擇市場中的1張卡放入棲息地')
+        setArtifactMinCardSelection(1)
+        setArtifactMaxCardSelection(1)
+        setShowArtifactEffectModal(true)
+
+        if (result.message) {
+          setArtifactResultMessage(result.message)
+          setTimeout(() => setArtifactResultMessage(null), 3000)
+        }
+      }
+      return
+    }
 
     if (options.length > 0) {
       // Show options modal for artifacts that require a choice
@@ -1298,10 +1325,10 @@ export default function SinglePlayerGame() {
         onClose={() => setShowScoreModal(false)}
         size="wide"
       >
-        <div className="p-6">
-          {/* Effect Reason Display */}
+        <div className="flex flex-col h-full max-h-[80vh]">
+          {/* Effect Reason Display - Fixed at top */}
           {ifritEffectTriggered && (
-            <div className="mb-6 p-4 bg-gradient-to-r from-orange-900/50 to-red-900/50 rounded-lg border-2 border-orange-500/50">
+            <div className="flex-shrink-0 p-4 bg-gradient-to-r from-orange-900/50 to-red-900/50 border-b-2 border-orange-500/50">
               <div className="flex items-center gap-3">
                 <span className="text-3xl">⚡</span>
                 <div>
@@ -1316,14 +1343,17 @@ export default function SinglePlayerGame() {
             </div>
           )}
 
-          <ScoreTrack
-            players={playerScores}
-            maxScore={60}
-            currentPlayerId="single-player"
-            onScoreAdjust={handleScoreAdjust}
-            allowAdjustment={true}
-            onFlipToggle={handleFlipToggle}
-          />
+          {/* ScoreTrack - Scrollable */}
+          <div className="flex-1 overflow-y-auto p-6">
+            <ScoreTrack
+              players={playerScores}
+              maxScore={60}
+              currentPlayerId="single-player"
+              onScoreAdjust={handleScoreAdjust}
+              allowAdjustment={true}
+              onFlipToggle={handleFlipToggle}
+            />
+          </div>
         </div>
       </Modal>
 

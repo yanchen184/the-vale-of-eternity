@@ -3283,30 +3283,14 @@ export class SinglePlayerEngine {
 
   /**
    * Get options for Seven-League Boots artifact (3-player)
-   * Flip 1 additional card from deck AND shelter 1 card from market
+   * Seven-League Boots doesn't need option selection - it executes automatically
+   * Following multiplayer mode behavior
    */
   private getSevenLeagueBootsOptions(): ArtifactEffectOption[] {
-    if (!this.state) return []
-
-    // Seven-League Boots has a two-step process:
-    // 1. Flip 1 card from deck to market (automatic when effect starts)
-    // 2. Player selects 1 card from market to shelter
-
-    const deckHasCards = this.state.deck.length > 0
-    const marketHasCards = this.state.market.length > 0
-
-    // Return a single option that represents the full effect
-    return [
-      {
-        id: 'flip_and_shelter',
-        description: 'Flip 1 card from deck to market, then shelter 1 card from market',
-        descriptionTw: '從牌庫翻開1張卡到市場，然後將市場的1張卡放入棲息地',
-        available: deckHasCards || marketHasCards, // Can still shelter even if deck is empty
-        unavailableReason: !deckHasCards && !marketHasCards
-          ? '牌庫和市場都沒有卡牌'
-          : undefined,
-      },
-    ]
+    // Seven-League Boots doesn't show option selection modal
+    // It directly flips a card and then asks for shelter selection
+    // Following multiplayer mode implementation (multiplayer-game.ts:2938-2977)
+    return []
   }
 
   /**
