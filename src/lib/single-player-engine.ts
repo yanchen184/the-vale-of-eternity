@@ -1,10 +1,10 @@
 /**
- * Single Player Game Engine for Vale of Eternity v7.23.0
+ * Single Player Game Engine for Vale of Eternity v7.24.0
  * Core game logic for single-player mode with Stone Economy System
  * Based on GAME_FLOW.md specifications
- * @version 7.23.0 - Added validation: cannot end turn with unprocessed currentTurnCards
+ * @version 7.24.0 - Added Seven-League Boots INSTANT artifact implementation
  */
-console.log('[lib/single-player-engine.ts] v7.23.0 loaded - Cannot end turn with unprocessed cards')
+console.log('[lib/single-player-engine.ts] v7.24.0 loaded - Seven-League Boots artifact')
 
 import type { CardInstance, CardEffect, StoneConfig } from '@/types/cards'
 import { CardLocation, Element, EffectType, EffectTrigger, StoneType } from '@/types/cards'
@@ -376,6 +376,7 @@ export class SinglePlayerEngine {
       field: [],
       stones: createEmptyStonePool(),
       areaBonus: 0, // Area bonus starts at 0 (+1 or +2 based on round/achievements)
+      instantBonusScore: 0, // Instant bonus from ON_TAME effects (like Ifrit)
     }
 
     // Create game state - start in DRAW phase like multiplayer
@@ -1043,6 +1044,13 @@ export class SinglePlayerEngine {
       newStones = addStonesToPool(newStones, effectResult.stonesGained)
     }
 
+    // Apply instant score bonus from effects (like Ifrit)
+    let newInstantBonusScore = this.state.player.instantBonusScore
+    if (effectResult.scoreModifier) {
+      newInstantBonusScore += effectResult.scoreModifier
+      console.log(`[SinglePlayerEngine] Added ${effectResult.scoreModifier} to instant bonus score (now ${newInstantBonusScore})`)
+    }
+
     // Handle drawn cards from effects
     let newHand = from === 'HAND' ? newSourceArray : this.state.player.hand
     let newDeck = this.state.deck
@@ -1092,6 +1100,7 @@ export class SinglePlayerEngine {
         hand: newHand,
         field: [...this.state.player.field, tamedCard],
         stones: newStones,
+        instantBonusScore: newInstantBonusScore,
       },
       actionsThisRound: [...this.state.actionsThisRound, action],
       updatedAt: Date.now(),
@@ -2185,28 +2194,27 @@ export class SinglePlayerEngine {
         break
 
       case EffectType.CONDITIONAL_AREA:
-        // CONDITIONAL_AREA with ON_TAME trigger - calculate based on field at time of taming
-        // This handles effects like "Earn X for each card in your area"
+        // CONDITIONAL_AREA with ON_TAME trigger - direct score bonus or stones
         if (this.state && effect.trigger === EffectTrigger.ON_TAME) {
-          // Calculate stones based on field size + 1 (including the card being tamed)
+          // Calculate based on field size + 1 (including the card being tamed)
           // The card is not yet in field array when ON_TAME effects are processed
           const fieldSize = this.state.player.field.length + 1
-          const stoneValue = effect.value ?? 1
-          const totalStones = fieldSize * stoneValue
+          const value = effect.value ?? 1
+          const totalValue = fieldSize * value
 
-          if (totalStones > 0 && effect.stones && effect.stones.length > 0) {
-            // If specific stones are defined, use those
+          if (effect.stones && effect.stones.length > 0) {
+            // If stones are defined, give stones (old behavior for other cards)
             const additions: Partial<StonePool> = {}
             for (const stone of effect.stones) {
               const key = stoneTypeToPoolKey(stone.type)
               additions[key] = (additions[key] ?? 0) + (stone.amount * fieldSize)
             }
             result.stonesGained = additions
-            result.message = `Earned stones (${fieldSize} cards in area × ${stoneValue})`
-          } else if (totalStones > 0) {
-            // Default to ONE stones
-            result.stonesGained = { ONE: totalStones }
-            result.message = `Earned ${totalStones} stones (${fieldSize} cards in area × ${stoneValue})`
+            result.message = `Earned stones (${fieldSize} cards in area × ${value})`
+          } else if (totalValue > 0) {
+            // No stones defined - give direct score bonus (Ifrit's case)
+            result.scoreModifier = totalValue
+            result.message = `Earned ${totalValue} points (${fieldSize} cards in area × ${value})`
           }
         } else {
           // ON_SCORE trigger - will be processed at game end
@@ -2393,6 +2401,17 @@ export class SinglePlayerEngine {
         bonus: areaBonus,
       })
       breakdown.totalPermanentBonus += areaBonus
+    }
+
+    // Add instant bonus score from ON_TAME effects (like Ifrit)
+    if (this.state.player.instantBonusScore > 0) {
+      breakdown.permanentBonuses.push({
+        cardId: 'instant-bonus',
+        cardName: '即時效果加成',
+        effectDescription: '召喚時立即獲得的分數',
+        bonus: this.state.player.instantBonusScore,
+      })
+      breakdown.totalPermanentBonus += this.state.player.instantBonusScore
     }
 
     // Calculate grand total (stones do NOT contribute to score)
@@ -2803,6 +2822,8 @@ export class SinglePlayerEngine {
         return this.getIncenseBurnerOptions()
       case 'pied_piper_pipe':
         return this.getPiedPiperPipeOptions()
+      case 'seven_league_boots':
+        return this.getSevenLeagueBootsOptions()
       case 'cap_of_hades':
         return this.getCapOfHadesOptions()
       case 'golden_fleece':
@@ -2865,6 +2886,9 @@ export class SinglePlayerEngine {
         break
       case 'pied_piper_pipe':
         result = this.executePiedPiperPipe(optionId)
+        break
+      case 'seven_league_boots':
+        result = this.executeSevenLeagueBoots(selectedCards)
         break
 
       // ============================================
@@ -2986,13 +3010,13 @@ export class SinglePlayerEngine {
         return { success: false, message: '卡牌不在買入區' }
       }
 
-      // Check and deduct 3 stones
+      // Check and deduct 3 points worth of stones
       const totalStones = calculateStonePoolValue(this.state.player.stones)
       if (totalStones < 3) {
-        return { success: false, message: '石頭不足（需要3顆）' }
+        return { success: false, message: '石頭分數不足（需要3分）' }
       }
 
-      // Deduct stones (prefer smaller denominations)
+      // Deduct stones worth 3 points (prefer smaller denominations)
       const stonesSpent = this.deductStones(3)
       if (!stonesSpent) {
         return { success: false, message: '無法扣除石頭' }
@@ -3024,7 +3048,7 @@ export class SinglePlayerEngine {
 
       return {
         success: true,
-        message: `香爐：以3顆石頭購買了 ${card.nameTw}`,
+        message: `香爐：支付3分購買了 ${card.nameTw}`,
         stonesSpent,
         cardsDrawn: [card],
       }
@@ -3249,6 +3273,146 @@ export class SinglePlayerEngine {
     }
 
     return { success: false, message: '無效的選項' }
+  }
+
+  /**
+   * Get options for Seven-League Boots artifact (3-player)
+   * Flip 1 additional card from deck AND shelter 1 card from market
+   */
+  private getSevenLeagueBootsOptions(): ArtifactEffectOption[] {
+    if (!this.state) return []
+
+    // Seven-League Boots has a two-step process:
+    // 1. Flip 1 card from deck to market (automatic when effect starts)
+    // 2. Player selects 1 card from market to shelter
+
+    const deckHasCards = this.state.deck.length > 0
+    const marketHasCards = this.state.market.length > 0
+
+    // Return a single option that represents the full effect
+    return [
+      {
+        id: 'flip_and_shelter',
+        description: 'Flip 1 card from deck to market, then shelter 1 card from market',
+        descriptionTw: '從牌庫翻開1張卡到市場，然後將市場的1張卡放入棲息地',
+        available: deckHasCards || marketHasCards, // Can still shelter even if deck is empty
+        unavailableReason: !deckHasCards && !marketHasCards
+          ? '牌庫和市場都沒有卡牌'
+          : undefined,
+      },
+    ]
+  }
+
+  /**
+   * Execute Seven-League Boots effect (INSTANT)
+   * Step 1: Flip 1 additional card from deck to market
+   * Step 2: Player selects 1 card from market to shelter
+   */
+  private executeSevenLeagueBoots(selectedCards?: string[]): ArtifactEffectResult {
+    if (!this.state) {
+      return { success: false, message: 'Game not started' }
+    }
+
+    // Check if we need to flip a card first (step 1)
+    // This happens automatically when the effect is first triggered
+    const pendingEffect = this.artifactState.pendingEffect
+
+    if (!pendingEffect) {
+      // Step 1: Flip 1 card from deck to market
+      let flippedCard: CardInstance | null = null
+      let newDeck = this.state.deck
+      let newMarket = this.state.market
+
+      if (this.state.deck.length > 0) {
+        flippedCard = {
+          ...this.state.deck[0],
+          location: CardLocation.MARKET,
+          isRevealed: true,
+        }
+        newDeck = this.state.deck.slice(1)
+        newMarket = [...this.state.market, flippedCard]
+
+        // Update state with flipped card
+        this.state = {
+          ...this.state,
+          deck: newDeck,
+          market: newMarket,
+          updatedAt: Date.now(),
+        }
+
+        console.log(`[SinglePlayerEngine] Seven-League Boots: Flipped ${flippedCard.nameTw} to market`)
+      } else {
+        console.log('[SinglePlayerEngine] Seven-League Boots: Deck is empty, skipping flip')
+      }
+
+      // Check if market has cards to shelter
+      if (newMarket.length === 0) {
+        return {
+          success: true,
+          message: '七里靴：牌庫和市場都沒有卡牌，效果結束',
+        }
+      }
+
+      // Set pending effect for step 2: select card to shelter
+      this.artifactState.pendingEffect = {
+        effectType: 'SELECT_CARD_TO_SHELTER',
+        options: [],
+      }
+
+      return {
+        success: false,
+        message: flippedCard
+          ? `七里靴：翻開 ${flippedCard.nameTw} 到市場，請選擇市場中的1張卡放入棲息地`
+          : '七里靴：請選擇市場中的1張卡放入棲息地',
+        requiresInput: true,
+        inputType: 'SELECT_CARDS',
+        cardsDrawn: flippedCard ? [flippedCard] : undefined,
+      }
+    }
+
+    // Step 2: Player selects 1 card from market to shelter
+    if (pendingEffect.effectType === 'SELECT_CARD_TO_SHELTER') {
+      if (!selectedCards || selectedCards.length !== 1) {
+        return {
+          success: false,
+          message: '請選擇市場中的1張卡放入棲息地',
+          requiresInput: true,
+          inputType: 'SELECT_CARDS',
+        }
+      }
+
+      const cardId = selectedCards[0]
+      const card = this.state.market.find(c => c.instanceId === cardId)
+
+      if (!card) {
+        return { success: false, message: '選擇的卡牌不在市場中' }
+      }
+
+      // Move card from market to sanctuary
+      const newMarket = this.state.market.filter(c => c.instanceId !== cardId)
+      const shelteredCard = { ...card, location: CardLocation.SANCTUARY }
+      const newSanctuary = [...this.state.sanctuary, shelteredCard]
+
+      this.state = {
+        ...this.state,
+        market: newMarket,
+        sanctuary: newSanctuary,
+        updatedAt: Date.now(),
+      }
+
+      // Clear pending effect
+      this.artifactState.pendingEffect = undefined
+
+      console.log(`[SinglePlayerEngine] Seven-League Boots: Sheltered ${card.nameTw}`)
+
+      return {
+        success: true,
+        message: `七里靴：將 ${card.nameTw} 放入棲息地`,
+        cardsSheltered: [shelteredCard],
+      }
+    }
+
+    return { success: false, message: '無效的效果狀態' }
   }
 
   // ============================================
