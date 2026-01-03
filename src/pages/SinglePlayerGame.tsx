@@ -1,9 +1,10 @@
 /**
- * Single Player Game Page v9.3.0
- * Main gameplay interface for single-player mode - With artifact selection and coin display
- * @version 9.3.0 - Fixed field card return/discard buttons in ActionPhaseUI
+ * Single Player Game Page v9.13.0
+ * Main gameplay interface for single-player mode - With artifact action UI
+ * @version 9.13.0 - Auto-trigger INSTANT artifact effect when confirmed
  */
-console.log('[pages/SinglePlayerGame.tsx] v9.3.0 loaded - Field card buttons implemented')
+console.log('[pages/SinglePlayerGame.tsx] v9.13.0 loaded - Auto-trigger INSTANT artifact')
+
 
 import { useEffect, useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -24,12 +25,17 @@ import {
   useArtifactSelectionPhase,
   useCurrentTurnCards,
   useSelectedArtifactCard,
+  usePendingResolutionCards,
+  useProcessedResolutionCards,
   SinglePlayerPhase,
+  type ArtifactEffectOption,
 } from '@/stores/useGameStore'
 import { calculateStonePoolValue, createEmptyStonePool } from '@/types/game'
 import type { PlayerColor } from '@/types/player-color'
 import type { CardInstance } from '@/types/cards'
 import { StoneType } from '@/types/cards'
+import { ArtifactType } from '@/types/artifacts'
+import { ARTIFACTS_BY_ID } from '@/data/artifacts'
 import {
   Card,
   GameLayout,
@@ -42,9 +48,16 @@ import {
   HuntingPhaseUI,
   ActionPhaseUI,
   MultiplayerCoinSystem,
+  ArtifactActionPanel,
+  ArtifactEffectModal,
+  StoneUpgradeModal,
 } from '@/components/game'
 import type { PlayerCoinInfo } from '@/components/game/MultiplayerCoinSystem'
+import type { EffectInputType } from '@/components/game/ArtifactEffectModal'
+import type { StoneUpgrade } from '@/components/game/StoneUpgradeModal'
 import { FixedHandPanel } from '@/components/game/FixedHandPanel'
+import { ResolutionConfirmModal } from '@/components/game/ResolutionConfirmModal'
+import { LightningEffect } from '@/components/game/LightningEffect'
 import { Modal } from '@/components/ui/Modal'
 import { cn } from '@/lib/utils'
 import type { PlayerSidebarData } from '@/components/game/LeftSidebar'
@@ -82,34 +95,124 @@ export default function SinglePlayerGame() {
   const artifactSelectionPhase = useArtifactSelectionPhase()
   const currentTurnCards = useCurrentTurnCards()
   const selectedArtifactCard = useSelectedArtifactCard()
+  const pendingResolutionCards = usePendingResolutionCards()
+  const processedResolutionCards = useProcessedResolutionCards()
 
-  // Store actions
-  const {
-    gameState,
-    startGame,
-    drawCard,
-    drawCardInActionPhase,
-    takeCardsFromMarket,
-    tameCreature,
-    moveCurrentCardToHand,
-    sellCurrentCard,
-    pass,
-    completeSettlement,
-    returnCardToHand,
-    discardCard,
-    moveToSanctuary,
-    takeCardFromDiscard,
-    takeCardFromSanctuary,
-    resetGame,
-    canTameCard,
-    selectArtifact,
-    confirmArtifact,
-    addStones,
-    removeStones,
-    getCurrentScore,
-    toggleAreaBonus,
-    error,
-  } = useGameStore()
+  // Store state - use individual selectors to prevent infinite loops
+  // IMPORTANT: Do NOT destructure the entire store with useGameStore().
+  // Each property must be selected individually to avoid creating new references.
+  const gameState = useGameStore(state => state.gameState)
+  const error = useGameStore(state => state.error)
+
+  // Stable function references using useCallback + getState pattern
+  // These functions are stable because they use getState() internally
+  const startGame = useCallback((name: string, expansion: boolean) => {
+    useGameStore.getState().startGame(name, expansion)
+  }, [])
+
+  const drawCard = useCallback(() => {
+    useGameStore.getState().drawCard()
+  }, [])
+
+  const drawCardInActionPhase = useCallback(() => {
+    useGameStore.getState().drawCardInActionPhase()
+  }, [])
+
+  const takeCardsFromMarket = useCallback((cardIds: string[]) => {
+    useGameStore.getState().takeCardsFromMarket(cardIds)
+  }, [])
+
+  const tameCreature = useCallback((cardId: string, from: 'HAND' | 'MARKET') => {
+    useGameStore.getState().tameCreature(cardId, from)
+  }, [])
+
+  const moveCurrentCardToHand = useCallback((cardId: string) => {
+    useGameStore.getState().moveCurrentCardToHand(cardId)
+  }, [])
+
+  const sellCurrentCard = useCallback((cardId: string) => {
+    useGameStore.getState().sellCurrentCard(cardId)
+  }, [])
+
+  const pass = useCallback(() => {
+    useGameStore.getState().pass()
+  }, [])
+
+  const completeSettlement = useCallback(() => {
+    useGameStore.getState().completeSettlement()
+  }, [])
+
+  const returnCardToHand = useCallback((cardId: string) => {
+    useGameStore.getState().returnCardToHand(cardId)
+  }, [])
+
+  const discardCard = useCallback((cardId: string) => {
+    useGameStore.getState().discardCard(cardId)
+  }, [])
+
+  const moveToSanctuary = useCallback((cardId: string) => {
+    useGameStore.getState().moveToSanctuary(cardId)
+  }, [])
+
+  const takeCardFromDiscard = useCallback((cardId: string) => {
+    useGameStore.getState().takeCardFromDiscard(cardId)
+  }, [])
+
+  const takeCardFromSanctuary = useCallback((cardId: string) => {
+    useGameStore.getState().takeCardFromSanctuary(cardId)
+  }, [])
+
+  const resetGame = useCallback(() => {
+    useGameStore.getState().resetGame()
+  }, [])
+
+  const canTameCard = useCallback((cardId: string) => {
+    return useGameStore.getState().canTameCard(cardId)
+  }, [])
+
+  const selectArtifact = useCallback((artifactId: string) => {
+    useGameStore.getState().selectArtifact(artifactId)
+  }, [])
+
+  const confirmArtifact = useCallback(() => {
+    useGameStore.getState().confirmArtifact()
+  }, [])
+
+  const addStones = useCallback((type: StoneType, amount: number) => {
+    useGameStore.getState().addStones(type, amount)
+  }, [])
+
+  const removeStones = useCallback((type: StoneType, amount: number) => {
+    useGameStore.getState().removeStones(type, amount)
+  }, [])
+
+  const getCurrentScore = useCallback(() => {
+    return useGameStore.getState().getCurrentScore()
+  }, [])
+
+  const toggleAreaBonus = useCallback(() => {
+    useGameStore.getState().toggleAreaBonus()
+  }, [])
+
+  const executeArtifactEffect = useCallback((
+    optionId?: string,
+    selectedCards?: string[],
+    selectedStones?: Partial<Record<StoneType, number>>
+  ) => {
+    return useGameStore.getState().executeArtifactEffect(optionId, selectedCards, selectedStones)
+  }, [])
+
+  const processResolutionCard = useCallback((cardId: string, activate: boolean) => {
+    useGameStore.getState().processResolutionCard(cardId, activate)
+  }, [])
+
+  const hasPendingResolutionEffect = useCallback((cardId: string) => {
+    return useGameStore.getState().hasPendingResolutionEffect(cardId)
+  }, [])
+
+  const allResolutionCardsProcessed = useCallback(() => {
+    return useGameStore.getState().allResolutionCardsProcessed()
+  }, [])
 
   console.log('[SinglePlayerGame] artifactSelectionPhase:', artifactSelectionPhase)
   console.log('[SinglePlayerGame] selectedArtifact:', selectedArtifact)
@@ -133,6 +236,22 @@ export default function SinglePlayerGame() {
   // Card selection state for DRAW phase (after artifact selection)
   const [selectedMarketCards, setSelectedMarketCards] = useState<Set<string>>(new Set())
 
+  // Artifact action UI state (v9.4.0)
+  const [showArtifactEffectModal, setShowArtifactEffectModal] = useState(false)
+  const [showStoneUpgradeModal, setShowStoneUpgradeModal] = useState(false)
+  const [artifactEffectInputType, setArtifactEffectInputType] = useState<EffectInputType>('CHOOSE_OPTION')
+  const [artifactEffectOptions, setArtifactEffectOptions] = useState<ArtifactEffectOption[]>([])
+  const [artifactSelectableCards, setArtifactSelectableCards] = useState<CardInstance[]>([])
+  const [artifactCardSelectionLabel, setArtifactCardSelectionLabel] = useState<string>('')
+  const [artifactMinCardSelection, setArtifactMinCardSelection] = useState(1)
+  const [artifactMaxCardSelection, setArtifactMaxCardSelection] = useState(1)
+  const [pendingArtifactOptionId, setPendingArtifactOptionId] = useState<string | null>(null)
+  const [artifactResultMessage, setArtifactResultMessage] = useState<string | null>(null)
+
+  // Resolution phase state (v9.7.0)
+  const [showResolutionModal, setShowResolutionModal] = useState(false)
+  const [resolutionCard, setResolutionCard] = useState<CardInstance | null>(null)
+
   // Compute stone value
   const totalStoneValue = useMemo(() => {
     return stones ? calculateStonePoolValue(stones) : 0
@@ -141,7 +260,7 @@ export default function SinglePlayerGame() {
   // Get current score from field cards
   const currentScore = useMemo(() => {
     return getCurrentScore()
-  }, [getCurrentScore, field])
+  }, [field]) // Remove getCurrentScore from dependencies to avoid infinite loop
 
   // Initialize game if not started - directly to DRAW phase with expansion mode
   useEffect(() => {
@@ -154,6 +273,35 @@ export default function SinglePlayerGame() {
     }
   }, [phase, startGame])
 
+  // Monitor Ifrit effect trigger - now using LightningEffect component
+  const ifritEffectTriggered = useGameStore(state => state.ifritEffectTriggered)
+  const [showLightningEffect, setShowLightningEffect] = useState(false)
+
+  // Start lightning effect when Ifrit is triggered
+  useEffect(() => {
+    if (ifritEffectTriggered) {
+      console.log('[SinglePlayerGame] Ifrit effect triggered, starting lightning effect')
+      setShowLightningEffect(true)
+    }
+  }, [ifritEffectTriggered])
+
+  // Lightning effect callbacks
+  const handleLightningComplete = useCallback(() => {
+    console.log('[SinglePlayerGame] Lightning animation complete')
+  }, [])
+
+  const handleLightningOpenModal = useCallback(() => {
+    console.log('[SinglePlayerGame] Opening score modal from lightning effect')
+    setShowScoreModal(true)
+  }, [])
+
+  const handleLightningEffectComplete = useCallback(() => {
+    console.log('[SinglePlayerGame] Lightning effect complete, closing modal')
+    setShowScoreModal(false)
+    setShowLightningEffect(false)
+    useGameStore.setState({ ifritEffectTriggered: null })
+  }, [])
+
   // Convert SinglePlayerPhase to multiplayer phase format
   const multiplayerPhase = useMemo(() => {
     if (!phase) return 'WAITING' as const
@@ -163,6 +311,13 @@ export default function SinglePlayerGame() {
     // ACTION phase uses 'ACTION' UI
     return 'ACTION' as const
   }, [phase, gameOver.isOver])
+
+  // Calculate unprocessed resolution cards count
+  const unprocessedResolutionCardsCount = useMemo(() => {
+    if (!pendingResolutionCards || pendingResolutionCards.length === 0) return 0
+    const processedSet = new Set(processedResolutionCards || [])
+    return pendingResolutionCards.filter(cardId => !processedSet.has(cardId)).length
+  }, [pendingResolutionCards, processedResolutionCards])
 
   // ScoreBar data
   const scoreBarData: ScoreBarPlayerData[] = useMemo(() => [{
@@ -299,8 +454,53 @@ export default function SinglePlayerGame() {
   // Handle complete settlement (SCORE → next DRAW)
   const handleCompleteSettlement = useCallback(() => {
     if (phase !== SinglePlayerPhase.SCORE) return
+    // Check if all resolution cards have been processed
+    if (!allResolutionCardsProcessed()) {
+      console.log('[SinglePlayerGame] Cannot complete settlement: unprocessed resolution cards')
+      return
+    }
     completeSettlement()
-  }, [phase, completeSettlement])
+  }, [phase, completeSettlement, allResolutionCardsProcessed])
+
+  // Handle field card click during resolution phase (v9.7.0)
+  const handleFieldCardClickInResolution = useCallback((cardId: string) => {
+    if (phase !== SinglePlayerPhase.SCORE) return
+
+    // Check if this card has pending resolution effect
+    if (!hasPendingResolutionEffect(cardId)) {
+      console.log('[SinglePlayerGame] Card does not have pending resolution effect:', cardId)
+      return
+    }
+
+    // Find the card
+    const card = field?.find(c => c.instanceId === cardId)
+    if (!card) {
+      console.log('[SinglePlayerGame] Card not found on field:', cardId)
+      return
+    }
+
+    console.log('[SinglePlayerGame] Opening resolution modal for card:', card.nameTw)
+    setResolutionCard(card)
+    setShowResolutionModal(true)
+  }, [phase, field, hasPendingResolutionEffect])
+
+  // Handle resolution confirm (return card to hand)
+  const handleResolutionConfirm = useCallback(() => {
+    if (!resolutionCard) return
+    console.log('[SinglePlayerGame] Resolution confirmed - returning card to hand:', resolutionCard.instanceId)
+    processResolutionCard(resolutionCard.instanceId, true)
+    setShowResolutionModal(false)
+    setResolutionCard(null)
+  }, [resolutionCard, processResolutionCard])
+
+  // Handle resolution skip (keep card on field)
+  const handleResolutionSkip = useCallback(() => {
+    if (!resolutionCard) return
+    console.log('[SinglePlayerGame] Resolution skipped - card stays on field:', resolutionCard.instanceId)
+    processResolutionCard(resolutionCard.instanceId, false)
+    setShowResolutionModal(false)
+    setResolutionCard(null)
+  }, [resolutionCard, processResolutionCard])
 
   // Handle move current card to hand
   const handleMoveCurrentCardToHand = useCallback((_playerId: string, cardId: string) => {
@@ -407,6 +607,256 @@ export default function SinglePlayerGame() {
     startGame(savedName, false)
   }, [resetGame, startGame])
 
+  // ============================================
+  // ARTIFACT ACTION HANDLERS (v9.4.0)
+  // ============================================
+
+  // Get confirmed artifact ID for this round
+  const confirmedArtifactId = useMemo(() => {
+    return artifactSelectionPhase?.confirmedArtifactId || null
+  }, [artifactSelectionPhase])
+
+  // Get artifact state and check if can use
+  // NOTE: Access getArtifactState via useGameStore.getState() to avoid infinite loops
+  const artifactState = useMemo(() => {
+    if (!gameState) return null
+    return useGameStore.getState().getArtifactState()
+  }, [gameState, phase, confirmedArtifactId])
+
+  // NOTE: Access canUseArtifact via useGameStore.getState() to avoid infinite loops
+  const canUseCurrentArtifact = useMemo(() => {
+    if (!artifactState) return false
+    return useGameStore.getState().canUseArtifact()
+  }, [artifactState, phase])
+
+  const isArtifactUsed = useMemo(() => {
+    if (!artifactState) return false
+    const artifact = confirmedArtifactId ? ARTIFACTS_BY_ID[confirmedArtifactId] : null
+    if (!artifact) return false
+
+    if (artifact.type === ArtifactType.ACTION) {
+      return artifactState.actionUsed
+    }
+    if (artifact.type === ArtifactType.INSTANT) {
+      return artifactState.instantExecuted
+    }
+    return false
+  }, [artifactState, confirmedArtifactId])
+
+  // Auto-trigger INSTANT artifact effect when confirmed
+  // This mimics multiplayer behavior where INSTANT artifacts immediately show their options
+  useEffect(() => {
+    // Only trigger when:
+    // 1. An artifact is confirmed
+    // 2. It's an INSTANT type artifact
+    // 3. The instant effect has not been executed yet
+    // 4. The artifact effect modal is not already showing
+    if (!confirmedArtifactId) return
+    if (!artifactState) return
+    if (artifactState.instantExecuted) return
+    if (showArtifactEffectModal) return
+
+    const artifact = ARTIFACTS_BY_ID[confirmedArtifactId]
+    if (!artifact) return
+    if (artifact.type !== ArtifactType.INSTANT) return
+
+    console.log('[SinglePlayerGame] Auto-triggering INSTANT artifact effect:', confirmedArtifactId)
+
+    // Get effect options from engine
+    const options = useGameStore.getState().getArtifactEffectOptions()
+    console.log('[SinglePlayerGame] INSTANT artifact options:', options)
+
+    if (options.length > 0) {
+      // Show options modal for artifacts that require a choice
+      setArtifactEffectOptions(options)
+      setArtifactEffectInputType('CHOOSE_OPTION')
+      setShowArtifactEffectModal(true)
+    } else {
+      // Handle special cases that need card selection
+      if (confirmedArtifactId === 'monkey_king_staff') {
+        setArtifactEffectInputType('SELECT_CARDS')
+        setArtifactSelectableCards(hand || [])
+        setArtifactCardSelectionLabel('選擇2張手牌棄置')
+        setArtifactMinCardSelection(2)
+        setArtifactMaxCardSelection(2)
+        setShowArtifactEffectModal(true)
+      } else if (confirmedArtifactId === 'imperial_seal') {
+        setArtifactEffectInputType('SELECT_CARDS')
+        setArtifactSelectableCards(field || [])
+        setArtifactCardSelectionLabel('選擇1張場上卡牌棄置')
+        setArtifactMinCardSelection(1)
+        setArtifactMaxCardSelection(1)
+        setShowArtifactEffectModal(true)
+      } else if (confirmedArtifactId === 'gem_of_kukulkan') {
+        setArtifactEffectInputType('SELECT_CARDS')
+        setArtifactSelectableCards(market || [])
+        setArtifactCardSelectionLabel('選擇1張買入區卡牌啟動其立即效果')
+        setArtifactMinCardSelection(1)
+        setArtifactMaxCardSelection(1)
+        setShowArtifactEffectModal(true)
+      }
+      // Other INSTANT artifacts without options will be handled elsewhere
+    }
+  }, [confirmedArtifactId, artifactState, showArtifactEffectModal, hand, field, market])
+
+  // Handle use artifact button click
+  // NOTE: Access getArtifactEffectOptions via useGameStore.getState() to avoid infinite loops
+  const handleUseArtifact = useCallback(() => {
+    if (!confirmedArtifactId) return
+
+    const artifact = ARTIFACTS_BY_ID[confirmedArtifactId]
+    if (!artifact) return
+
+    console.log('[SinglePlayerGame] handleUseArtifact:', confirmedArtifactId)
+
+    // Check if this is Book of Thoth (stone upgrade)
+    if (confirmedArtifactId === 'book_of_thoth') {
+      setShowStoneUpgradeModal(true)
+      return
+    }
+
+    // Get effect options from engine via getState() to avoid dependency issues
+    const options = useGameStore.getState().getArtifactEffectOptions()
+    console.log('[SinglePlayerGame] Artifact effect options:', options)
+
+    // If no options, try direct execution
+    if (options.length === 0) {
+      // Some artifacts need card selection directly
+      if (confirmedArtifactId === 'monkey_king_staff') {
+        setArtifactEffectInputType('SELECT_CARDS')
+        setArtifactSelectableCards(hand || [])
+        setArtifactCardSelectionLabel('選擇2張手牌棄置')
+        setArtifactMinCardSelection(2)
+        setArtifactMaxCardSelection(2)
+        setShowArtifactEffectModal(true)
+        return
+      }
+
+      if (confirmedArtifactId === 'imperial_seal') {
+        setArtifactEffectInputType('SELECT_CARDS')
+        setArtifactSelectableCards(field || [])
+        setArtifactCardSelectionLabel('選擇1張場上卡牌棄置')
+        setArtifactMinCardSelection(1)
+        setArtifactMaxCardSelection(1)
+        setShowArtifactEffectModal(true)
+        return
+      }
+
+      if (confirmedArtifactId === 'gem_of_kukulkan') {
+        setArtifactEffectInputType('SELECT_CARDS')
+        setArtifactSelectableCards(market || [])
+        setArtifactCardSelectionLabel('選擇1張買入區卡牌啟動其立即效果')
+        setArtifactMinCardSelection(1)
+        setArtifactMaxCardSelection(1)
+        setShowArtifactEffectModal(true)
+        return
+      }
+
+      // Try direct execution
+      const result = executeArtifactEffect()
+      if (result.success) {
+        setArtifactResultMessage(result.message)
+        setTimeout(() => setArtifactResultMessage(null), 3000)
+      }
+      return
+    }
+
+    // Show options modal
+    setArtifactEffectOptions(options)
+    setArtifactEffectInputType('CHOOSE_OPTION')
+    setShowArtifactEffectModal(true)
+  }, [confirmedArtifactId, executeArtifactEffect, hand, field, market])
+
+  // Handle artifact effect option confirmation
+  const handleConfirmArtifactOption = useCallback((optionId: string) => {
+    console.log('[SinglePlayerGame] handleConfirmArtifactOption:', optionId)
+
+    if (optionId === 'buy_card') {
+      setPendingArtifactOptionId(optionId)
+      setArtifactEffectInputType('SELECT_CARDS')
+      setArtifactSelectableCards(market || [])
+      setArtifactCardSelectionLabel('選擇1張買入區卡牌購買')
+      setArtifactMinCardSelection(1)
+      setArtifactMaxCardSelection(1)
+      return
+    }
+
+    if (optionId === 'shelter_hand') {
+      setPendingArtifactOptionId(optionId)
+      setArtifactEffectInputType('SELECT_CARDS')
+      setArtifactSelectableCards(hand || [])
+      setArtifactCardSelectionLabel('選擇1張手牌棲息地')
+      setArtifactMinCardSelection(1)
+      setArtifactMaxCardSelection(1)
+      return
+    }
+
+    const result = executeArtifactEffect(optionId)
+    setShowArtifactEffectModal(false)
+
+    if (result.success) {
+      setArtifactResultMessage(result.message)
+      setTimeout(() => setArtifactResultMessage(null), 3000)
+    }
+  }, [executeArtifactEffect, market, hand])
+
+  // Handle artifact card selection confirmation
+  const handleConfirmArtifactCards = useCallback((cardIds: string[]) => {
+    console.log('[SinglePlayerGame] handleConfirmArtifactCards:', cardIds)
+
+    const result = executeArtifactEffect(pendingArtifactOptionId || undefined, cardIds)
+    setShowArtifactEffectModal(false)
+    setPendingArtifactOptionId(null)
+    setArtifactSelectableCards([])
+
+    if (result.success) {
+      setArtifactResultMessage(result.message)
+      setTimeout(() => setArtifactResultMessage(null), 3000)
+    }
+  }, [executeArtifactEffect, pendingArtifactOptionId])
+
+  // Handle artifact option with card selection
+  const handleConfirmArtifactOptionWithCards = useCallback((optionId: string, cardIds: string[]) => {
+    console.log('[SinglePlayerGame] handleConfirmArtifactOptionWithCards:', optionId, cardIds)
+
+    const result = executeArtifactEffect(optionId, cardIds)
+    setShowArtifactEffectModal(false)
+    setPendingArtifactOptionId(null)
+    setArtifactSelectableCards([])
+
+    if (result.success) {
+      setArtifactResultMessage(result.message)
+      setTimeout(() => setArtifactResultMessage(null), 3000)
+    }
+  }, [executeArtifactEffect])
+
+  // Handle stone upgrade confirmation (Book of Thoth)
+  const handleConfirmStoneUpgrades = useCallback((upgrades: StoneUpgrade[]) => {
+    console.log('[SinglePlayerGame] handleConfirmStoneUpgrades:', upgrades)
+
+    const stoneChanges: Partial<Record<StoneType, number>> = {}
+    upgrades.forEach(upgrade => {
+      stoneChanges[upgrade.from] = (stoneChanges[upgrade.from] || 0) - 1
+      stoneChanges[upgrade.to] = (stoneChanges[upgrade.to] || 0) + 1
+    })
+
+    const result = executeArtifactEffect(undefined, undefined, stoneChanges)
+    setShowStoneUpgradeModal(false)
+
+    if (result.success) {
+      setArtifactResultMessage(result.message)
+      setTimeout(() => setArtifactResultMessage(null), 3000)
+    }
+  }, [executeArtifactEffect])
+
+  // Close artifact effect modal
+  const handleCloseArtifactModal = useCallback(() => {
+    setShowArtifactEffectModal(false)
+    setPendingArtifactOptionId(null)
+    setArtifactSelectableCards([])
+    setArtifactEffectOptions([])
+  }, [])
+
   // Show loading state if game not initialized or stones not ready
   if (!phase || !stones) {
     return (
@@ -494,6 +944,7 @@ export default function SinglePlayerGame() {
               )
             }
             confirmSelectionDisabled={false}
+            unprocessedResolutionCards={unprocessedResolutionCardsCount}
           />
         }
         leftSidebar={
@@ -648,6 +1099,8 @@ export default function SinglePlayerGame() {
                   setHandViewMode(prev => prev === 'minimized' ? 'standard' : 'minimized')
                 }}
                 canTameCard={canTameCard}
+                pendingResolutionCards={pendingResolutionCards}
+                onResolutionCardClick={(_playerId, cardId) => handleFieldCardClickInResolution(cardId)}
               />
             ) : (
               <div className="flex flex-col gap-4 h-full p-4">
@@ -846,6 +1299,23 @@ export default function SinglePlayerGame() {
         size="wide"
       >
         <div className="p-6">
+          {/* Effect Reason Display */}
+          {ifritEffectTriggered && (
+            <div className="mb-6 p-4 bg-gradient-to-r from-orange-900/50 to-red-900/50 rounded-lg border-2 border-orange-500/50">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">⚡</span>
+                <div>
+                  <div className="text-lg font-bold text-orange-300">
+                    {ifritEffectTriggered.cardNameTw} ({ifritEffectTriggered.cardName}) 的閃電效果
+                  </div>
+                  <div className="text-md text-orange-200 mt-1 whitespace-pre-line">
+                    {ifritEffectTriggered.reason}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <ScoreTrack
             players={playerScores}
             maxScore={60}
@@ -933,6 +1403,79 @@ export default function SinglePlayerGame() {
           {error}
         </div>
       )}
+
+      {/* Artifact Result Message Toast */}
+      {artifactResultMessage && (
+        <div
+          className="fixed top-32 left-1/2 -translate-x-1/2 z-50 bg-purple-600 text-white px-6 py-3 rounded-lg shadow-lg animate-slide-up"
+          data-testid="artifact-result-toast"
+        >
+          {artifactResultMessage}
+        </div>
+      )}
+
+      {/* Artifact Action Panel - Shows in ACTION phase when artifact is available */}
+      {phase === SinglePlayerPhase.ACTION && confirmedArtifactId && (
+        <div className="fixed right-4 top-20 z-40" data-testid="artifact-panel-container">
+          <ArtifactActionPanel
+            artifactId={confirmedArtifactId}
+            canUse={canUseCurrentArtifact}
+            isUsed={isArtifactUsed}
+            isVisible={true}
+            onUseArtifact={handleUseArtifact}
+          />
+        </div>
+      )}
+
+      {/* Artifact Effect Modal */}
+      <ArtifactEffectModal
+        isOpen={showArtifactEffectModal}
+        onClose={handleCloseArtifactModal}
+        artifactId={confirmedArtifactId}
+        inputType={artifactEffectInputType}
+        options={artifactEffectOptions}
+        selectableCards={artifactSelectableCards}
+        minCardSelection={artifactMinCardSelection}
+        maxCardSelection={artifactMaxCardSelection}
+        currentRound={round}
+        cardSelectionLabel={artifactCardSelectionLabel}
+        onConfirmOption={handleConfirmArtifactOption}
+        onConfirmCards={handleConfirmArtifactCards}
+        onConfirmOptionWithCards={handleConfirmArtifactOptionWithCards}
+      />
+
+      {/* Stone Upgrade Modal (Book of Thoth) */}
+      <StoneUpgradeModal
+        isOpen={showStoneUpgradeModal}
+        onClose={() => setShowStoneUpgradeModal(false)}
+        playerStones={stones || EMPTY_STONE_POOL}
+        maxUpgrades={2}
+        onConfirmUpgrades={handleConfirmStoneUpgrades}
+      />
+
+      {/* Resolution Confirm Modal - For Imp RECOVER_CARD effect (v9.7.0) */}
+      <ResolutionConfirmModal
+        isOpen={showResolutionModal}
+        onClose={() => {
+          setShowResolutionModal(false)
+          setResolutionCard(null)
+        }}
+        card={resolutionCard}
+        onConfirm={handleResolutionConfirm}
+        onSkip={handleResolutionSkip}
+      />
+
+      {/* Ifrit Lightning Effect (v9.12.0) */}
+      <LightningEffect
+        isActive={showLightningEffect}
+        cardName={ifritEffectTriggered?.cardName || ''}
+        cardNameTw={ifritEffectTriggered?.cardNameTw || ''}
+        scoreChange={ifritEffectTriggered?.scoreChange || 0}
+        reason={ifritEffectTriggered?.reason || ''}
+        onLightningComplete={handleLightningComplete}
+        onOpenModal={handleLightningOpenModal}
+        onEffectComplete={handleLightningEffectComplete}
+      />
     </>
   )
 }
