@@ -3450,8 +3450,13 @@ export class SinglePlayerEngine {
       }
     }
 
-    // Count total upgrade operations (max 2)
-    const upgradeCount = (selectedStones.ONE ?? 0) + (selectedStones.THREE ?? 0) + (selectedStones.SIX ?? 0)
+    // selectedStones format from StoneUpgradeModal:
+    // {ONE: -2, THREE: 2} means: lose 2 ONE stones, gain 2 THREE stones (2 upgrades: ONE->THREE)
+    // Only count stones being consumed (negative values = stones being upgraded FROM)
+    const onesConsumed = (selectedStones.ONE ?? 0) < 0 ? Math.abs(selectedStones.ONE ?? 0) : 0
+    const threesConsumed = (selectedStones.THREE ?? 0) < 0 ? Math.abs(selectedStones.THREE ?? 0) : 0
+    const upgradeCount = onesConsumed + threesConsumed
+
     if (upgradeCount === 0) {
       return { success: false, message: '請至少選擇1顆石頭升級' }
     }
@@ -3461,35 +3466,26 @@ export class SinglePlayerEngine {
 
     // Validate player has enough stones
     const currentStones = this.state.player.stones
-    if ((selectedStones.ONE ?? 0) > currentStones.ONE) {
+    if (onesConsumed > currentStones.ONE) {
       return { success: false, message: '紅石不足' }
     }
-    if ((selectedStones.THREE ?? 0) > currentStones.THREE) {
+    if (threesConsumed > currentStones.THREE) {
       return { success: false, message: '藍石不足' }
     }
-    if ((selectedStones.SIX ?? 0) > currentStones.SIX) {
-      return { success: false, message: '紫石不足（紫石無法再升級）' }
-    }
-
-    // Perform upgrades: ONE → THREE → SIX → (special purple, not in pool)
-    const newStones = { ...currentStones }
-    const upgradeOneCount = selectedStones.ONE ?? 0
-    const upgradeThreeCount = selectedStones.THREE ?? 0
-    const upgradeSixCount = selectedStones.SIX ?? 0
-
-    // ONE → THREE
-    newStones.ONE -= upgradeOneCount
-    newStones.THREE += upgradeOneCount
-
-    // THREE → SIX
-    newStones.THREE -= upgradeThreeCount
-    newStones.SIX += upgradeThreeCount
-
-    // SIX → Purple (6-point stone is already the highest level)
-    // Purple stones (SIX) are worth 6 points and cannot be upgraded further
-    if (upgradeSixCount > 0) {
+    if ((selectedStones.SIX ?? 0) < 0) {
       return { success: false, message: '紫石（6點）已是最高級，無法升級' }
     }
+
+    // Perform upgrades: ONE → THREE → SIX
+    const newStones = { ...currentStones }
+
+    // ONE → THREE
+    newStones.ONE -= onesConsumed
+    newStones.THREE += onesConsumed
+
+    // THREE → SIX
+    newStones.THREE -= threesConsumed
+    newStones.SIX += threesConsumed
 
     this.state = {
       ...this.state,
@@ -3501,14 +3497,14 @@ export class SinglePlayerEngine {
     }
 
     const upgradeMessages: string[] = []
-    if (upgradeOneCount > 0) upgradeMessages.push(`${upgradeOneCount}顆紅石→藍石`)
-    if (upgradeThreeCount > 0) upgradeMessages.push(`${upgradeThreeCount}顆藍石→紫石`)
+    if (onesConsumed > 0) upgradeMessages.push(`${onesConsumed}顆紅石→藍石`)
+    if (threesConsumed > 0) upgradeMessages.push(`${threesConsumed}顆藍石→紫石`)
 
     return {
       success: true,
       message: `透特之書：升級了${upgradeMessages.join('、')}`,
-      stonesSpent: { ONE: upgradeOneCount, THREE: upgradeThreeCount },
-      stonesGained: { THREE: upgradeOneCount, SIX: upgradeThreeCount },
+      stonesSpent: { ONE: onesConsumed, THREE: threesConsumed },
+      stonesGained: { THREE: onesConsumed, SIX: threesConsumed },
     }
   }
 
