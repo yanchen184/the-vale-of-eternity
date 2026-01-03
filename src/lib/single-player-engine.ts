@@ -1,10 +1,10 @@
 /**
- * Single Player Game Engine for Vale of Eternity v7.22.0
+ * Single Player Game Engine for Vale of Eternity v7.23.0
  * Core game logic for single-player mode with Stone Economy System
  * Based on GAME_FLOW.md specifications
- * @version 7.22.0 - Imp added to initial hand for resolution phase testing
+ * @version 7.23.0 - Added validation: cannot end turn with unprocessed currentTurnCards
  */
-console.log('[lib/single-player-engine.ts] v7.22.0 loaded - Imp in initial hand for testing')
+console.log('[lib/single-player-engine.ts] v7.23.0 loaded - Cannot end turn with unprocessed cards')
 
 import type { CardInstance, CardEffect, StoneConfig } from '@/types/cards'
 import { CardLocation, Element, EffectType, EffectTrigger, StoneType } from '@/types/cards'
@@ -1349,6 +1349,14 @@ export class SinglePlayerEngine {
       throw new SinglePlayerError(
         SinglePlayerErrorCode.ERR_INVALID_PHASE,
         'Not in action phase'
+      )
+    }
+
+    // ✅ Check if all currentTurnCards have been processed (kept or sold)
+    if (this.state.player.currentTurnCards && this.state.player.currentTurnCards.length > 0) {
+      throw new SinglePlayerError(
+        SinglePlayerErrorCode.ERR_INVALID_ACTION,
+        `還有 ${this.state.player.currentTurnCards.length} 張行動階段卡片未處理（需上手或賣出）`
       )
     }
 
