@@ -1,9 +1,9 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 4.17.0 - Fixed Ifrit effect: process score changes and add to history
+ * @version 4.18.0 - Fixed effect context to use updated player state from Firebase
  */
-console.log('[services/multiplayer-game.ts] v4.17.0 loaded - Fixed Ifrit effect processing')
+console.log('[services/multiplayer-game.ts] v4.18.0 loaded - Effect context uses updated player state')
 
 import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -1255,11 +1255,14 @@ export class MultiplayerGameService {
     const allCardsSnapshot = await get(ref(database, `games/${gameId}/cards`))
     const allCards = allCardsSnapshot.exists() ? allCardsSnapshot.val() : {}
 
+    // IMPORTANT: Get the UPDATED player state from Firebase (includes the new field card)
+    const updatedPlayer: PlayerState = allPlayers[playerId] || player
+
     const effectContext = {
       gameId,
       playerId,
       cardInstanceId,
-      currentPlayerState: { ...player, hand: updatedHand, field: updatedField },
+      currentPlayerState: updatedPlayer, // Use the updated state from Firebase
       allPlayers,
       gameCards: allCards,
     }
