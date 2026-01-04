@@ -1,9 +1,9 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 4.21.0 - Added imageUrl parameter to lightning effect
+ * @version 4.24.0 - Fixed: RECOVER_CARD effects must be activated (No = defer, not skip)
  */
-console.log('[services/multiplayer-game.ts] v4.21.0 loaded - Lightning effect with card image')
+console.log('[services/multiplayer-game.ts] v4.24.0 loaded')
 
 import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -2441,8 +2441,8 @@ export class MultiplayerGameService {
       console.log(`[MultiplayerGame] Player ${pid} has ${pendingCards[pid].length} resolution cards:`, pendingCards[pid])
     }
 
-    // Update resolution state
-    await update(ref(database, `games/${gameId}/resolutionState`), {
+    // Update resolution state - use set to ensure complete initialization
+    await set(ref(database, `games/${gameId}/resolutionState`), {
       pendingCards,
       processedCards
     })
@@ -2480,8 +2480,8 @@ export class MultiplayerGameService {
     }
 
     // Check if card is in pending list
-    const pending = game.resolutionState.pendingCards[playerId] || []
-    const processed = game.resolutionState.processedCards[playerId] || []
+    const pending = game.resolutionState.pendingCards?.[playerId] || []
+    const processed = game.resolutionState.processedCards?.[playerId] || []
 
     if (!pending.includes(cardInstanceId)) {
       throw new Error('Card does not have pending resolution effect')
@@ -2522,8 +2522,11 @@ export class MultiplayerGameService {
       console.log(`[MultiplayerGame] Resolution activated: ${cardInstanceId} returned to hand for player ${playerId}`)
     } else {
       // Card stays on field, NOT marked as processed
-      // Player must choose "activate" to complete the resolution
-      console.log(`[MultiplayerGame] Resolution declined: ${cardInstanceId} stays on field for player ${playerId}`)
+      // Player must eventually choose "Yes" for all RECOVER_CARD effects
+      // Choosing "No" just defers the decision (allows choosing order)
+      console.log(`[MultiplayerGame] Resolution deferred: ${cardInstanceId} stays on field for player ${playerId}, will ask again`)
+      // Just update timestamp to trigger UI refresh
+      await update(ref(database, `games/${gameId}`), { updatedAt: Date.now() })
     }
   }
 
@@ -2548,8 +2551,8 @@ export class MultiplayerGameService {
 
       // ✅ Check if player has processed all their resolution cards
       if (game.resolutionState) {
-        const pending = game.resolutionState.pendingCards[playerId] || []
-        const processed = game.resolutionState.processedCards[playerId] || []
+        const pending = game.resolutionState.pendingCards?.[playerId] || []
+        const processed = game.resolutionState.processedCards?.[playerId] || []
 
         if (pending.length > 0 && processed.length < pending.length) {
           throw new Error(`還有 ${pending.length - processed.length} 張結算效果卡片待處理（必須選擇『是，回到手上』）`)

@@ -1,9 +1,9 @@
 /**
  * Resolution Confirm Modal Component
  * Modal for confirming resolution phase card effects (e.g., Imp's RECOVER_CARD)
- * @version 1.2.0 - Effect must be ACTIVATED (return to hand), choosing "No" doesn't count
+ * @version 1.4.0 - Restored rule: effect must be activated (No = defer, not skip)
  */
-console.log('[components/game/ResolutionConfirmModal.tsx] v1.2.0 loaded')
+console.log('[components/game/ResolutionConfirmModal.tsx] v1.4.0 loaded')
 
 import { memo } from 'react'
 import { Modal } from '@/components/ui/Modal'
@@ -83,10 +83,10 @@ export const ResolutionConfirmModal = memo(function ResolutionConfirmModal({
             是否要讓 <span className="text-amber-400 font-semibold">{card.nameTw}</span> 回到手上？
           </p>
           <p className="text-sm text-amber-400 mt-2 font-semibold">
-            ⚠️ 此效果必須發動才能結束回合
+            ⚠️ 此效果最終必須發動才能結束回合
           </p>
           <p className="text-xs text-slate-500 mt-1">
-            （選「否」會讓卡片繼續發光，必須選「是」才能結束回合）
+            選「否」可以暫時跳過，決定回收順序（但最終都要回收）
           </p>
         </div>
 
