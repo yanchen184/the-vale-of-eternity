@@ -147,7 +147,7 @@ export const CAP_OF_HADES: Artifact = {
   description:
     'Action: Shelter 1 card from your hand and buy 1 card from the buy area for free, OR gain 1 blue stone.',
   descriptionTw: '行動：將手上的1張卡棲息地並免費購買買入區的1張卡，或是獲得1顆藍石。',
-  image: '/the-vale-of-eternity/assets/artifacts/Random Artifacts/Snipaste_2025-12-31_18-40-51.png',
+  image: '/the-vale-of-eternity/assets/artifacts/Random Artifacts/Snipaste_2025-12-31_18-40-35.png',
   implemented: true,
   effectDetails: {
     affectsCardSelection: true,
@@ -184,7 +184,7 @@ export const IMPERIAL_SEAL: Artifact = {
   description:
     'Action: Discard 1 card from your play area. If it is a blue (water) card, gain 1 green stone.',
   descriptionTw: '行動：從場上棄掉1張卡。如果是藍色（水）卡，獲得1顆綠石。',
-  image: '/the-vale-of-eternity/assets/artifacts/Random Artifacts/Snipaste_2025-12-31_18-40-35.png',
+  image: '/the-vale-of-eternity/assets/artifacts/Random Artifacts/Snipaste_2025-12-31_18-40-51.png',
   implemented: true,
   effectDetails: {
     affectsStones: true,
