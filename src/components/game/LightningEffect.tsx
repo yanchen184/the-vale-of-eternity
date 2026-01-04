@@ -267,7 +267,7 @@ export function LightningEffect({
               {imageUrl && (
                 <div className="mb-6 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
                   <img
-                    src={`${import.meta.env.BASE_URL}cards/${imageUrl}`}
+                    src={`${import.meta.env.BASE_URL}cards/base/${imageUrl}`}
                     alt={cardNameTw}
                     className="w-48 h-auto mx-auto rounded-lg shadow-2xl border-4 border-amber-400/50"
                     style={{
