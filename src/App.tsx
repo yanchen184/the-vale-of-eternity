@@ -1,12 +1,13 @@
 /**
  * Main App component
- * Single Player Mode v3.4.0 - Added Coin Animation Demo
- * @version 3.4.0
+ * Unified Firebase Architecture v4.0.0
+ * @version 4.0.0
  */
-console.log('[App.tsx] v3.4.0 loaded')
+console.log('[App.tsx] v4.0.0 loaded - Unified Firebase Architecture')
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { Home, Lobby, SinglePlayerGame, Tutorial, CardGallery, GameBoard, MultiplayerGame } from '@/pages'
+import { Home, Lobby, Tutorial, CardGallery, GameBoard, MultiplayerGame } from '@/pages'
+import SinglePlayerGameUnified from '@/pages/SinglePlayerGameUnified'
 import { MultiplayerLobby } from '@/pages/MultiplayerLobby'
 import { MahjongLayoutDemo } from '@/pages/MahjongLayoutDemo'
 import CoinAnimationDemo from '@/pages/CoinAnimationDemo'
@@ -16,7 +17,7 @@ import { useToastStore } from '@/stores'
 import { APP_VERSION } from '@/data/constants'
 
 // Log version on app start
-console.log(`[The Vale of Eternity] v${APP_VERSION} - Multiplayer Mode Enabled`)
+console.log(`[The Vale of Eternity] v${APP_VERSION} - Unified Firebase Mode`)
 
 function App() {
   const { toasts, removeToast } = useToastStore()
@@ -29,9 +30,9 @@ function App() {
           {/* Multiplayer Mode */}
           <Route path="/multiplayer" element={<MultiplayerLobby />} />
           <Route path="/multiplayer/:gameId" element={<MultiplayerGame />} />
-          {/* Single Player Mode */}
+          {/* Single Player Mode - Unified Firebase */}
           <Route path="/play" element={<Lobby />} />
-          <Route path="/game" element={<SinglePlayerGame />} />
+          <Route path="/game" element={<SinglePlayerGameUnified />} />
           {/* New GameBoard with core UI components */}
           <Route path="/gameboard" element={<GameBoard />} />
           {/* Legacy routes - redirect to new paths */}

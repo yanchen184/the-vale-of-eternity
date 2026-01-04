@@ -1,34 +1,33 @@
 /**
- * Lobby page component for Single Player Mode v3.0.0
- * Start a single-player game
- * @version 3.0.0
+ * Lobby page component for Single Player Mode v4.0.0
+ * Start a unified Firebase single-player game
+ * @version 4.0.0
  */
-console.log('[pages/Lobby.tsx] v3.0.0 loaded')
+console.log('[pages/Lobby.tsx] v4.0.0 loaded - Unified Firebase')
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Play, User, Info, Library } from 'lucide-react'
 import { Button } from '@/components/ui'
-import { useGameStore } from '@/stores'
 
 export function Lobby() {
   const navigate = useNavigate()
-  const startGame = useGameStore(state => state.startGame)
   const [playerName, setPlayerName] = useState(
     localStorage.getItem('playerName') || 'Player'
+  )
+  const [expansionMode, setExpansionMode] = useState(
+    localStorage.getItem('expansionMode') === 'true'
   )
   const [isLoading, setIsLoading] = useState(false)
 
   const handleStartGame = async () => {
     setIsLoading(true)
     try {
-      // Save player name
+      // Save player name and expansion mode
       localStorage.setItem('playerName', playerName || 'Player')
+      localStorage.setItem('expansionMode', expansionMode.toString())
 
-      // Start game
-      startGame(playerName || 'Player')
-
-      // Navigate to game page
+      // Navigate to unified game page (which creates Firebase game and redirects)
       navigate('/game')
     } catch (error) {
       console.error('Failed to start game:', error)
@@ -74,6 +73,24 @@ export function Lobby() {
                 placeholder="Enter your name..."
                 className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-vale-500"
                 data-testid="player-name-input"
+              />
+            </div>
+
+            {/* Expansion Mode Toggle */}
+            <div className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
+              <div>
+                <label htmlFor="expansionMode" className="text-sm text-slate-300 cursor-pointer">
+                  Expansion Mode
+                </label>
+                <p className="text-xs text-slate-500 mt-1">Include artifacts and advanced mechanics</p>
+              </div>
+              <input
+                id="expansionMode"
+                type="checkbox"
+                checked={expansionMode}
+                onChange={e => setExpansionMode(e.target.checked)}
+                className="w-5 h-5 rounded bg-slate-600 border-slate-500 text-vale-500 focus:ring-vale-500 cursor-pointer"
+                data-testid="expansion-mode-toggle"
               />
             </div>
           </div>

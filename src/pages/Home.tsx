@@ -273,9 +273,9 @@ export function Home() {
             icon={<Gamepad2 className="w-6 h-6 text-vale-400" />}
             title="單人遊戲"
             subtitle="單人模式，挑戰自我"
-            onClick={() => navigate('/game')}
+            onClick={() => navigate('/play')}
             variant="primary"
-            testId="gameboard-btn"
+            testId="single-player-btn"
             disabled={false}
           />
 

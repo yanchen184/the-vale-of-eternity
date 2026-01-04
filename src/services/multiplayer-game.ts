@@ -400,7 +400,9 @@ export class MultiplayerGameService {
     if (isExpansionMode) {
       // Import artifacts data
       const { getAvailableArtifacts } = await import('@/data/artifacts')
-      availableArtifacts = getAvailableArtifacts(maxPlayers)
+      const artifacts = getAvailableArtifacts(maxPlayers)
+      // Filter out any undefined values to prevent Firebase errors
+      availableArtifacts = artifacts.filter((id): id is string => id !== undefined && id !== null)
     }
 
     const gameRoom: GameRoom = {
@@ -412,8 +414,8 @@ export class MultiplayerGameService {
       maxPlayers,
       playerIds: [hostId],
       isExpansionMode,
-      availableArtifacts,
-      artifactSelections: isExpansionMode ? {} : undefined,
+      ...(availableArtifacts ? { availableArtifacts } : {}),
+      ...(isExpansionMode ? { artifactSelections: {} } : {}),
       huntingPhase: null,
       deckIds: [],
       marketIds: [],

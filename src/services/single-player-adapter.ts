@@ -16,34 +16,27 @@ import { multiplayerGameService } from './multiplayer-game'
 export async function createSinglePlayerGame(
   playerName: string,
   expansionMode: boolean = true
-): Promise<{ gameId: string; playerId: string }> {
+): Promise<{ gameId: string; playerId: string; roomCode: string }> {
   console.log('[SinglePlayerAdapter] Creating single player game:', { playerName, expansionMode })
 
-  // Create a multiplayer game with maxPlayers = 1
-  const gameId = await multiplayerGameService.createGame(playerName, 1)
+  // Generate a unique player ID
+  const playerId = `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
-  // Get the player ID
+  // Create a multiplayer room with correct parameter order
+  // createRoom(hostId, hostName, maxPlayers, isExpansionMode)
+  const { gameId, roomCode } = await multiplayerGameService.createRoom(playerId, playerName, 2, expansionMode)
+
+  // Mark as single player mode
   const gameRef = ref(database, `games/${gameId}`)
-  const snapshot = await get(gameRef)
-
-  if (!snapshot.exists()) {
-    throw new Error('Failed to create game')
-  }
-
-  const gameData = snapshot.val()
-  const playerId = Object.keys(gameData.players)[0]
-
-  // Mark as single player mode and configure
   await update(gameRef, {
     isSinglePlayer: true,
-    expansionMode,
     // Auto-start the game since it's single player
     status: 'HUNTING',
   })
 
-  console.log('[SinglePlayerAdapter] Single player game created:', { gameId, playerId })
+  console.log('[SinglePlayerAdapter] Single player game created:', { gameId, playerId, roomCode })
 
-  return { gameId, playerId }
+  return { gameId, playerId, roomCode }
 }
 
 /**
