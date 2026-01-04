@@ -2994,9 +2994,9 @@ export class SinglePlayerEngine {
 
     return [
       {
-        id: 'increase_capacity',
-        description: 'Pay 3 points worth of stones to increase play area capacity by 1',
-        descriptionTw: '支付價值3分的石頭以增加場上區域容量+1',
+        id: 'increase_zone',
+        description: 'Pay 3 points worth of stones to increase area bonus by 1',
+        descriptionTw: '支付價值3分的石頭以增加區域+1（永久）',
         available: hasEnoughStones,
         unavailableReason: !hasEnoughStones ? '石頭分數不足（需要3分）' : undefined,
       },
@@ -3120,7 +3120,8 @@ export class SinglePlayerEngine {
 
   /**
    * Execute Incense Burner effect
-   * Pay 3 points worth of stones to permanently increase field capacity by 1
+   * Pay 3 points worth of stones to permanently increase area bonus by 1
+   * @version 9.17.0 - Fixed: Now increases areaBonus instead of fieldCapacity
    */
   private executeIncenseBurner(
     optionId?: string,
@@ -3141,7 +3142,7 @@ export class SinglePlayerEngine {
       }
     }
 
-    if (optionId === 'increase_capacity') {
+    if (optionId === 'increase_zone') {
       const PAYMENT_AMOUNT = 3
 
       // Request payment selection using FREE_STONE_SELECTION modal
@@ -3166,22 +3167,22 @@ export class SinglePlayerEngine {
         return { success: false, message: '無法扣除石頭' }
       }
 
-      // Increase field capacity
-      const currentCapacity = this.state.player.fieldCapacity || 10
-      const newCapacity = currentCapacity + 1
+      // Increase area bonus (capped at +2)
+      const currentAreaBonus = this.state.player.areaBonus
+      const newAreaBonus = Math.min(currentAreaBonus + 1, 2)
 
       this.state = {
         ...this.state,
         player: {
           ...this.state.player,
-          fieldCapacity: newCapacity,
+          areaBonus: newAreaBonus,
         },
         updatedAt: Date.now(),
       }
 
       return {
         success: true,
-        message: `香爐：支付${paymentValue}分，場上容量增加至 ${newCapacity} 張`,
+        message: `香爐：支付${paymentValue}分，區域加成增加至 +${newAreaBonus}`,
         stonesSpent: selectedPayment,
       }
     }

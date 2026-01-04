@@ -37,7 +37,8 @@ export interface ArtifactEffectOption {
 
 /**
  * Execute Incense Burner effect
- * ACTION: Buy 1 card from market for 3 points worth of stones (any color), OR shelter top 2 cards from deck
+ * ACTION: Pay 3 points worth of stones to increase zone bonus by 1 (equivalent to clicking Zone +1 button)
+ * @version 9.17.0 - Fixed: Now increases zoneBonus instead of fieldCapacity
  */
 export async function executeIncenseBurner(
   gameId: string,
@@ -79,9 +80,9 @@ export async function executeIncenseBurner(
       inputType: 'CHOOSE_OPTION',
       options: [
         {
-          id: 'increase_capacity',
-          description: 'Pay 3 points worth of stones to increase play area capacity by 1',
-          descriptionTw: '支付價值3分的石頭以增加場上區域容量+1',
+          id: 'increase_zone',
+          description: 'Pay 3 points worth of stones to increase zone bonus by 1',
+          descriptionTw: '支付價值3分的石頭以增加區域+1（永久）',
           available: totalStones >= 3,
           unavailableReason: totalStones < 3 ? '石頭分數不足（需要3分）' : undefined,
         },
@@ -89,7 +90,7 @@ export async function executeIncenseBurner(
     }
   }
 
-  if (optionId === 'increase_capacity') {
+  if (optionId === 'increase_zone') {
     const PAYMENT_AMOUNT = 3
 
     // Step 2: Request free stone selection (using FREE_STONE_SELECTION input type)
@@ -130,21 +131,21 @@ export async function executeIncenseBurner(
       EARTH: player.stones.EARTH,
     }
 
-    // Increase field capacity
-    const currentCapacity = player.fieldCapacity || 10
-    const newCapacity = currentCapacity + 1
+    // Increase zone bonus (equivalent to clicking Zone +1 button)
+    const currentZoneBonus = player.zoneBonus || 0
+    const newZoneBonus = Math.min(currentZoneBonus + 1, 2) as 0 | 1 | 2 // Cap at +2
 
     // Update game state
     await update(gameRef, {
       [`players/${playerId}/stones`]: newStones,
-      [`players/${playerId}/fieldCapacity`]: newCapacity,
+      [`players/${playerId}/zoneBonus`]: newZoneBonus,
       [`players/${playerId}/artifactUsedThisRound`]: true,
       updatedAt: Date.now(),
     })
 
     return {
       success: true,
-      message: `香爐：支付${paymentValue}分，場上容量增加至 ${newCapacity} 張`,
+      message: `香爐：支付${paymentValue}分，區域加成增加至 +${newZoneBonus}`,
     }
   }
 

@@ -840,8 +840,8 @@ export default function SinglePlayerGame() {
   const handleConfirmArtifactOption = useCallback((optionId: string) => {
     console.log('[SinglePlayerGame] handleConfirmArtifactOption:', optionId)
 
-    // Incense Burner: Increase field capacity (new effect v9.16.0)
-    if (optionId === 'increase_capacity') {
+    // Incense Burner: Increase area bonus (fixed v9.17.0)
+    if (optionId === 'increase_zone') {
       const result = executeArtifactEffect(optionId)
 
       // Check if it requires free stone selection

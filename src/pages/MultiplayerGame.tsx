@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 6.25.0 - Added pendingResolutionCards and onResolutionCardClick to RESOLUTION phase
+ * @version 6.26.0 - Fixed optional chaining in handleFieldCardClickInResolution
  */
-console.log('[pages/MultiplayerGame.tsx] v6.25.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v6.26.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -1303,11 +1303,11 @@ export function MultiplayerGame() {
   const handleFieldCardClickInResolution = useCallback(
     (cardInstanceId: string) => {
       if (!gameRoom || gameRoom.status !== 'RESOLUTION') return
-      if (!currentPlayer) return
+      if (!currentPlayer || !playerId) return
 
       // Check if this is a pending resolution card for current player
-      const pendingCards = gameRoom.resolutionState?.pendingCards[playerId ?? ''] || []
-      const processedCards = gameRoom.resolutionState?.processedCards[playerId ?? ''] || []
+      const pendingCards = gameRoom.resolutionState?.pendingCards?.[playerId] || []
+      const processedCards = gameRoom.resolutionState?.processedCards?.[playerId] || []
 
       if (!pendingCards.includes(cardInstanceId)) return
       if (processedCards.includes(cardInstanceId)) return
@@ -1765,8 +1765,8 @@ export function MultiplayerGame() {
         return
       }
 
-      if (optionId === 'increase_capacity') {
-        // For Incense Burner increase_capacity option, request free stone selection
+      if (optionId === 'increase_zone') {
+        // For Incense Burner increase_zone option, request free stone selection
         const result = await multiplayerGameService.useArtifact(
           gameId,
           playerId,
