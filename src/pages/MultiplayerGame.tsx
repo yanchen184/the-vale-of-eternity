@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 6.10.0 - Fixed effect restoration from card templates for implementation status display
+ * @version 6.14.0 - Added lightning effect support for Imp (F002) and Ifrit (F007)
  */
-console.log('[pages/MultiplayerGame.tsx] v6.10.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v6.14.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -18,6 +18,7 @@ import {
 } from '@/services/multiplayer-game'
 import { getCardById } from '@/data/cards/base-cards'
 import { ARTIFACTS_BY_ID } from '@/data/artifacts'
+import { hasLightningEffect, getLightningEffectDescription } from '@/data/lightning-effect-cards'
 import {
   Card,
   PlayerMarker,
@@ -27,14 +28,15 @@ import {
   GameHeader,
   LeftSidebar,
   RightSidebar,
-  ScoreBar,
   HuntingPhaseUI,
   ActionPhaseUI,
+  LightningEffect,
 } from '@/components/game'
 import { ActionLog } from '@/components/game/ActionLog'
 import { useSound, SoundType } from '@/hooks/useSound'
 import { FixedHandPanel } from '@/components/game/FixedHandPanel'
-import type { PlayerScoreInfo, PlayerFieldData, PlayerSidebarData, ScoreBarPlayerData } from '@/components/game'
+import { ResolutionConfirmModal } from '@/components/game/ResolutionConfirmModal'
+import type { PlayerScoreInfo, PlayerFieldData, PlayerSidebarData } from '@/components/game'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { cn } from '@/lib/utils'
@@ -228,6 +230,19 @@ export function MultiplayerGame() {
   const [scores, setScores] = useState<{ playerId: string; name: string; score: number }[]>([])
   // cardScale removed - now using FixedHandPanel with自適應 sizing
   const [handViewMode, setHandViewMode] = useState<'minimized' | 'standard' | 'expanded'>('standard')
+  // Resolution phase modal state (v6.13.0)
+  const [showResolutionModal, setShowResolutionModal] = useState(false)
+  const [resolutionCard, setResolutionCard] = useState<CardInstance | null>(null)
+
+  // Lightning effect state (v6.14.0)
+  const [lightningEffect, setLightningEffect] = useState({
+    isActive: false,
+    cardName: '',
+    cardNameTw: '',
+    scoreChange: 0,
+    reason: '',
+    showScoreModal: false,
+  })
 
   // Extract state from location or redirect
   const originalPlayerId = state?.playerId
@@ -683,16 +698,6 @@ export function MultiplayerGame() {
     }))
   }, [players])
 
-  // Player data for score bar (bottom)
-  const scoreBarData = useMemo((): ScoreBarPlayerData[] => {
-    return players.map(player => ({
-      playerId: player.playerId,
-      name: player.name,
-      color: player.color || 'green',
-      score: player.score ?? 0,
-    }))
-  }, [players])
-
   // Player field data for PlayersFieldArea
   const playersFieldData = useMemo((): PlayerFieldData[] => {
     return players.map(player => {
@@ -736,6 +741,22 @@ export function MultiplayerGame() {
     })
     return colorsMap
   }, [players])
+
+  // Calculate pending resolution cards for current player (v6.13.0)
+  const pendingResolutionCards = useMemo(() => {
+    if (!gameRoom || gameRoom.status !== 'RESOLUTION' || !playerId) return []
+    return gameRoom.resolutionState?.pendingCards[playerId] || []
+  }, [gameRoom, playerId])
+
+  const processedResolutionCards = useMemo(() => {
+    if (!gameRoom || !playerId) return []
+    return gameRoom.resolutionState?.processedCards[playerId] || []
+  }, [gameRoom, playerId])
+
+  const unprocessedResolutionCardsCount = useMemo(() => {
+    const processedSet = new Set(processedResolutionCards)
+    return pendingResolutionCards.filter(cardId => !processedSet.has(cardId)).length
+  }, [pendingResolutionCards, processedResolutionCards])
 
   // Handlers
   const handleStartGame = useCallback(async () => {
@@ -819,12 +840,36 @@ export function MultiplayerGame() {
             cardName,
             `召喚到場上`
           )
+
+          // v6.14.0: Check for lightning effect cards
+          if (hasLightningEffect(card.cardId)) {
+            const fieldCardCount = currentPlayer?.field?.length || 0
+            const effectValue = card.cardId === 'F007' ? fieldCardCount : 2 // Ifrit vs Imp
+            const description = getLightningEffectDescription(
+              card.cardId,
+              cardTemplate?.name || '',
+              cardTemplate?.nameTw || '',
+              effectValue
+            )
+
+            // Show lightning effect
+            setLightningEffect({
+              isActive: true,
+              cardName: description.cardName,
+              cardNameTw: description.cardNameTw,
+              scoreChange: effectValue,
+              reason: description.reason,
+              showScoreModal: card.cardId === 'F007', // Only Ifrit shows score modal
+            })
+          }
+          // Note: Ifrit (F007) effect is handled by effect-processor.ts
+          // Score updates will automatically trigger ScoreBar animation (transition-all duration-500)
         }
       } catch (err: any) {
         setError(err.message || 'Failed to tame card')
       }
     },
-    [gameId, playerId, playerName, cards, play]
+    [gameId, playerId, playerName, cards, play, currentPlayer]
   )
 
   const handleSellCard = useCallback(
@@ -1181,6 +1226,64 @@ export function MultiplayerGame() {
       }
     },
     [gameId, playerId, playerName, play]
+  )
+
+  // Resolution phase handlers (v6.13.0)
+  const handleFieldCardClickInResolution = useCallback(
+    (cardInstanceId: string) => {
+      if (!gameRoom || gameRoom.status !== 'RESOLUTION') return
+      if (!currentPlayer) return
+
+      // Check if this is a pending resolution card for current player
+      const pendingCards = gameRoom.resolutionState?.pendingCards[playerId ?? ''] || []
+      const processedCards = gameRoom.resolutionState?.processedCards[playerId ?? ''] || []
+
+      if (!pendingCards.includes(cardInstanceId)) return
+      if (processedCards.includes(cardInstanceId)) return
+
+      // Find the card instance
+      const cardInstance = convertToCardInstance(cardInstanceId)
+      if (!cardInstance) return
+
+      console.log('[MultiplayerGame] Opening resolution modal for card:', cardInstanceId)
+      setResolutionCard(cardInstance)
+      setShowResolutionModal(true)
+    },
+    [gameRoom, currentPlayer, playerId, cards]
+  )
+
+  const handleResolutionConfirm = useCallback(
+    async () => {
+      if (!resolutionCard || !gameId || !playerId) return
+
+      console.log('[MultiplayerGame] Resolution confirmed - returning card to hand:', resolutionCard.instanceId)
+
+      try {
+        await multiplayerGameService.processResolutionCard(gameId, playerId, resolutionCard.instanceId, true)
+        setShowResolutionModal(false)
+        setResolutionCard(null)
+      } catch (err: any) {
+        setError(err.message || 'Failed to process resolution effect')
+      }
+    },
+    [resolutionCard, gameId, playerId]
+  )
+
+  const handleResolutionSkip = useCallback(
+    async () => {
+      if (!resolutionCard || !gameId || !playerId) return
+
+      console.log('[MultiplayerGame] Resolution skipped - card stays on field:', resolutionCard.instanceId)
+
+      try {
+        await multiplayerGameService.processResolutionCard(gameId, playerId, resolutionCard.instanceId, false)
+        setShowResolutionModal(false)
+        setResolutionCard(null)
+      } catch (err: any) {
+        setError(err.message || 'Failed to skip resolution effect')
+      }
+    },
+    [resolutionCard, gameId, playerId]
   )
 
   // Artifact selection handler (Expansion Mode)
@@ -1542,6 +1645,7 @@ export function MultiplayerGame() {
               isInSevenLeagueBootsSelection ? !sevenLeagueBootsState?.selectedCardId : false
             }
             unprocessedActionCards={currentPlayer?.currentDrawnCards?.length || 0}
+            unprocessedResolutionCards={unprocessedResolutionCardsCount}
           />
         }
         leftSidebar={
@@ -1588,15 +1692,7 @@ export function MultiplayerGame() {
             unprocessedActionCards={currentPlayer?.currentDrawnCards?.length || 0}
           />
         }
-        scoreBar={
-          <ScoreBar
-            players={scoreBarData}
-            currentPlayerId={playerId ?? ''}
-            maxScore={60}
-            discardCount={gameRoom.discardIds?.length ?? 0}
-            onDiscardClick={() => setShowMarketDiscardModal(true)}
-          />
-        }
+        scoreBar={null}
         mainContent={
           <div className="w-full h-full overflow-auto custom-scrollbar">
             {/* Hunting Phase - Card Selection with Artifact Selection at Bottom (v5.11.0) */}
@@ -1763,6 +1859,8 @@ export function MultiplayerGame() {
                 onCardDiscard={handleDiscardFieldCard}
                 onCurrentCardMoveToHand={handleMoveCurrentDrawnCardToHand}
                 onCurrentCardSell={handleSellCurrentDrawnCard}
+                pendingResolutionCards={pendingResolutionCards}
+                onResolutionCardClick={(_playerId, cardId) => handleFieldCardClickInResolution(cardId)}
               />
             )
           })()}
@@ -2143,6 +2241,18 @@ export function MultiplayerGame() {
         </div>
       </Modal>
 
+      {/* Resolution Confirm Modal - For resolution phase effects (v6.13.0) */}
+      <ResolutionConfirmModal
+        isOpen={showResolutionModal}
+        onClose={() => {
+          setShowResolutionModal(false)
+          setResolutionCard(null)
+        }}
+        card={resolutionCard}
+        onConfirm={handleResolutionConfirm}
+        onSkip={handleResolutionSkip}
+      />
+
       {/* Fixed Hand Panel - Bottom of screen */}
       <FixedHandPanel
         cards={handCards}
@@ -2187,6 +2297,26 @@ export function MultiplayerGame() {
           maxLogs={50}
         />
       </div>
+
+      {/* Lightning Effect - v6.14.0 */}
+      <LightningEffect
+        isActive={lightningEffect.isActive}
+        cardName={lightningEffect.cardName}
+        cardNameTw={lightningEffect.cardNameTw}
+        scoreChange={lightningEffect.scoreChange}
+        reason={lightningEffect.reason}
+        showScoreModal={lightningEffect.showScoreModal}
+        onEffectComplete={() => {
+          setLightningEffect({
+            isActive: false,
+            cardName: '',
+            cardNameTw: '',
+            scoreChange: 0,
+            reason: '',
+            showScoreModal: false,
+          })
+        }}
+      />
     </>
   )
 }

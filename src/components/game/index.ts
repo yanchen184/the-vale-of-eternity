@@ -1,9 +1,9 @@
 /**
  * Game components exports
  * Core UI components for The Vale of Eternity game
- * @version 6.3.0 - SinglePlayerGame now uses fully shared components
+ * @version 6.6.0 - Added StonePaymentModal for Incense Burner artifact
  */
-console.log('[components/game/index.ts] v6.3.0 loaded')
+console.log('[components/game/index.ts] v6.6.0 loaded')
 
 // Card components
 export { Card, CardBack } from './Card'
@@ -138,3 +138,17 @@ export type { PlayerHandPreviewProps } from './PlayerHandPreview'
 // Current Turn Cards Component (v7.0.0)
 export { CurrentTurnCards } from './CurrentTurnCards'
 export type { CurrentTurnCardsProps } from './CurrentTurnCards'
+
+// Artifact Action UI Components (v6.4.0)
+export { ArtifactActionPanel } from './ArtifactActionPanel'
+export type { ArtifactActionPanelProps } from './ArtifactActionPanel'
+export { ArtifactEffectModal } from './ArtifactEffectModal'
+export type { ArtifactEffectModalProps, EffectInputType } from './ArtifactEffectModal'
+export { StoneUpgradeModal } from './StoneUpgradeModal'
+export type { StoneUpgradeModalProps, StoneUpgrade } from './StoneUpgradeModal'
+export { StonePaymentModal } from './StonePaymentModal'
+export type { StonePaymentModalProps } from './StonePaymentModal'
+
+// Lightning Effect for Ifrit card (v6.5.0)
+export { LightningEffect } from './LightningEffect'
+export type { LightningEffectProps } from './LightningEffect'
