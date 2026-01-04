@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 6.20.0 - Added score display (X分 → Y分) to Ifrit lightning effect
+ * @version 6.23.0 - Fixed Ifrit lightning effect showing wrong score (effect already applied)
  */
-console.log('[pages/MultiplayerGame.tsx] v6.20.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v6.23.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -36,8 +36,9 @@ import {
   ArtifactActionPanel,
   StoneUpgradeModal,
   StonePaymentModal,
+  FreeStoneSelectionModal,
 } from '@/components/game'
-import { ScoreHistory } from '@/components/game/ScoreHistory'
+import { ScoreHistory, type PlayerHistoryData } from '@/components/game/ScoreHistory'
 import type { EffectInputType, ArtifactEffectOption } from '@/components/game/ArtifactEffectModal'
 import type { StoneUpgrade } from '@/components/game/StoneUpgradeModal'
 import type { StonePaymentOption } from '@/lib/single-player-engine'
@@ -248,6 +249,8 @@ export function MultiplayerGame() {
   const [showArtifactEffectModal, setShowArtifactEffectModal] = useState(false)
   const [showStoneUpgradeModal, setShowStoneUpgradeModal] = useState(false)
   const [showStonePaymentModal, setShowStonePaymentModal] = useState(false)
+  const [showFreeStoneSelectionModal, setShowFreeStoneSelectionModal] = useState(false)
+  const [freeStoneSelectionAmount, setFreeStoneSelectionAmount] = useState(0)
   const [artifactEffectInputType, setArtifactEffectInputType] = useState<EffectInputType>('CHOOSE_OPTION')
   const [artifactEffectOptions, setArtifactEffectOptions] = useState<ArtifactEffectOption[]>([])
   const [artifactSelectableCards, setArtifactSelectableCards] = useState<CardInstance[]>([])
@@ -717,6 +720,17 @@ export function MultiplayerGame() {
     }))
   }, [players])
 
+  // Player history data for ScoreHistory (all players)
+  const playerHistories = useMemo((): PlayerHistoryData[] => {
+    return players.map(player => ({
+      playerId: player.playerId,
+      playerName: player.name,
+      color: player.color || 'green',
+      history: player.scoreHistory || [],
+      currentScore: player.score ?? 0,
+    }))
+  }, [players])
+
   // Player field data for PlayersFieldArea
   const playersFieldData = useMemo((): PlayerFieldData[] => {
     return players.map(player => {
@@ -779,12 +793,12 @@ export function MultiplayerGame() {
   // Calculate pending resolution cards for current player (v6.13.0)
   const pendingResolutionCards = useMemo(() => {
     if (!gameRoom || gameRoom.status !== 'RESOLUTION' || !playerId) return []
-    return gameRoom.resolutionState?.pendingCards[playerId] || []
+    return gameRoom.resolutionState?.pendingCards?.[playerId] || []
   }, [gameRoom, playerId])
 
   const processedResolutionCards = useMemo(() => {
-    if (!gameRoom || !playerId) return []
-    return gameRoom.resolutionState?.processedCards[playerId] || []
+    if (!gameRoom || gameRoom.status !== 'RESOLUTION' || !playerId) return []
+    return gameRoom.resolutionState?.processedCards?.[playerId] || []
   }, [gameRoom, playerId])
 
   const unprocessedResolutionCardsCount = useMemo(() => {
@@ -885,13 +899,15 @@ export function MultiplayerGame() {
               const updatedPlayerState = playerSnapshot.val()
               const fieldCardCount = updatedPlayerState.field?.length || 0
               const effectValue = card.cardId === 'F007' ? fieldCardCount : 2 // Ifrit vs Imp
-              const currentScore = updatedPlayerState.score || 0
+              // IMPORTANT: For Ifrit (F007), the effect has already been applied, so subtract it to get original score
+              const scoreAfterEffect = updatedPlayerState.score || 0
+              const scoreBeforeEffect = card.cardId === 'F007' ? scoreAfterEffect - effectValue : scoreAfterEffect
               const description = getLightningEffectDescription(
                 card.cardId,
                 cardTemplate?.name || '',
                 cardTemplate?.nameTw || '',
                 effectValue,
-                currentScore // Pass current score for score display
+                scoreBeforeEffect // Pass score BEFORE effect for accurate display
               )
 
               // Trigger lightning effect via Firebase (all players will see it)
@@ -1668,6 +1684,9 @@ export function MultiplayerGame() {
           setStonePaymentOptions(result.stonePaymentOptions as StonePaymentOption[])
           setStonePaymentAmount(result.paymentAmount || 3)
           setShowStonePaymentModal(true)
+        } else if (result.inputType === 'FREE_STONE_SELECTION') {
+          setFreeStoneSelectionAmount(result.paymentAmount || 3)
+          setShowFreeStoneSelectionModal(true)
         } else if (result.inputType === 'SELECT_CARDS') {
           // Determine which cards to show based on artifact
           if (confirmedArtifactId === 'monkey_king_staff') {
@@ -1732,6 +1751,24 @@ export function MultiplayerGame() {
         setArtifactMinCardSelection(1)
         setArtifactMaxCardSelection(1)
         return
+      }
+
+      if (optionId === 'increase_capacity') {
+        // For Incense Burner increase_capacity option, request free stone selection
+        const result = await multiplayerGameService.useArtifact(
+          gameId,
+          playerId,
+          confirmedArtifactId,
+          optionId
+        )
+
+        if (result.requiresInput && result.inputType === 'FREE_STONE_SELECTION') {
+          setPendingArtifactOptionId(optionId)
+          setFreeStoneSelectionAmount(result.paymentAmount || 3)
+          setShowArtifactEffectModal(false)
+          setShowFreeStoneSelectionModal(true)
+          return
+        }
       }
 
       // Execute directly for options that don't need more input
@@ -1808,6 +1845,43 @@ export function MultiplayerGame() {
     setPendingArtifactOptionId(null)
     setStonePaymentOptions([])
     setStonePaymentAmount(0)
+  }, [])
+
+  // Handle free stone selection confirmation (香爐)
+  const handleConfirmFreeStoneSelection = useCallback(async (payment: Partial<StonePool>) => {
+    if (!gameId || !playerId || !confirmedArtifactId || !pendingArtifactOptionId) return
+
+    console.log('[MultiplayerGame] handleConfirmFreeStoneSelection:', payment)
+
+    try {
+      const result = await multiplayerGameService.useArtifact(
+        gameId,
+        playerId,
+        confirmedArtifactId,
+        pendingArtifactOptionId,
+        payment
+      )
+
+      setShowFreeStoneSelectionModal(false)
+      setPendingArtifactOptionId(null)
+      setFreeStoneSelectionAmount(0)
+
+      if (result.success) {
+        setArtifactResultMessage(result.message)
+        setTimeout(() => setArtifactResultMessage(null), 3000)
+      } else {
+        setError(result.message)
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to confirm free stone selection')
+    }
+  }, [gameId, playerId, confirmedArtifactId, pendingArtifactOptionId])
+
+  // Handle closing free stone selection modal
+  const handleCloseFreeStoneSelectionModal = useCallback(() => {
+    setShowFreeStoneSelectionModal(false)
+    setPendingArtifactOptionId(null)
+    setFreeStoneSelectionAmount(0)
   }, [])
 
   // Handle artifact option with card selection
@@ -2231,10 +2305,11 @@ export function MultiplayerGame() {
             allowAdjustment={isYourTurn}
             onFlipToggle={handleFlipToggle}
           />
-          {/* Score History - Show current player's score changes */}
-          {currentPlayer && (
-            <ScoreHistory history={currentPlayer.scoreHistory || []} />
-          )}
+          {/* Score History - Show all players' score changes */}
+          <ScoreHistory
+            players={playerHistories}
+            currentPlayerId={playerId ?? ''}
+          />
         </div>
       </Modal>
 
@@ -2691,6 +2766,18 @@ export function MultiplayerGame() {
         onConfirmPayment={handleConfirmStonePayment}
         title="香爐 - 選擇支付方式"
       />
+
+      {/* Free Stone Selection Modal (Incense Burner v9.16.0) */}
+      {showFreeStoneSelectionModal && currentPlayer?.stones && (
+        <FreeStoneSelectionModal
+          isOpen={showFreeStoneSelectionModal}
+          onClose={handleCloseFreeStoneSelectionModal}
+          bankStones={currentPlayer.stones}
+          requiredAmount={freeStoneSelectionAmount}
+          onConfirmPayment={handleConfirmFreeStoneSelection}
+          title="香爐 - 選擇支付石頭"
+        />
+      )}
 
       {/* Artifact Result Message Toast (v6.15.0) */}
       {artifactResultMessage && (
