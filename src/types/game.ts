@@ -159,6 +159,8 @@ export interface SinglePlayerState {
   areaBonus: number
   /** Instant bonus score from ON_TAME effects (like Ifrit) */
   instantBonusScore: number
+  /** Maximum cards allowed in play area (default 10, can be increased by artifacts like Incense Burner) */
+  fieldCapacity?: number
 }
 
 /**

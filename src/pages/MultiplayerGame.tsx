@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 6.23.0 - Fixed Ifrit lightning effect showing wrong score (effect already applied)
+ * @version 6.25.0 - Added pendingResolutionCards and onResolutionCardClick to RESOLUTION phase
  */
-console.log('[pages/MultiplayerGame.tsx] v6.23.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v6.25.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -776,7 +776,16 @@ export function MultiplayerGame() {
   }, [players])
 
   // Lightning effect from Firebase (v6.15.0) - Synchronized across all players
-  const lightningEffect = useMemo(() => {
+  const lightningEffect = useMemo((): {
+    isActive: boolean
+    cardName: string
+    cardNameTw: string
+    scoreChange: number
+    reason: string
+    showScoreModal: boolean
+    imageUrl?: string
+    timestamp: number
+  } => {
     if (!gameRoom?.lightningEffect) {
       return {
         isActive: false,
@@ -785,6 +794,8 @@ export function MultiplayerGame() {
         scoreChange: 0,
         reason: '',
         showScoreModal: false,
+        imageUrl: undefined,
+        timestamp: 0,
       }
     }
     return gameRoom.lightningEffect
@@ -917,7 +928,8 @@ export function MultiplayerGame() {
                 description.cardNameTw,
                 effectValue,
                 description.reason,
-                card.cardId === 'F007' // Only Ifrit shows score modal
+                card.cardId === 'F007', // Only Ifrit shows score modal
+                cardTemplate?.imageUrl // Card image URL
               )
             }
           }
@@ -2243,6 +2255,8 @@ export function MultiplayerGame() {
                 onFlipToggle={handleFlipToggle}
                 canTameCard={() => false}  // Cannot tame during resolution
                 resolutionMode={true}
+                pendingResolutionCards={pendingResolutionCards}
+                onResolutionCardClick={(_playerId, cardId) => handleFieldCardClickInResolution(cardId)}
                 onFinishResolution={async () => {
                   if (!gameId || !playerId) return
                   try {
@@ -2842,6 +2856,7 @@ export function MultiplayerGame() {
         scoreChange={lightningEffect.scoreChange}
         reason={lightningEffect.reason}
         showScoreModal={lightningEffect.showScoreModal}
+        imageUrl={lightningEffect.imageUrl}
         onEffectComplete={async () => {
           // Clear lightning effect from Firebase (all players will see it cleared)
           if (gameId) {

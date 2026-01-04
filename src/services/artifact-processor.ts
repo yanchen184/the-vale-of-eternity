@@ -8,7 +8,7 @@ console.log('[services/artifact-processor.ts] v1.0.0 loaded')
 import { ref, get, update } from 'firebase/database'
 import { database } from '@/lib/firebase'
 import type { StonePool } from '@/types/game'
-import type { GameRoom, PlayerState, CardInstanceData } from './multiplayer-game'
+import type { PlayerState } from './multiplayer-game'
 import { CardLocation } from '@/types/cards'
 
 /**
@@ -18,7 +18,7 @@ export interface ArtifactExecutionResult {
   success: boolean
   message: string
   requiresInput?: boolean
-  inputType?: 'CHOOSE_OPTION' | 'SELECT_PAYMENT' | 'SELECT_CARDS' | 'SELECT_STONES'
+  inputType?: 'CHOOSE_OPTION' | 'SELECT_PAYMENT' | 'SELECT_CARDS' | 'SELECT_STONES' | 'FREE_STONE_SELECTION'
   options?: ArtifactEffectOption[]
   stonePaymentOptions?: Partial<StonePool>[]
   paymentAmount?: number
@@ -44,7 +44,7 @@ export async function executeIncenseBurner(
   playerId: string,
   optionId?: string,
   selectedPayment?: Partial<StonePool>,
-  selectedCards?: string[]
+  _selectedCards?: string[] // Reserved for future use
 ): Promise<ArtifactExecutionResult> {
   const gameRef = ref(database, `games/${gameId}`)
   const snapshot = await get(gameRef)
@@ -53,7 +53,8 @@ export async function executeIncenseBurner(
     return { success: false, message: 'Game not found' }
   }
 
-  const game: GameRoom = snapshot.val()
+  // Validate game exists (snapshot.val() contains GameRoom data)
+  void snapshot.val()
 
   // Get player data from Firebase
   const playerRef = ref(database, `games/${gameId}/players/${playerId}`)
@@ -65,6 +66,10 @@ export async function executeIncenseBurner(
 
   const player: PlayerState = playerSnapshot.val()
 
+  // Calculate total stone value
+  const totalStones =
+    (player.stones.ONE ?? 0) + (player.stones.THREE ?? 0) * 3 + (player.stones.SIX ?? 0) * 6
+
   // Step 1: Choose option if not selected
   if (!optionId) {
     return {
@@ -74,62 +79,35 @@ export async function executeIncenseBurner(
       inputType: 'CHOOSE_OPTION',
       options: [
         {
-          id: 'buy_card',
-          description: 'Buy 1 card from market for 3 points worth of stones',
-          descriptionTw: '支付3分購買買入區的1張卡',
-          available: game.marketIds && game.marketIds.length > 0,
-          unavailableReason: !game.marketIds || game.marketIds.length === 0 ? '買入區沒有卡牌' : undefined,
-        },
-        {
-          id: 'shelter_deck',
-          description: 'Shelter top 2 cards from deck',
-          descriptionTw: '將牌庫頂的2張卡棲息地',
-          available: game.deckIds && game.deckIds.length > 0,
-          unavailableReason: !game.deckIds || game.deckIds.length === 0 ? '牌庫沒有卡牌' : undefined,
+          id: 'increase_capacity',
+          description: 'Pay 3 points worth of stones to increase play area capacity by 1',
+          descriptionTw: '支付價值3分的石頭以增加場上區域容量+1',
+          available: totalStones >= 3,
+          unavailableReason: totalStones < 3 ? '石頭分數不足（需要3分）' : undefined,
         },
       ],
     }
   }
 
-  if (optionId === 'buy_card') {
+  if (optionId === 'increase_capacity') {
     const PAYMENT_AMOUNT = 3
 
-    // Step 2: Select payment method
+    // Step 2: Request free stone selection (using FREE_STONE_SELECTION input type)
     if (!selectedPayment) {
-      const paymentOptions = getPaymentCombinations(player.stones, PAYMENT_AMOUNT)
-      if (paymentOptions.length === 0) {
-        return { success: false, message: '石頭分數不足（需要3分）' }
-      }
       return {
         success: false,
         message: '請選擇如何支付 3 分',
         requiresInput: true,
-        inputType: 'SELECT_PAYMENT',
-        stonePaymentOptions: paymentOptions,
+        inputType: 'FREE_STONE_SELECTION',
         paymentAmount: PAYMENT_AMOUNT,
       }
-    }
-
-    // Step 3: Select card to purchase
-    if (!selectedCards || selectedCards.length !== 1) {
-      return {
-        success: false,
-        message: '請選擇1張買入區的卡牌',
-        requiresInput: true,
-        inputType: 'SELECT_CARDS',
-      }
-    }
-
-    const cardId = selectedCards[0]
-    if (!game.marketIds?.includes(cardId)) {
-      return { success: false, message: '卡牌不在買入區' }
     }
 
     // Validate payment is sufficient
     const paymentValue =
       (selectedPayment.ONE ?? 0) + (selectedPayment.THREE ?? 0) * 3 + (selectedPayment.SIX ?? 0) * 6
     if (paymentValue < PAYMENT_AMOUNT) {
-      return { success: false, message: '支付金額不足（需要3分）' }
+      return { success: false, message: `支付金額不足（需要${PAYMENT_AMOUNT}分）` }
     }
 
     // Validate player has enough stones
@@ -140,13 +118,6 @@ export async function executeIncenseBurner(
     ) {
       return { success: false, message: '石頭不足' }
     }
-
-    // Get card data
-    const cardSnapshot = await get(ref(database, `games/${gameId}/cards/${cardId}`))
-    if (!cardSnapshot.exists()) {
-      return { success: false, message: 'Card not found' }
-    }
-    const card = cardSnapshot.val() as CardInstanceData
 
     // Deduct stones
     const newStones = {
@@ -159,73 +130,21 @@ export async function executeIncenseBurner(
       EARTH: player.stones.EARTH,
     }
 
-    // Move card to player's hand
-    const newHand = [...player.hand, cardId]
-    const newMarketIds = game.marketIds.filter((id: string) => id !== cardId)
-
-    // Refill market from deck
-    let newDeckIds = game.deckIds || []
-    if (newDeckIds.length > 0) {
-      const refillCardId = newDeckIds[0]
-      newMarketIds.push(refillCardId)
-      newDeckIds = newDeckIds.slice(1)
-
-      // Update refill card location
-      await update(ref(database, `games/${gameId}/cards/${refillCardId}`), {
-        location: CardLocation.MARKET,
-        isRevealed: true,
-      })
-    }
-
-    // Update card location to HAND
-    await update(ref(database, `games/${gameId}/cards/${cardId}`), {
-      location: CardLocation.HAND,
-    })
+    // Increase field capacity
+    const currentCapacity = player.fieldCapacity || 10
+    const newCapacity = currentCapacity + 1
 
     // Update game state
     await update(gameRef, {
       [`players/${playerId}/stones`]: newStones,
-      [`players/${playerId}/hand`]: newHand,
-      marketIds: newMarketIds,
-      deckIds: newDeckIds,
+      [`players/${playerId}/fieldCapacity`]: newCapacity,
       [`players/${playerId}/artifactUsedThisRound`]: true,
       updatedAt: Date.now(),
     })
 
     return {
       success: true,
-      message: `香爐：支付3分購買了 ${card.nameTw || card.name}`,
-    }
-  } else if (optionId === 'shelter_deck') {
-    // Shelter top 2 cards from deck
-    if (!game.deckIds || game.deckIds.length === 0) {
-      return { success: false, message: '牌庫沒有卡牌' }
-    }
-
-    const shelterCount = Math.min(2, game.deckIds.length)
-    const shelterCardIds = game.deckIds.slice(0, shelterCount)
-    const newDeckIds = game.deckIds.slice(shelterCount)
-    const newSanctuaryIds = [...(player.sanctuary || []), ...shelterCardIds]
-
-    // Update each sheltered card's location
-    for (const cardId of shelterCardIds) {
-      await update(ref(database, `games/${gameId}/cards/${cardId}`), {
-        location: CardLocation.FIELD,
-        isRevealed: true,
-      })
-    }
-
-    // Update game state
-    await update(gameRef, {
-      [`players/${playerId}/sanctuary`]: newSanctuaryIds,
-      deckIds: newDeckIds,
-      [`players/${playerId}/artifactUsedThisRound`]: true,
-      updatedAt: Date.now(),
-    })
-
-    return {
-      success: true,
-      message: `香爐：將牌庫頂的${shelterCount}張卡棲息地`,
+      message: `香爐：支付${paymentValue}分，場上容量增加至 ${newCapacity} 張`,
     }
   }
 

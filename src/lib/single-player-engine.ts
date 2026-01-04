@@ -53,7 +53,7 @@ export interface ArtifactEffectResult {
   /** Whether the effect requires player input */
   requiresInput?: boolean
   /** Type of input required */
-  inputType?: 'SELECT_CARDS' | 'SELECT_STONES' | 'CHOOSE_OPTION' | 'SELECT_PAYMENT'
+  inputType?: 'SELECT_CARDS' | 'SELECT_STONES' | 'CHOOSE_OPTION' | 'SELECT_PAYMENT' | 'FREE_STONE_SELECTION'
   /** Options for player to choose from */
   options?: ArtifactEffectOption[]
   /** Stone payment options for SELECT_PAYMENT mode */
@@ -2991,27 +2991,14 @@ export class SinglePlayerEngine {
 
     const totalStones = calculateStonePoolValue(this.state.player.stones)
     const hasEnoughStones = totalStones >= 3
-    const marketHasCards = this.state.market.length > 0
-    const deckHasCards = this.state.deck.length >= 1
 
     return [
       {
-        id: 'buy_card',
-        description: 'Buy 1 card from buy area for 3 stones',
-        descriptionTw: '支付3顆任意顏色的石頭購買買入區的1張卡',
-        available: hasEnoughStones && marketHasCards,
-        unavailableReason: !hasEnoughStones
-          ? '石頭不足（需要3顆）'
-          : !marketHasCards
-            ? '買入區沒有卡牌'
-            : undefined,
-      },
-      {
-        id: 'shelter_deck',
-        description: 'Shelter top 2 cards from deck',
-        descriptionTw: '將牌庫頂的2張卡棲息地',
-        available: deckHasCards,
-        unavailableReason: !deckHasCards ? '牌庫沒有卡牌' : undefined,
+        id: 'increase_capacity',
+        description: 'Pay 3 points worth of stones to increase play area capacity by 1',
+        descriptionTw: '支付價值3分的石頭以增加場上區域容量+1',
+        available: hasEnoughStones,
+        unavailableReason: !hasEnoughStones ? '石頭分數不足（需要3分）' : undefined,
       },
     ]
   }
@@ -3020,7 +3007,10 @@ export class SinglePlayerEngine {
    * Get all valid payment combinations for a given amount
    * @param amount The required payment amount
    * @returns Array of payment options
+   * @private Reserved for future payment selection feature
    */
+  // @ts-expect-error - Reserved for future use
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private getPaymentCombinations(amount: number): StonePaymentOption[] {
     if (!this.state) return []
 
@@ -3130,12 +3120,11 @@ export class SinglePlayerEngine {
 
   /**
    * Execute Incense Burner effect
-   * Option A: Buy 1 card for 3 stones (with payment selection)
-   * Option B: Shelter 2 cards from deck
+   * Pay 3 points worth of stones to permanently increase field capacity by 1
    */
   private executeIncenseBurner(
     optionId?: string,
-    selectedCards?: string[],
+    _selectedCards?: string[],
     selectedPayment?: Partial<StonePool>
   ): ArtifactEffectResult {
     if (!this.state) {
@@ -3152,46 +3141,24 @@ export class SinglePlayerEngine {
       }
     }
 
-    if (optionId === 'buy_card') {
-      // Buy 1 card from buy area for 3 stones
+    if (optionId === 'increase_capacity') {
       const PAYMENT_AMOUNT = 3
 
-      // Step 1: Select payment method first
+      // Request payment selection using FREE_STONE_SELECTION modal
       if (!selectedPayment) {
-        const paymentOptions = this.getPaymentCombinations(PAYMENT_AMOUNT)
-        if (paymentOptions.length === 0) {
-          return { success: false, message: '石頭分數不足（需要3分）' }
-        }
         return {
           success: false,
           message: '請選擇如何支付 3 分',
           requiresInput: true,
-          inputType: 'SELECT_PAYMENT',
-          stonePaymentOptions: paymentOptions,
+          inputType: 'FREE_STONE_SELECTION',
           paymentAmount: PAYMENT_AMOUNT,
         }
       }
 
-      // Step 2: Select card to purchase
-      if (!selectedCards || selectedCards.length !== 1) {
-        return {
-          success: false,
-          message: '請選擇1張買入區的卡牌',
-          requiresInput: true,
-          inputType: 'SELECT_CARDS',
-        }
-      }
-
-      const cardId = selectedCards[0]
-      const card = this.state.market.find(c => c.instanceId === cardId)
-      if (!card) {
-        return { success: false, message: '卡牌不在買入區' }
-      }
-
       // Validate payment is sufficient
-      const paymentValue = (selectedPayment.ONE ?? 0) + (selectedPayment.THREE ?? 0) * 3 + (selectedPayment.SIX ?? 0) * 6
+      const paymentValue = (selectedPayment.ONE ?? 0) * 1 + (selectedPayment.THREE ?? 0) * 3 + (selectedPayment.SIX ?? 0) * 6
       if (paymentValue < PAYMENT_AMOUNT) {
-        return { success: false, message: '支付金額不足（需要3分）' }
+        return { success: false, message: `支付金額不足（需要${PAYMENT_AMOUNT}分）` }
       }
 
       // Deduct the selected stones
@@ -3199,59 +3166,23 @@ export class SinglePlayerEngine {
         return { success: false, message: '無法扣除石頭' }
       }
 
-      // Move card to hand
-      const newMarket = this.state.market.filter(c => c.instanceId !== cardId)
-      const newHand = [...this.state.player.hand, { ...card, location: CardLocation.HAND }]
-
-      // Refill market
-      let newDeck = this.state.deck
-      if (newDeck.length > 0) {
-        const refillCard = { ...newDeck[0], location: CardLocation.MARKET, isRevealed: true }
-        newMarket.push(refillCard)
-        newDeck = newDeck.slice(1)
-      }
+      // Increase field capacity
+      const currentCapacity = this.state.player.fieldCapacity || 10
+      const newCapacity = currentCapacity + 1
 
       this.state = {
         ...this.state,
-        deck: newDeck,
-        market: newMarket,
         player: {
           ...this.state.player,
-          hand: newHand,
+          fieldCapacity: newCapacity,
         },
         updatedAt: Date.now(),
       }
 
       return {
         success: true,
-        message: `香爐：支付3分購買了 ${card.nameTw}`,
+        message: `香爐：支付${paymentValue}分，場上容量增加至 ${newCapacity} 張`,
         stonesSpent: selectedPayment,
-        cardsDrawn: [card],
-      }
-    } else if (optionId === 'shelter_deck') {
-      // Shelter top 2 cards from deck
-      if (this.state.deck.length === 0) {
-        return { success: false, message: '牌庫沒有卡牌' }
-      }
-
-      const shelterCount = Math.min(2, this.state.deck.length)
-      const shelterCards = this.state.deck.slice(0, shelterCount).map(c => ({
-        ...c,
-        location: CardLocation.FIELD,
-        isRevealed: true,
-      }))
-
-      this.state = {
-        ...this.state,
-        deck: this.state.deck.slice(shelterCount),
-        sanctuary: [...this.state.sanctuary, ...shelterCards],
-        updatedAt: Date.now(),
-      }
-
-      return {
-        success: true,
-        message: `香爐：將牌庫頂的${shelterCount}張卡棲息地`,
-        cardsSheltered: shelterCards,
       }
     }
 

@@ -22,15 +22,16 @@ export const INCENSE_BURNER: Artifact = {
   type: ArtifactType.ACTION,
   category: ArtifactCategory.CORE,
   description:
-    'Action: Buy 1 card from the buy area for 3 points worth of stones (any color), OR shelter the top 2 cards from your deck.',
-  descriptionTw: '行動：支付3分（任意顏色石頭）購買買入區的1張卡，或是將牌庫頂的2張卡棲息地。',
+    'Action: Pay 3 points worth of stones (any combination: e.g., 3×1-point, 1×3-point, or 1×6-point) to increase your play area capacity by 1 (maximum 10 → 11).',
+  descriptionTw: '行動：支付價值3分的石頭（任意組合：例如3個1分石、1個3分石、或1個6分石）以增加你的場上區域容量+1（最大10張→11張）。',
   image: '/the-vale-of-eternity/assets/artifacts/2 Player Artifacts/Snipaste_2025-12-31_18-39-33.png',
   implemented: true,
   effectDetails: {
-    affectsCardSelection: true,
+    affectsCardSelection: false,
     affectsStones: true,
-    affectsSheltering: true,
-    implementationNotes: 'Player choice: either buy from area for fixed 3 cost, OR shelter 2 from deck',
+    affectsSheltering: false,
+    affectsPlayArea: true,
+    implementationNotes: 'Pay 3 points worth of stones to permanently increase field capacity by 1 slot (10 → 11 max cards in play)',
   },
 }
 
