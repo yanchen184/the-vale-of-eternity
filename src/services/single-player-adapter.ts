@@ -5,7 +5,7 @@
  */
 console.log('[services/single-player-adapter.ts] v1.0.0 loaded')
 
-import { ref, set, update, get } from 'firebase/database'
+import { ref, update, get } from 'firebase/database'
 import { database } from '@/lib/firebase'
 import { multiplayerGameService } from './multiplayer-game'
 
@@ -30,11 +30,12 @@ export async function createSinglePlayerGame(
   const gameRef = ref(database, `games/${gameId}`)
   await update(gameRef, {
     isSinglePlayer: true,
-    // Auto-start the game since it's single player
-    status: 'HUNTING',
   })
 
-  console.log('[SinglePlayerAdapter] Single player game created:', { gameId, playerId, roomCode })
+  // Start the game to initialize deck, market, and artifacts
+  await multiplayerGameService.startGame(gameId, playerId)
+
+  console.log('[SinglePlayerAdapter] Single player game created and started:', { gameId, playerId, roomCode })
 
   return { gameId, playerId, roomCode }
 }
@@ -43,11 +44,11 @@ export async function createSinglePlayerGame(
  * Start a single player game
  * Since there's only 1 player, we can start immediately
  */
-export async function startSinglePlayerGame(gameId: string): Promise<void> {
+export async function startSinglePlayerGame(gameId: string, hostId: string): Promise<void> {
   console.log('[SinglePlayerAdapter] Starting single player game:', gameId)
 
   // Use the multiplayer service to start the game
-  await multiplayerGameService.startGame(gameId)
+  await multiplayerGameService.startGame(gameId, hostId)
 
   console.log('[SinglePlayerAdapter] Single player game started')
 }

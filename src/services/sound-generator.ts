@@ -35,6 +35,9 @@ export enum SoundType {
   ARTIFACT_SELECT = 'artifact_select',
   ARTIFACT_ACTIVATE = 'artifact_activate',
 
+  // Special effects
+  LIGHTNING = 'lightning',
+
   // UI interactions
   BUTTON_CLICK = 'button_click',
   BUTTON_CONFIRM = 'button_confirm',
@@ -177,6 +180,9 @@ class SoundGenerator {
         break
       case SoundType.ARTIFACT_ACTIVATE:
         this.playArtifactActivate(now, volume)
+        break
+      case SoundType.LIGHTNING:
+        this.playLightning(now, volume)
         break
       case SoundType.BUTTON_CLICK:
         this.playButtonClick(now, volume)
@@ -710,6 +716,95 @@ class SoundGenerator {
 
     osc.start(startTime)
     osc.stop(startTime + 0.4)
+  }
+
+  /**
+   * Lightning - Dramatic thunder crack with rumble
+   * Simulates the crack of lightning strike followed by rumbling thunder
+   */
+  private playLightning(startTime: number, volume: number): void {
+    const ctx = this.audioContext!
+
+    // Initial crack - very sharp and bright
+    const crack = ctx.createOscillator()
+    const crackGain = ctx.createGain()
+    const crackFilter = ctx.createBiquadFilter()
+
+    crack.connect(crackFilter)
+    crackFilter.connect(crackGain)
+    crackGain.connect(ctx.destination)
+
+    crack.type = 'sawtooth'
+    crack.frequency.setValueAtTime(2000, startTime)
+    crack.frequency.exponentialRampToValueAtTime(50, startTime + 0.1)
+
+    crackFilter.type = 'highpass'
+    crackFilter.frequency.setValueAtTime(1000, startTime)
+    crackFilter.frequency.exponentialRampToValueAtTime(100, startTime + 0.1)
+
+    crackGain.gain.setValueAtTime(volume * 0.6, startTime)
+    crackGain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.1)
+
+    crack.start(startTime)
+    crack.stop(startTime + 0.1)
+
+    // Thunder rumble - deep and sustained
+    const rumble = ctx.createOscillator()
+    const rumbleGain = ctx.createGain()
+    const rumbleFilter = ctx.createBiquadFilter()
+
+    rumble.connect(rumbleFilter)
+    rumbleFilter.connect(rumbleGain)
+    rumbleGain.connect(ctx.destination)
+
+    rumble.type = 'sawtooth'
+    rumble.frequency.setValueAtTime(80, startTime + 0.05)
+    rumble.frequency.exponentialRampToValueAtTime(30, startTime + 0.8)
+
+    rumbleFilter.type = 'lowpass'
+    rumbleFilter.frequency.setValueAtTime(200, startTime + 0.05)
+    rumbleFilter.Q.setValueAtTime(2, startTime + 0.05)
+
+    rumbleGain.gain.setValueAtTime(volume * 0.4, startTime + 0.05)
+    rumbleGain.gain.setValueAtTime(volume * 0.3, startTime + 0.2)
+    rumbleGain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.8)
+
+    rumble.start(startTime + 0.05)
+    rumble.stop(startTime + 0.8)
+
+    // Electric crackle effect
+    const crackle = ctx.createOscillator()
+    const crackleGain = ctx.createGain()
+
+    crackle.connect(crackleGain)
+    crackleGain.connect(ctx.destination)
+
+    crackle.type = 'square'
+    crackle.frequency.setValueAtTime(1500, startTime + 0.02)
+    crackle.frequency.exponentialRampToValueAtTime(800, startTime + 0.12)
+
+    crackleGain.gain.setValueAtTime(volume * 0.25, startTime + 0.02)
+    crackleGain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.12)
+
+    crackle.start(startTime + 0.02)
+    crackle.stop(startTime + 0.12)
+
+    // Impact thud for extra punch
+    const impact = ctx.createOscillator()
+    const impactGain = ctx.createGain()
+
+    impact.connect(impactGain)
+    impactGain.connect(ctx.destination)
+
+    impact.type = 'sine'
+    impact.frequency.setValueAtTime(60, startTime)
+    impact.frequency.exponentialRampToValueAtTime(30, startTime + 0.15)
+
+    impactGain.gain.setValueAtTime(volume * 0.5, startTime)
+    impactGain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.15)
+
+    impact.start(startTime)
+    impact.stop(startTime + 0.15)
   }
 
   /**

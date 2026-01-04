@@ -1,16 +1,19 @@
 /**
- * Lightning Effect Component v1.0.0
+ * Lightning Effect Component v1.1.0
  * Dramatic lightning animation for Ifrit card effect
  * Features:
  * - SVG lightning bolt animation from top to bottom
  * - Full-screen blocking overlay
  * - Screen shake effect
  * - Animated text display with glow effects
- * @version 1.0.0
+ * - Lightning sound effect
+ * @version 1.1.0
  */
-console.log('[components/game/LightningEffect.tsx] v1.0.0 loaded')
+console.log('[components/game/LightningEffect.tsx] v1.1.0 loaded')
 
 import { useState, useEffect, useCallback } from 'react'
+import { useSound } from '@/hooks/useSound'
+import { SoundType } from '@/services/sound-generator'
 import './LightningEffect.css'
 
 // ============================================
@@ -84,6 +87,9 @@ export function LightningEffect({
   onOpenModal,
   onEffectComplete,
 }: LightningEffectProps) {
+  // Sound system
+  const { play } = useSound()
+
   // Animation phase states
   const [phase, setPhase] = useState<'idle' | 'lightning' | 'blocking' | 'text' | 'complete'>('idle')
   const [showLightning, setShowLightning] = useState(false)
@@ -114,6 +120,9 @@ export function LightningEffect({
     setShowLightning(true)
     setIsShaking(true)
 
+    // Play lightning sound effect
+    play(SoundType.LIGHTNING)
+
     // End lightning and start overlay at 1s
     const lightningEndTimer = setTimeout(() => {
       setShowLightning(false)
@@ -143,7 +152,7 @@ export function LightningEffect({
       clearTimeout(openModalTimer)
       clearTimeout(completeTimer)
     }
-  }, [onLightningComplete, onOpenModal, onEffectComplete])
+  }, [play, onLightningComplete, onOpenModal, onEffectComplete])
 
   // Don't render if not active and not in any phase
   if (!isActive && phase === 'idle') {

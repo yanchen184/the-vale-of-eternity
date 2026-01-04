@@ -1,13 +1,13 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 6.14.0 - Added lightning effect support for Imp (F002) and Ifrit (F007)
+ * @version 6.18.0 - Added DevTestPanel integration for card testing
  */
-console.log('[pages/MultiplayerGame.tsx] v6.14.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v6.18.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
-import { ref, onValue, off } from 'firebase/database'
+import { ref, onValue, off, get, update } from 'firebase/database'
 import { database } from '@/lib/firebase'
 import {
   multiplayerGameService,
@@ -18,6 +18,7 @@ import {
 } from '@/services/multiplayer-game'
 import { getCardById } from '@/data/cards/base-cards'
 import { ARTIFACTS_BY_ID } from '@/data/artifacts'
+import { DevTestPanel, useDevTestPanel } from '@/components/dev/DevTestPanel'
 import { hasLightningEffect, getLightningEffectDescription } from '@/data/lightning-effect-cards'
 import {
   Card,
@@ -31,7 +32,16 @@ import {
   HuntingPhaseUI,
   ActionPhaseUI,
   LightningEffect,
+  ArtifactEffectModal,
+  ArtifactActionPanel,
+  StoneUpgradeModal,
+  StonePaymentModal,
 } from '@/components/game'
+import { ScoreHistory } from '@/components/game/ScoreHistory'
+import type { EffectInputType, ArtifactEffectOption } from '@/components/game/ArtifactEffectModal'
+import type { StoneUpgrade } from '@/components/game/StoneUpgradeModal'
+import type { StonePaymentOption } from '@/lib/single-player-engine'
+import { ArtifactType } from '@/types/artifacts'
 import { ActionLog } from '@/components/game/ActionLog'
 import { useSound, SoundType } from '@/hooks/useSound'
 import { FixedHandPanel } from '@/components/game/FixedHandPanel'
@@ -42,7 +52,7 @@ import { Modal } from '@/components/ui/Modal'
 import { cn } from '@/lib/utils'
 import type { CardInstance } from '@/types/cards'
 import { type PlayerColor, PLAYER_COLORS } from '@/types/player-color'
-import { createEmptyStonePool } from '@/types/game'
+import { createEmptyStonePool, type StonePool } from '@/types/game'
 import { StoneType } from '@/types/cards'
 
 // ============================================
@@ -234,15 +244,24 @@ export function MultiplayerGame() {
   const [showResolutionModal, setShowResolutionModal] = useState(false)
   const [resolutionCard, setResolutionCard] = useState<CardInstance | null>(null)
 
-  // Lightning effect state (v6.14.0)
-  const [lightningEffect, setLightningEffect] = useState({
-    isActive: false,
-    cardName: '',
-    cardNameTw: '',
-    scoreChange: 0,
-    reason: '',
-    showScoreModal: false,
-  })
+  // Artifact action UI state (v6.15.0)
+  const [showArtifactEffectModal, setShowArtifactEffectModal] = useState(false)
+  const [showStoneUpgradeModal, setShowStoneUpgradeModal] = useState(false)
+  const [showStonePaymentModal, setShowStonePaymentModal] = useState(false)
+  const [artifactEffectInputType, setArtifactEffectInputType] = useState<EffectInputType>('CHOOSE_OPTION')
+  const [artifactEffectOptions, setArtifactEffectOptions] = useState<ArtifactEffectOption[]>([])
+  const [artifactSelectableCards, setArtifactSelectableCards] = useState<CardInstance[]>([])
+  const [artifactCardSelectionLabel, setArtifactCardSelectionLabel] = useState<string>('')
+  const [artifactMinCardSelection, setArtifactMinCardSelection] = useState(1)
+  const [artifactMaxCardSelection, setArtifactMaxCardSelection] = useState(1)
+  const [pendingArtifactOptionId, setPendingArtifactOptionId] = useState<string | null>(null)
+  const [pendingPayment, setPendingPayment] = useState<Partial<StonePool> | null>(null)
+  const [stonePaymentOptions, setStonePaymentOptions] = useState<StonePaymentOption[]>([])
+  const [stonePaymentAmount, setStonePaymentAmount] = useState(0)
+  const [artifactResultMessage, setArtifactResultMessage] = useState<string | null>(null)
+
+  // Dev Test Panel state (v6.18.0) - only in DEV mode
+  const { isOpen: isDevTestPanelOpen, setIsOpen: setDevTestPanelOpen } = useDevTestPanel()
 
   // Extract state from location or redirect
   const originalPlayerId = state?.playerId
@@ -742,6 +761,21 @@ export function MultiplayerGame() {
     return colorsMap
   }, [players])
 
+  // Lightning effect from Firebase (v6.15.0) - Synchronized across all players
+  const lightningEffect = useMemo(() => {
+    if (!gameRoom?.lightningEffect) {
+      return {
+        isActive: false,
+        cardName: '',
+        cardNameTw: '',
+        scoreChange: 0,
+        reason: '',
+        showScoreModal: false,
+      }
+    }
+    return gameRoom.lightningEffect
+  }, [gameRoom?.lightningEffect])
+
   // Calculate pending resolution cards for current player (v6.13.0)
   const pendingResolutionCards = useMemo(() => {
     if (!gameRoom || gameRoom.status !== 'RESOLUTION' || !playerId) return []
@@ -841,7 +875,7 @@ export function MultiplayerGame() {
             `召喚到場上`
           )
 
-          // v6.14.0: Check for lightning effect cards
+          // v6.15.0: Check for lightning effect cards (synchronized across all players)
           if (hasLightningEffect(card.cardId)) {
             const fieldCardCount = currentPlayer?.field?.length || 0
             const effectValue = card.cardId === 'F007' ? fieldCardCount : 2 // Ifrit vs Imp
@@ -852,15 +886,15 @@ export function MultiplayerGame() {
               effectValue
             )
 
-            // Show lightning effect
-            setLightningEffect({
-              isActive: true,
-              cardName: description.cardName,
-              cardNameTw: description.cardNameTw,
-              scoreChange: effectValue,
-              reason: description.reason,
-              showScoreModal: card.cardId === 'F007', // Only Ifrit shows score modal
-            })
+            // Trigger lightning effect via Firebase (all players will see it)
+            await multiplayerGameService.triggerLightningEffect(
+              gameId,
+              description.cardName,
+              description.cardNameTw,
+              effectValue,
+              description.reason,
+              card.cardId === 'F007' // Only Ifrit shows score modal
+            )
           }
           // Note: Ifrit (F007) effect is handled by effect-processor.ts
           // Score updates will automatically trigger ScoreBar animation (transition-all duration-500)
@@ -1532,6 +1566,36 @@ export function MultiplayerGame() {
     return philosopherStoneState?.activePlayerId === playerId
   }, [philosopherStoneState, playerId])
 
+  // Get confirmed artifact ID for this round (v6.15.0)
+  const confirmedArtifactId = useMemo(() => {
+    if (!gameRoom?.artifactSelections || !playerId) return null
+    const playerSelections = gameRoom.artifactSelections[playerId] || {}
+    return playerSelections[gameRoom.currentRound] || null
+  }, [gameRoom?.artifactSelections, gameRoom?.currentRound, playerId])
+
+  // Get confirmed artifact card data for display
+  const selectedArtifactCard = useMemo(() => {
+    if (!confirmedArtifactId) return null
+    return ARTIFACTS_BY_ID[confirmedArtifactId] || null
+  }, [confirmedArtifactId])
+
+  // Check if artifact can be used (v6.15.0)
+  const canUseCurrentArtifact = useMemo(() => {
+    if (!confirmedArtifactId || !selectedArtifactCard) return false
+    if (gameRoom?.status !== 'ACTION') return false
+    if (!isYourTurn) return false
+    // Check if already used this round
+    if (currentPlayer?.artifactUsedThisRound) return false
+    // Only ACTION type artifacts can be manually used in ACTION phase
+    if (selectedArtifactCard.type !== ArtifactType.ACTION) return false
+    return true
+  }, [confirmedArtifactId, selectedArtifactCard, gameRoom?.status, isYourTurn, currentPlayer?.artifactUsedThisRound])
+
+  // Check if artifact is already used this round
+  const isArtifactUsed = useMemo(() => {
+    return currentPlayer?.artifactUsedThisRound ?? false
+  }, [currentPlayer?.artifactUsedThisRound])
+
   // Confirm card or artifact or Seven-League Boots selection
   const handleConfirmCardSelection = useCallback(async () => {
     if (!gameId || !playerId) return
@@ -1555,6 +1619,318 @@ export function MultiplayerGame() {
       setError(err.message || 'Failed to confirm selection')
     }
   }, [gameId, playerId, sevenLeagueBootsState, isInSevenLeagueBootsSelection, isArtifactSelectionActive, isYourArtifactTurn, gameRoom, play])
+
+  // ============================================
+  // ARTIFACT ACTION HANDLERS (v6.15.0)
+  // ============================================
+
+  // Handle use artifact button click
+  const handleUseArtifact = useCallback(async () => {
+    if (!confirmedArtifactId || !gameId || !playerId) return
+
+    const artifact = ARTIFACTS_BY_ID[confirmedArtifactId]
+    if (!artifact) return
+
+    console.log('[MultiplayerGame] handleUseArtifact:', confirmedArtifactId)
+
+    // Check if this is Book of Thoth (stone upgrade)
+    if (confirmedArtifactId === 'book_of_thoth') {
+      setShowStoneUpgradeModal(true)
+      return
+    }
+
+    // Call the useArtifact service to get options
+    try {
+      play(SoundType.ARTIFACT_ACTIVATE)
+      const result = await multiplayerGameService.useArtifact(
+        gameId,
+        playerId,
+        confirmedArtifactId
+      )
+
+      console.log('[MultiplayerGame] useArtifact result:', result)
+
+      if (result.requiresInput) {
+        if (result.inputType === 'CHOOSE_OPTION' && result.options) {
+          setArtifactEffectOptions(result.options as ArtifactEffectOption[])
+          setArtifactEffectInputType('CHOOSE_OPTION')
+          setShowArtifactEffectModal(true)
+        } else if (result.inputType === 'SELECT_PAYMENT' && result.stonePaymentOptions) {
+          setStonePaymentOptions(result.stonePaymentOptions as StonePaymentOption[])
+          setStonePaymentAmount(result.paymentAmount || 3)
+          setShowStonePaymentModal(true)
+        } else if (result.inputType === 'SELECT_CARDS') {
+          // Determine which cards to show based on artifact
+          if (confirmedArtifactId === 'monkey_king_staff') {
+            setArtifactSelectableCards(handCards)
+            setArtifactCardSelectionLabel('選擇2張手牌棄置')
+            setArtifactMinCardSelection(2)
+            setArtifactMaxCardSelection(2)
+          } else if (confirmedArtifactId === 'imperial_seal') {
+            const fieldCardInstances = (currentPlayer?.field || [])
+              .map(convertToCardInstance)
+              .filter((c): c is CardInstance => c !== null)
+            setArtifactSelectableCards(fieldCardInstances)
+            setArtifactCardSelectionLabel('選擇1張場上卡牌棄置')
+            setArtifactMinCardSelection(1)
+            setArtifactMaxCardSelection(1)
+          }
+          setArtifactEffectInputType('SELECT_CARDS')
+          setShowArtifactEffectModal(true)
+        }
+      } else if (result.success) {
+        setArtifactResultMessage(result.message)
+        setTimeout(() => setArtifactResultMessage(null), 3000)
+      } else {
+        setError(result.message)
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to use artifact')
+    }
+  }, [confirmedArtifactId, gameId, playerId, handCards, currentPlayer, convertToCardInstance, play])
+
+  // Handle artifact effect option confirmation
+  const handleConfirmArtifactOption = useCallback(async (optionId: string) => {
+    if (!gameId || !playerId || !confirmedArtifactId) return
+
+    console.log('[MultiplayerGame] handleConfirmArtifactOption:', optionId)
+
+    try {
+      if (optionId === 'buy_card') {
+        // For Incense Burner buy_card option, first get payment options
+        const result = await multiplayerGameService.useArtifact(
+          gameId,
+          playerId,
+          confirmedArtifactId,
+          optionId
+        )
+
+        if (result.requiresInput && result.inputType === 'SELECT_PAYMENT' && result.stonePaymentOptions) {
+          setPendingArtifactOptionId(optionId)
+          setStonePaymentOptions(result.stonePaymentOptions as StonePaymentOption[])
+          setStonePaymentAmount(result.paymentAmount || 3)
+          setShowArtifactEffectModal(false)
+          setShowStonePaymentModal(true)
+          return
+        }
+      }
+
+      if (optionId === 'shelter_hand') {
+        setPendingArtifactOptionId(optionId)
+        setArtifactEffectInputType('SELECT_CARDS')
+        setArtifactSelectableCards(handCards)
+        setArtifactCardSelectionLabel('選擇1張手牌放入棲息地')
+        setArtifactMinCardSelection(1)
+        setArtifactMaxCardSelection(1)
+        return
+      }
+
+      // Execute directly for options that don't need more input
+      const result = await multiplayerGameService.useArtifact(
+        gameId,
+        playerId,
+        confirmedArtifactId,
+        optionId
+      )
+      setShowArtifactEffectModal(false)
+
+      if (result.success) {
+        setArtifactResultMessage(result.message)
+        setTimeout(() => setArtifactResultMessage(null), 3000)
+      } else {
+        setError(result.message)
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to execute artifact effect')
+    }
+  }, [gameId, playerId, confirmedArtifactId, handCards])
+
+  // Handle artifact card selection confirmation
+  const handleConfirmArtifactCards = useCallback(async (cardIds: string[]) => {
+    if (!gameId || !playerId || !confirmedArtifactId) return
+
+    console.log('[MultiplayerGame] handleConfirmArtifactCards:', cardIds, 'pendingPayment:', pendingPayment)
+
+    try {
+      const result = await multiplayerGameService.useArtifact(
+        gameId,
+        playerId,
+        confirmedArtifactId,
+        pendingArtifactOptionId || undefined,
+        pendingPayment || undefined,
+        cardIds
+      )
+      setShowArtifactEffectModal(false)
+      setPendingArtifactOptionId(null)
+      setPendingPayment(null)
+      setArtifactSelectableCards([])
+
+      if (result.success) {
+        setArtifactResultMessage(result.message)
+        setTimeout(() => setArtifactResultMessage(null), 3000)
+      } else {
+        setError(result.message)
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to execute artifact effect')
+    }
+  }, [gameId, playerId, confirmedArtifactId, pendingArtifactOptionId, pendingPayment])
+
+  // Handle stone payment confirmation (for Incense Burner)
+  const handleConfirmStonePayment = useCallback((payment: Partial<StonePool>) => {
+    console.log('[MultiplayerGame] handleConfirmStonePayment:', payment)
+
+    // Store the payment and show card selection
+    setPendingPayment(payment)
+    setShowStonePaymentModal(false)
+
+    // Now show card selection for purchasing
+    setArtifactEffectInputType('SELECT_CARDS')
+    setArtifactSelectableCards(marketCards)
+    setArtifactCardSelectionLabel('選擇1張買入區卡牌購買')
+    setArtifactMinCardSelection(1)
+    setArtifactMaxCardSelection(1)
+    setShowArtifactEffectModal(true)
+  }, [marketCards])
+
+  // Handle closing stone payment modal
+  const handleCloseStonePaymentModal = useCallback(() => {
+    setShowStonePaymentModal(false)
+    setPendingArtifactOptionId(null)
+    setStonePaymentOptions([])
+    setStonePaymentAmount(0)
+  }, [])
+
+  // Handle artifact option with card selection
+  const handleConfirmArtifactOptionWithCards = useCallback(async (optionId: string, cardIds: string[]) => {
+    if (!gameId || !playerId || !confirmedArtifactId) return
+
+    console.log('[MultiplayerGame] handleConfirmArtifactOptionWithCards:', optionId, cardIds)
+
+    try {
+      const result = await multiplayerGameService.useArtifact(
+        gameId,
+        playerId,
+        confirmedArtifactId,
+        optionId,
+        undefined,
+        cardIds
+      )
+      setShowArtifactEffectModal(false)
+      setPendingArtifactOptionId(null)
+      setArtifactSelectableCards([])
+
+      if (result.success) {
+        setArtifactResultMessage(result.message)
+        setTimeout(() => setArtifactResultMessage(null), 3000)
+      } else {
+        setError(result.message)
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to execute artifact effect')
+    }
+  }, [gameId, playerId, confirmedArtifactId])
+
+  // Handle stone upgrade confirmation (Book of Thoth)
+  const handleConfirmStoneUpgrades = useCallback(async (upgrades: StoneUpgrade[]) => {
+    if (!gameId || !playerId || !confirmedArtifactId) return
+
+    console.log('[MultiplayerGame] handleConfirmStoneUpgrades:', upgrades)
+
+    const stoneChanges: Partial<Record<StoneType, number>> = {}
+    upgrades.forEach(upgrade => {
+      stoneChanges[upgrade.from] = (stoneChanges[upgrade.from] || 0) - 1
+      stoneChanges[upgrade.to] = (stoneChanges[upgrade.to] || 0) + 1
+    })
+
+    try {
+      const result = await multiplayerGameService.useArtifact(
+        gameId,
+        playerId,
+        confirmedArtifactId,
+        undefined,
+        undefined,
+        undefined,
+        stoneChanges
+      )
+      setShowStoneUpgradeModal(false)
+
+      if (result.success) {
+        setArtifactResultMessage(result.message)
+        setTimeout(() => setArtifactResultMessage(null), 3000)
+      } else {
+        setError(result.message)
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to upgrade stones')
+    }
+  }, [gameId, playerId, confirmedArtifactId])
+
+  // Close artifact effect modal
+  const handleCloseArtifactModal = useCallback(() => {
+    setShowArtifactEffectModal(false)
+    setPendingArtifactOptionId(null)
+    setArtifactSelectableCards([])
+    setArtifactEffectOptions([])
+  }, [])
+
+  // Handle summon card from DevTestPanel (v6.18.0) - only in DEV mode
+  const handleSummonCard = useCallback(async (cardId: string) => {
+    if (!import.meta.env.DEV) return
+    if (!gameId || !playerId) return
+
+    const cardTemplate = getCardById(cardId)
+    if (!cardTemplate) {
+      console.error('[MultiplayerGame] Card not found:', cardId)
+      return
+    }
+
+    try {
+      // Create a unique instance ID
+      const uniqueInstanceId = `${cardId}_test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+
+      // Create card data for Firebase (using type assertion for location)
+      const cardData = {
+        instanceId: uniqueInstanceId,
+        cardId: cardTemplate.id,
+        name: cardTemplate.name,
+        nameTw: cardTemplate.nameTw,
+        element: cardTemplate.element,
+        cost: cardTemplate.cost,
+        baseScore: cardTemplate.baseScore,
+        ownerId: playerId,
+        location: 'HAND' as const,
+        isRevealed: true,
+        scoreModifier: 0,
+        hasUsedAbility: false,
+      } as CardInstanceData
+
+      console.log('[MultiplayerGame] Summoning card to hand via Firebase:', cardData)
+
+      // Get current player's hand
+      const playerRef = ref(database, `games/${gameId}/players/${playerId}`)
+      const playerSnapshot = await get(playerRef)
+
+      if (!playerSnapshot.exists()) {
+        console.error('[MultiplayerGame] Player not found')
+        return
+      }
+
+      const playerData = playerSnapshot.val()
+      const currentHand = playerData.hand || []
+
+      // Update Firebase: add card to cards collection and player's hand
+      const updates: Record<string, any> = {}
+      updates[`games/${gameId}/cards/${uniqueInstanceId}`] = cardData
+      updates[`games/${gameId}/players/${playerId}/hand`] = [...currentHand, uniqueInstanceId]
+
+      await update(ref(database), updates)
+
+      console.log('[MultiplayerGame] Card added to hand:', cardId)
+    } catch (err) {
+      console.error('[MultiplayerGame] Failed to summon card:', err)
+    }
+  }, [gameId, playerId])
 
   // Clear error after timeout
   useEffect(() => {
@@ -1808,6 +2184,19 @@ export function MultiplayerGame() {
         }
       />
 
+      {/* Artifact Action Panel - Shows in ACTION phase when artifact is available (v6.15.0) */}
+      {gameRoom.status === 'ACTION' && confirmedArtifactId && selectedArtifactCard?.type === ArtifactType.ACTION && (
+        <div className="fixed right-4 top-20 z-40" data-testid="artifact-panel-container">
+          <ArtifactActionPanel
+            artifactId={confirmedArtifactId}
+            canUse={canUseCurrentArtifact}
+            isUsed={isArtifactUsed}
+            isVisible={true}
+            onUseArtifact={handleUseArtifact}
+          />
+        </div>
+      )}
+
       {/* Error Toast */}
       {error && (
         <div
@@ -1824,7 +2213,7 @@ export function MultiplayerGame() {
         onClose={() => handleToggleScoreModal(false)}
         size="wide"
       >
-        <div className="p-6">
+        <div className="p-6 space-y-4">
           <ScoreTrack
             players={playerScores}
             maxScore={60}
@@ -1833,6 +2222,10 @@ export function MultiplayerGame() {
             allowAdjustment={isYourTurn}
             onFlipToggle={handleFlipToggle}
           />
+          {/* Score History - Show current player's score changes */}
+          {currentPlayer && (
+            <ScoreHistory history={currentPlayer.scoreHistory || []} />
+          )}
         </div>
       </Modal>
 
@@ -2253,6 +2646,53 @@ export function MultiplayerGame() {
         onSkip={handleResolutionSkip}
       />
 
+      {/* Artifact Effect Modal (v6.15.0) */}
+      <ArtifactEffectModal
+        isOpen={showArtifactEffectModal}
+        onClose={handleCloseArtifactModal}
+        artifactId={confirmedArtifactId}
+        inputType={artifactEffectInputType}
+        options={artifactEffectOptions}
+        selectableCards={artifactSelectableCards}
+        minCardSelection={artifactMinCardSelection}
+        maxCardSelection={artifactMaxCardSelection}
+        currentRound={gameRoom?.currentRound || 1}
+        cardSelectionLabel={artifactCardSelectionLabel}
+        onConfirmOption={handleConfirmArtifactOption}
+        onConfirmCards={handleConfirmArtifactCards}
+        onConfirmOptionWithCards={handleConfirmArtifactOptionWithCards}
+      />
+
+      {/* Stone Upgrade Modal (Book of Thoth) v6.15.0 */}
+      <StoneUpgradeModal
+        isOpen={showStoneUpgradeModal}
+        onClose={() => setShowStoneUpgradeModal(false)}
+        playerStones={currentPlayer?.stones || createEmptyStonePool()}
+        maxUpgrades={2}
+        onConfirmUpgrades={handleConfirmStoneUpgrades}
+      />
+
+      {/* Stone Payment Modal (Incense Burner) v6.15.0 */}
+      <StonePaymentModal
+        isOpen={showStonePaymentModal}
+        onClose={handleCloseStonePaymentModal}
+        playerStones={currentPlayer?.stones || createEmptyStonePool()}
+        paymentOptions={stonePaymentOptions}
+        paymentAmount={stonePaymentAmount}
+        onConfirmPayment={handleConfirmStonePayment}
+        title="香爐 - 選擇支付方式"
+      />
+
+      {/* Artifact Result Message Toast (v6.15.0) */}
+      {artifactResultMessage && (
+        <div
+          className="fixed top-32 left-1/2 -translate-x-1/2 z-50 bg-purple-600 text-white px-6 py-3 rounded-lg shadow-lg animate-slide-up"
+          data-testid="artifact-result-toast"
+        >
+          {artifactResultMessage}
+        </div>
+      )}
+
       {/* Fixed Hand Panel - Bottom of screen */}
       <FixedHandPanel
         cards={handCards}
@@ -2306,17 +2746,37 @@ export function MultiplayerGame() {
         scoreChange={lightningEffect.scoreChange}
         reason={lightningEffect.reason}
         showScoreModal={lightningEffect.showScoreModal}
-        onEffectComplete={() => {
-          setLightningEffect({
-            isActive: false,
-            cardName: '',
-            cardNameTw: '',
-            scoreChange: 0,
-            reason: '',
-            showScoreModal: false,
-          })
+        onEffectComplete={async () => {
+          // Clear lightning effect from Firebase (all players will see it cleared)
+          if (gameId) {
+            await multiplayerGameService.clearLightningEffect(gameId)
+          }
         }}
       />
+
+      {/* Dev Test Panel (v6.18.0) - Only in DEV mode */}
+      {import.meta.env.DEV && isDevTestPanelOpen && (
+        <DevTestPanel
+          onClose={() => setDevTestPanelOpen(false)}
+          onSummonCard={handleSummonCard}
+          onResetGame={() => {
+            // Navigate back to multiplayer lobby
+            navigate('/multiplayer')
+          }}
+          onClearField={async () => {
+            // Clear current player's field via Firebase
+            if (!gameId || !playerId) return
+            try {
+              const updates: Record<string, any> = {}
+              updates[`games/${gameId}/players/${playerId}/field`] = []
+              await update(ref(database), updates)
+              console.log('[MultiplayerGame] Field cleared')
+            } catch (err) {
+              console.error('[MultiplayerGame] Failed to clear field:', err)
+            }
+          }}
+        />
+      )}
     </>
   )
 }

@@ -1,9 +1,9 @@
 /**
- * Single Player Game Page v9.14.0
+ * Single Player Game Page v9.15.0
  * Main gameplay interface for single-player mode - With artifact action UI
- * @version 9.14.0 - Added stone payment selection for Incense Burner artifact
+ * @version 9.15.0 - Added DevTestPanel integration for card testing
  */
-console.log('[pages/SinglePlayerGame.tsx] v9.14.0 loaded - Incense Burner payment selection')
+console.log('[pages/SinglePlayerGame.tsx] v9.15.0 loaded - DevTestPanel integration')
 
 
 import { useEffect, useCallback, useMemo, useState } from 'react'
@@ -36,6 +36,7 @@ import type { CardInstance } from '@/types/cards'
 import { StoneType } from '@/types/cards'
 import { ArtifactType } from '@/types/artifacts'
 import { ARTIFACTS_BY_ID } from '@/data/artifacts'
+import { getBaseCardById, createCardInstance } from '@/data/cards'
 import {
   Card,
   GameLayout,
@@ -60,6 +61,7 @@ import { FixedHandPanel } from '@/components/game/FixedHandPanel'
 import { ResolutionConfirmModal } from '@/components/game/ResolutionConfirmModal'
 import { LightningEffect } from '@/components/game/LightningEffect'
 import { ScoreHistory } from '@/components/game/ScoreHistory'
+import { DevTestPanel, useDevTestPanel } from '@/components/dev/DevTestPanel'
 import { Modal } from '@/components/ui/Modal'
 import { cn } from '@/lib/utils'
 import type { PlayerSidebarData } from '@/components/game/LeftSidebar'
@@ -252,6 +254,46 @@ export default function SinglePlayerGame() {
   // Resolution phase state (v9.7.0)
   const [showResolutionModal, setShowResolutionModal] = useState(false)
   const [resolutionCard, setResolutionCard] = useState<CardInstance | null>(null)
+
+  // Dev Test Panel state (v9.15.0) - only in DEV mode
+  const { isOpen: isDevTestPanelOpen, setIsOpen: setDevTestPanelOpen } = useDevTestPanel()
+
+  // Handle summon card from DevTestPanel (v9.15.0)
+  const handleSummonCard = useCallback((cardId: string) => {
+    if (!import.meta.env.DEV) return
+
+    const cardTemplate = getBaseCardById(cardId)
+    if (!cardTemplate) {
+      console.error('[SinglePlayerGame] Card not found:', cardId)
+      return
+    }
+
+    // Create a new card instance with unique ID
+    const uniqueInstanceIndex = Date.now()
+    const newCard = createCardInstance(cardTemplate, uniqueInstanceIndex)
+
+    // Update card location to HAND
+    newCard.location = 'HAND' as any // CardLocation.HAND
+    newCard.ownerId = 'single-player'
+
+    console.log('[SinglePlayerGame] Summoning card to hand:', newCard)
+
+    // Add to player's hand via engine
+    // We need to directly update the game state since there's no API for this
+    const currentHand = hand || []
+    useGameStore.setState(state => ({
+      ...state,
+      gameState: state.gameState ? {
+        ...state.gameState,
+        player: {
+          ...state.gameState.player,
+          hand: [...currentHand, newCard]
+        }
+      } : null
+    }))
+
+    console.log('[SinglePlayerGame] Card added to hand:', cardId)
+  }, [hand])
 
   // Compute stone value
   const totalStoneValue = useMemo(() => {
@@ -1584,6 +1626,28 @@ export default function SinglePlayerGame() {
         onOpenModal={handleLightningOpenModal}
         onEffectComplete={handleLightningEffectComplete}
       />
+
+      {/* Dev Test Panel (v9.15.0) - Only in DEV mode */}
+      {import.meta.env.DEV && isDevTestPanelOpen && (
+        <DevTestPanel
+          onClose={() => setDevTestPanelOpen(false)}
+          onSummonCard={handleSummonCard}
+          onResetGame={resetGame}
+          onClearField={() => {
+            // Clear player's field by updating state directly
+            useGameStore.setState(state => ({
+              ...state,
+              gameState: state.gameState ? {
+                ...state.gameState,
+                player: {
+                  ...state.gameState.player,
+                  field: []
+                }
+              } : null
+            }))
+          }}
+        />
+      )}
     </>
   )
 }

@@ -1,9 +1,9 @@
 /**
  * Effect Processor for The Vale of Eternity
  * Handles all card effect processing (ON_TAME, PERMANENT, ON_SCORE)
- * @version 3.3.0 - Added EARN_PER_ELEMENT effect for Ifrit (F007)
+ * @version 3.4.0 - Added CONDITIONAL_AREA effect for Ifrit (F007) - score points based on field size
  */
-console.log('[services/effect-processor.ts] v3.3.0 loaded')
+console.log('[services/effect-processor.ts] v3.4.0 loaded')
 
 import { ref, get, update } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -32,6 +32,7 @@ export interface EffectResult {
   stonesGained?: Partial<StonePool>
   cardsDrawn?: string[]
   cardsMoved?: { instanceId: string; from: CardLocation; to: CardLocation }[]
+  scoreChange?: number
   message?: string
   error?: string
 }
@@ -115,6 +116,9 @@ export class EffectProcessor {
 
       case EffectType.EARN_PER_ELEMENT:
         return this.processEarnPerElement(effect, context)
+
+      case EffectType.CONDITIONAL_AREA:
+        return this.processConditionalArea(effect, context)
 
       // TODO: Implement other effect types
       default:
@@ -400,6 +404,46 @@ export class EffectProcessor {
       success: true,
       stonesGained,
       message: `Earned ${JSON.stringify(stonesGained)} from ${fieldCardCount} cards on field`,
+    }
+  }
+
+  /**
+   * CONDITIONAL_AREA - Earn points based on number of cards in area (Ifrit F007)
+   * This effect gives score points (not stones) based on field card count (including the card itself)
+   */
+  private async processConditionalArea(
+    effect: CardEffect,
+    context: EffectContext
+  ): Promise<EffectResult> {
+    const { gameId, playerId, currentPlayerState } = context
+
+    // Count ALL cards in player's field (including the card just placed)
+    const fieldCardCount = currentPlayerState.field.length
+    const pointsPerCard = effect.value || 1 // Default 1 point per card
+
+    const totalPoints = fieldCardCount * pointsPerCard
+
+    console.log(`[EffectProcessor] CONDITIONAL_AREA: ${fieldCardCount} cards × ${pointsPerCard} points = ${totalPoints} total points`)
+
+    // Update player's score in Firebase
+    const playerRef = ref(database, `games/${gameId}/players/${playerId}`)
+    const playerSnapshot = await get(playerRef)
+
+    if (!playerSnapshot.exists()) {
+      return { success: false, error: 'Player not found' }
+    }
+
+    const player: PlayerState = playerSnapshot.val()
+    const newScore = (player.score || 0) + totalPoints
+
+    await update(playerRef, { score: newScore })
+
+    console.log(`[EffectProcessor] CONDITIONAL_AREA: updated score ${player.score} → ${newScore} (+${totalPoints})`)
+
+    return {
+      success: true,
+      scoreChange: totalPoints,
+      message: `Earned ${totalPoints} points from ${fieldCardCount} cards in area`,
     }
   }
 

@@ -7,7 +7,8 @@ console.log('[services/artifact-processor.ts] v1.0.0 loaded')
 
 import { ref, get, update } from 'firebase/database'
 import { database } from '@/lib/firebase'
-import type { GameRoom, PlayerState, CardInstance, StonePool } from '@/types/game'
+import type { StonePool } from '@/types/game'
+import type { GameRoom, PlayerState, CardInstanceData } from './multiplayer-game'
 import { CardLocation } from '@/types/cards'
 
 /**
@@ -53,11 +54,16 @@ export async function executeIncenseBurner(
   }
 
   const game: GameRoom = snapshot.val()
-  const player = game.players[playerId]
 
-  if (!player) {
+  // Get player data from Firebase
+  const playerRef = ref(database, `games/${gameId}/players/${playerId}`)
+  const playerSnapshot = await get(playerRef)
+
+  if (!playerSnapshot.exists()) {
     return { success: false, message: 'Player not found' }
   }
+
+  const player: PlayerState = playerSnapshot.val()
 
   // Step 1: Choose option if not selected
   if (!optionId) {
@@ -140,7 +146,7 @@ export async function executeIncenseBurner(
     if (!cardSnapshot.exists()) {
       return { success: false, message: 'Card not found' }
     }
-    const card = cardSnapshot.val() as CardInstance
+    const card = cardSnapshot.val() as CardInstanceData
 
     // Deduct stones
     const newStones = {
@@ -155,7 +161,7 @@ export async function executeIncenseBurner(
 
     // Move card to player's hand
     const newHand = [...player.hand, cardId]
-    const newMarketIds = game.marketIds.filter(id => id !== cardId)
+    const newMarketIds = game.marketIds.filter((id: string) => id !== cardId)
 
     // Refill market from deck
     let newDeckIds = game.deckIds || []
@@ -242,12 +248,15 @@ export async function executeMonkeyKingStaff(
     return { success: false, message: 'Game not found' }
   }
 
-  const game: GameRoom = snapshot.val()
-  const player = game.players[playerId]
+  // Get player data from Firebase
+  const playerRef = ref(database, `games/${gameId}/players/${playerId}`)
+  const playerSnapshot = await get(playerRef)
 
-  if (!player) {
+  if (!playerSnapshot.exists()) {
     return { success: false, message: 'Player not found' }
   }
+
+  const player: PlayerState = playerSnapshot.val()
 
   // Step 1: Select cards to discard
   if (!selectedCards || selectedCards.length !== 2) {
@@ -270,8 +279,12 @@ export async function executeMonkeyKingStaff(
   }
 
   // Remove cards from hand
-  const newHand = player.hand.filter(id => !selectedCards.includes(id))
-  const newDiscardPile = [...(game.discardPileIds || []), ...selectedCards]
+  const newHand = player.hand.filter((id: string) => !selectedCards.includes(id))
+
+  // Get current discard pile from Firebase
+  const discardSnapshot = await get(ref(database, `games/${gameId}/discardIds`))
+  const currentDiscardIds = discardSnapshot.exists() ? (discardSnapshot.val() as string[]) : []
+  const newDiscardPile = [...currentDiscardIds, ...selectedCards]
 
   // Update discarded cards' location
   for (const cardId of selectedCards) {
@@ -295,7 +308,7 @@ export async function executeMonkeyKingStaff(
   await update(gameRef, {
     [`players/${playerId}/hand`]: newHand,
     [`players/${playerId}/stones`]: newStones,
-    discardPileIds: newDiscardPile,
+    discardIds: newDiscardPile,
     [`players/${playerId}/artifactUsedThisRound`]: true,
     updatedAt: Date.now(),
   })
@@ -322,12 +335,15 @@ export async function executeBookOfThoth(
     return { success: false, message: 'Game not found' }
   }
 
-  const game: GameRoom = snapshot.val()
-  const player = game.players[playerId]
+  // Get player data from Firebase
+  const playerRef = ref(database, `games/${gameId}/players/${playerId}`)
+  const playerSnapshot = await get(playerRef)
 
-  if (!player) {
+  if (!playerSnapshot.exists()) {
     return { success: false, message: 'Player not found' }
   }
+
+  const player: PlayerState = playerSnapshot.val()
 
   // Step 1: Select stones to upgrade
   if (!selectedStones) {

@@ -183,6 +183,9 @@ export interface GameRoom {
   maxPlayers: 2 | 3 | 4
   playerIds: string[]  // player IDs in turn order
 
+  // Single player mode flag (v9.15.0)
+  isSinglePlayer?: boolean  // Whether this is a single player game
+
   // Expansion mode (v4.0.0)
   isExpansionMode: boolean  // Whether this game uses Artifacts expansion
   availableArtifacts?: string[]  // Artifact IDs available for this game (based on player count)
@@ -219,6 +222,17 @@ export interface GameRoom {
 
   // UI state synchronization
   showScoreModal?: boolean  // Synchronized modal state controlled by current turn player
+
+  // Lightning Effect (v6.15.0) - Synchronized across all players
+  lightningEffect?: {
+    isActive: boolean
+    cardName: string
+    cardNameTw: string
+    scoreChange: number
+    reason: string
+    showScoreModal: boolean
+    timestamp: number  // For deduplication and ordering
+  } | null
 
   // Action Log (v6.6.0)
   actionLog?: ActionLogEntry[]  // Game action history
@@ -523,8 +537,14 @@ export class MultiplayerGameService {
       throw new Error('Only host can start the game')
     }
 
-    if (game.playerIds.length < 2) {
-      throw new Error('Need at least 2 players')
+    // Check player count requirement
+    // Single player mode: allow 1 player
+    // Multiplayer mode: need at least 2 players
+    const isSinglePlayerMode = game.isSinglePlayer === true
+    const minPlayers = isSinglePlayerMode ? 1 : 2
+
+    if (game.playerIds.length < minPlayers) {
+      throw new Error(isSinglePlayerMode ? 'Need at least 1 player' : 'Need at least 2 players')
     }
 
     // Initialize deck with all 70 cards
@@ -3855,7 +3875,7 @@ export class MultiplayerGameService {
     selectedPayment?: Partial<StonePool>,
     selectedCards?: string[],
     selectedStones?: Partial<StonePool>
-  ): Promise<{ success: boolean; message: string; requiresInput?: boolean; inputType?: string; options?: any[] }> {
+  ): Promise<{ success: boolean; message: string; requiresInput?: boolean; inputType?: string; options?: any[]; stonePaymentOptions?: any[]; paymentAmount?: number }> {
     console.log('[MultiplayerGame] v4.15.0 useArtifact:', {
       artifactId,
       playerId,
@@ -3873,11 +3893,16 @@ export class MultiplayerGameService {
     }
 
     const game: GameRoom = snapshot.val()
-    const player = game.players[playerId]
 
-    if (!player) {
+    // Get player data
+    const playerRef = ref(database, `games/${gameId}/players/${playerId}`)
+    const playerSnapshot = await get(playerRef)
+
+    if (!playerSnapshot.exists()) {
       return { success: false, message: 'Player not found' }
     }
+
+    const player: PlayerState = playerSnapshot.val()
 
     // Validate artifact was selected by player this round
     const currentRound = game.currentRound
@@ -3969,6 +3994,60 @@ export class MultiplayerGameService {
     })
 
     console.log(`[MultiplayerGame] Action log added successfully`)
+  }
+
+  /**
+   * Trigger lightning effect (synchronized across all players)
+   * @param gameId Game ID
+   * @param cardName Card name (English)
+   * @param cardNameTw Card name (Traditional Chinese)
+   * @param scoreChange Score change amount
+   * @param reason Effect description
+   * @param showScoreModal Whether to show score modal
+   */
+  async triggerLightningEffect(
+    gameId: string,
+    cardName: string,
+    cardNameTw: string,
+    scoreChange: number,
+    reason: string,
+    showScoreModal: boolean = true
+  ): Promise<void> {
+    console.log(`[MultiplayerGame] Triggering lightning effect: ${cardNameTw} (+${scoreChange})`)
+
+    const gameRef = ref(database, `games/${gameId}`)
+
+    await update(gameRef, {
+      lightningEffect: {
+        isActive: true,
+        cardName,
+        cardNameTw,
+        scoreChange,
+        reason,
+        showScoreModal,
+        timestamp: Date.now(),
+      },
+      updatedAt: Date.now(),
+    })
+
+    console.log(`[MultiplayerGame] Lightning effect triggered successfully`)
+  }
+
+  /**
+   * Clear lightning effect
+   * @param gameId Game ID
+   */
+  async clearLightningEffect(gameId: string): Promise<void> {
+    console.log(`[MultiplayerGame] Clearing lightning effect`)
+
+    const gameRef = ref(database, `games/${gameId}`)
+
+    await update(gameRef, {
+      lightningEffect: null,
+      updatedAt: Date.now(),
+    })
+
+    console.log(`[MultiplayerGame] Lightning effect cleared successfully`)
   }
 }
 
