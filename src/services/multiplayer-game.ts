@@ -1,13 +1,13 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 4.16.0 - Added score history tracking for all score changes
+ * @version 4.17.0 - Fixed Ifrit effect: process score changes and add to history
  */
-console.log('[services/multiplayer-game.ts] v4.16.0 loaded - Score history tracking added')
+console.log('[services/multiplayer-game.ts] v4.17.0 loaded - Fixed Ifrit effect processing')
 
 import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
-import { getAllBaseCards } from '@/data/cards'
+import { getAllBaseCards, getBaseCardById } from '@/data/cards'
 import type { CardInstance, CardTemplate } from '@/types/cards'
 import { CardLocation, StoneType, Element, EffectType, EffectTrigger } from '@/types/cards'
 import { effectProcessor } from './effect-processor'
@@ -1267,6 +1267,41 @@ export class MultiplayerGameService {
     try {
       const effectResults = await effectProcessor.processOnTameEffects(effectContext)
       console.log(`[MultiplayerGame] ON_TAME effects processed:`, effectResults)
+
+      // ============================================
+      // Process Score Changes from Effects
+      // ============================================
+      // If any effect resulted in score changes, add to score history
+      for (const result of effectResults) {
+        if (result.success && result.scoreChange && result.scoreChange !== 0) {
+          const playerRef = ref(database, `games/${gameId}/players/${playerId}`)
+          const playerSnapshot = await get(playerRef)
+
+          if (playerSnapshot.exists()) {
+            const currentPlayerData: PlayerState = playerSnapshot.val()
+            const currentHistory = currentPlayerData.scoreHistory || []
+
+            // Get card info for history
+            const cardData = allCards[cardInstanceId]
+            const cardTemplate = cardData ? getBaseCardById(cardData.cardId) : null
+            const cardName = cardTemplate?.nameTw || cardTemplate?.name || '未知卡片'
+
+            // Add to score history
+            const newHistoryEntry = {
+              round: game.currentRound,
+              change: result.scoreChange,
+              reason: `${cardName} 效果`,
+              timestamp: Date.now(),
+            }
+
+            await update(playerRef, {
+              scoreHistory: [...currentHistory, newHistoryEntry],
+            })
+
+            console.log(`[MultiplayerGame] Added score history: +${result.scoreChange} from ${cardName}`)
+          }
+        }
+      }
     } catch (error) {
       console.error(`[MultiplayerGame] Error processing ON_TAME effects:`, error)
       // Don't throw - card is already tamed, just log the error

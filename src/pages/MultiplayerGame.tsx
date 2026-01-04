@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 6.18.0 - Added DevTestPanel integration for card testing
+ * @version 6.19.0 - Fixed Ifrit effect: fetch updated field count from Firebase
  */
-console.log('[pages/MultiplayerGame.tsx] v6.18.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v6.19.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -877,27 +877,34 @@ export function MultiplayerGame() {
 
           // v6.15.0: Check for lightning effect cards (synchronized across all players)
           if (hasLightningEffect(card.cardId)) {
-            const fieldCardCount = currentPlayer?.field?.length || 0
-            const effectValue = card.cardId === 'F007' ? fieldCardCount : 2 // Ifrit vs Imp
-            const description = getLightningEffectDescription(
-              card.cardId,
-              cardTemplate?.name || '',
-              cardTemplate?.nameTw || '',
-              effectValue
-            )
+            // Important: Need to fetch updated player state from Firebase to get the NEW field count
+            const playerRef = ref(database, `games/${gameId}/players/${playerId}`)
+            const playerSnapshot = await get(playerRef)
 
-            // Trigger lightning effect via Firebase (all players will see it)
-            await multiplayerGameService.triggerLightningEffect(
-              gameId,
-              description.cardName,
-              description.cardNameTw,
-              effectValue,
-              description.reason,
-              card.cardId === 'F007' // Only Ifrit shows score modal
-            )
+            if (playerSnapshot.exists()) {
+              const updatedPlayerState = playerSnapshot.val()
+              const fieldCardCount = updatedPlayerState.field?.length || 0
+              const effectValue = card.cardId === 'F007' ? fieldCardCount : 2 // Ifrit vs Imp
+              const description = getLightningEffectDescription(
+                card.cardId,
+                cardTemplate?.name || '',
+                cardTemplate?.nameTw || '',
+                effectValue
+              )
+
+              // Trigger lightning effect via Firebase (all players will see it)
+              await multiplayerGameService.triggerLightningEffect(
+                gameId,
+                description.cardName,
+                description.cardNameTw,
+                effectValue,
+                description.reason,
+                card.cardId === 'F007' // Only Ifrit shows score modal
+              )
+            }
           }
           // Note: Ifrit (F007) effect is handled by effect-processor.ts
-          // Score updates will automatically trigger ScoreBar animation (transition-all duration-500)
+          // Score updates and history will be automatically processed by effect processor
         }
       } catch (err: any) {
         setError(err.message || 'Failed to tame card')
