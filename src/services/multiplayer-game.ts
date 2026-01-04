@@ -1,9 +1,9 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 4.18.0 - Fixed effect context to use updated player state from Firebase
+ * @version 4.19.0 - Fixed score history to use correct ScoreHistoryEntry format
  */
-console.log('[services/multiplayer-game.ts] v4.18.0 loaded - Effect context uses updated player state')
+console.log('[services/multiplayer-game.ts] v4.19.0 loaded - Score history with previousScore/newScore/delta')
 
 import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -1289,19 +1289,25 @@ export class MultiplayerGameService {
             const cardTemplate = cardData ? getBaseCardById(cardData.cardId) : null
             const cardName = cardTemplate?.nameTw || cardTemplate?.name || '未知卡片'
 
-            // Add to score history
-            const newHistoryEntry = {
-              round: game.currentRound,
-              change: result.scoreChange,
-              reason: `${cardName} 效果`,
+            // Calculate previous score (current score minus the change that was just applied)
+            const newScore = currentPlayerData.score || 0
+            const previousScore = newScore - result.scoreChange
+
+            // Add to score history with proper format
+            const newHistoryEntry: ScoreHistoryEntry = {
               timestamp: Date.now(),
+              round: game.currentRound,
+              previousScore,
+              newScore,
+              delta: result.scoreChange,
+              reason: `${cardName} 效果`,
             }
 
             await update(playerRef, {
               scoreHistory: [...currentHistory, newHistoryEntry],
             })
 
-            console.log(`[MultiplayerGame] Added score history: +${result.scoreChange} from ${cardName}`)
+            console.log(`[MultiplayerGame] Added score history: ${previousScore} → ${newScore} (+${result.scoreChange}) from ${cardName}`)
           }
         }
       }
