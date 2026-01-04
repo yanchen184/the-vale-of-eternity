@@ -182,14 +182,14 @@ export const IMPERIAL_SEAL: Artifact = {
   type: ArtifactType.ACTION,
   category: ArtifactCategory.RANDOM,
   description:
-    'Action: Discard 1 card from your play area. If it is a blue (water) card, gain 1 green stone.',
-  descriptionTw: '行動：從場上棄掉1張卡。如果是藍色（水）卡，獲得1顆綠石。',
+    'Action: Discard 1 card from your play area. If it is a dragon card, gain 1 blue stone (3 points).',
+  descriptionTw: '行動：從場上棄掉1張卡。如果是龍屬性的卡，獲得1顆藍石(3塊)。',
   image: '/the-vale-of-eternity/assets/artifacts/Random Artifacts/Snipaste_2025-12-31_18-40-51.png',
-  implemented: true,
+  implemented: false,
   effectDetails: {
     affectsStones: true,
     affectsRecall: false,
-    implementationNotes: 'Discard 1 from play area. If water element, gain 1G stone.',
+    implementationNotes: 'Discard 1 from play area. If dragon type, gain 1 blue stone (3 points). NOT IMPLEMENTED - description only.',
   },
 }
 
