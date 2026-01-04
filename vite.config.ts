@@ -3,9 +3,12 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => {
+  // command is 'serve' for dev, 'build' for production
+  const isProduction = command === 'build'
+  return {
   plugins: [react()],
-  base: '/the-vale-of-eternity/',
+  base: isProduction ? '/the-vale-of-eternity/' : '/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -32,4 +35,5 @@ export default defineConfig({
       },
     },
   },
+  }
 })
