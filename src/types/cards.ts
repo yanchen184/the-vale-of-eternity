@@ -172,6 +172,8 @@ export interface CardEffect {
   description: string
   /** Effect description in Traditional Chinese */
   descriptionTw: string
+  /** Whether this effect is fully implemented (default: false) */
+  isImplemented?: boolean
 }
 
 /**

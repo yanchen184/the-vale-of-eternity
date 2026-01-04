@@ -1,9 +1,9 @@
 /**
  * Game core type definitions
  * Supports both multiplayer and single-player modes
- * @version 3.3.0 - Added pendingResolutionCards for resolution phase tracking
+ * @version 3.4.0 - Added scoreHistory for tracking score changes
  */
-console.log('[types/game.ts] v3.3.0 loaded')
+console.log('[types/game.ts] v3.4.0 loaded')
 
 import type { CardInstance, StoneType } from './cards'
 import type { Player } from './player'
@@ -115,6 +115,31 @@ export interface StonePool {
 }
 
 /**
+ * Score history entry
+ * Records a score change event
+ */
+export interface ScoreHistoryEntry {
+  /** Timestamp when the score change occurred */
+  timestamp: number
+  /** Round number when this occurred */
+  round: number
+  /** Previous score */
+  previousScore: number
+  /** New score after the change */
+  newScore: number
+  /** Score delta (can be positive or negative) */
+  delta: number
+  /** Reason for the score change */
+  reason: string
+  /** Card that caused the change (if applicable) */
+  cardId?: string
+  /** Card name in English */
+  cardName?: string
+  /** Card name in Traditional Chinese */
+  cardNameTw?: string
+}
+
+/**
  * Single player state
  */
 export interface SinglePlayerState {
@@ -132,6 +157,8 @@ export interface SinglePlayerState {
   selectedArtifact?: CardInstance
   /** Area bonus (+1 or +2) - adds to final score based on field size */
   areaBonus: number
+  /** Instant bonus score from ON_TAME effects (like Ifrit) */
+  instantBonusScore: number
 }
 
 /**
@@ -217,6 +244,10 @@ export interface SinglePlayerGameState {
   pendingResolutionCards?: string[]
   /** Whether player has processed a resolution card (chose yes/no) */
   processedResolutionCards?: string[]
+
+  // === Score History (v3.4.0) ===
+  /** History of score changes throughout the game */
+  scoreHistory: ScoreHistoryEntry[]
 }
 
 /**

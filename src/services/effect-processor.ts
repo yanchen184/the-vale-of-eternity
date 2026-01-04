@@ -1,9 +1,9 @@
 /**
  * Effect Processor for The Vale of Eternity
  * Handles all card effect processing (ON_TAME, PERMANENT, ON_SCORE)
- * @version 3.2.0 - Only execute fully implemented effects
+ * @version 3.3.0 - Added EARN_PER_ELEMENT effect for Ifrit (F007)
  */
-console.log('[services/effect-processor.ts] v3.2.0 loaded')
+console.log('[services/effect-processor.ts] v3.3.0 loaded')
 
 import { ref, get, update } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -112,6 +112,9 @@ export class EffectProcessor {
 
       case EffectType.CONDITIONAL_EARN:
         return this.processConditionalEarn(effect, context)
+
+      case EffectType.EARN_PER_ELEMENT:
+        return this.processEarnPerElement(effect, context)
 
       // TODO: Implement other effect types
       default:
@@ -344,6 +347,60 @@ export class EffectProcessor {
     }
 
     return { success: false, error: 'No stones specified in conditional effect' }
+  }
+
+  /**
+   * EARN_PER_ELEMENT - Earn stones for each card on field (Ifrit F007)
+   * This effect gives stones based on the number of cards in the player's field
+   */
+  private async processEarnPerElement(
+    effect: CardEffect,
+    context: EffectContext
+  ): Promise<EffectResult> {
+    const { gameId, playerId, currentPlayerState } = context
+
+    // Count cards in player's field (including the card just placed)
+    // The card is already moved to field before this effect is processed
+    const fieldCardCount = currentPlayerState.field.length
+
+    console.log(`[EffectProcessor] EARN_PER_ELEMENT: field has ${fieldCardCount} cards`)
+
+    if (!effect.stones || effect.stones.length === 0) {
+      return { success: false, error: 'No stones specified in effect' }
+    }
+
+    const stonesGained: Partial<StonePool> = {}
+
+    // Calculate stones based on field card count
+    for (const stoneConfig of effect.stones) {
+      const totalAmount = stoneConfig.amount * fieldCardCount
+      stonesGained[stoneConfig.type] = (stonesGained[stoneConfig.type] || 0) + totalAmount
+    }
+
+    // Update player's stones in Firebase
+    const playerRef = ref(database, `games/${gameId}/players/${playerId}`)
+    const playerSnapshot = await get(playerRef)
+
+    if (!playerSnapshot.exists()) {
+      return { success: false, error: 'Player not found' }
+    }
+
+    const player: PlayerState = playerSnapshot.val()
+    const updatedStones = { ...player.stones }
+
+    for (const [stoneType, amount] of Object.entries(stonesGained)) {
+      updatedStones[stoneType as StoneType] = (updatedStones[stoneType as StoneType] || 0) + amount
+    }
+
+    await update(playerRef, { stones: updatedStones })
+
+    console.log(`[EffectProcessor] EARN_PER_ELEMENT: gave ${JSON.stringify(stonesGained)} stones to player ${playerId}`)
+
+    return {
+      success: true,
+      stonesGained,
+      message: `Earned ${JSON.stringify(stonesGained)} from ${fieldCardCount} cards on field`,
+    }
   }
 
   /**

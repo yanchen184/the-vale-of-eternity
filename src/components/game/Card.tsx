@@ -1,9 +1,9 @@
 /**
  * Card Component with Image Display
  * Renders a game card with its image and stats
- * @version 2.24.0 - Added star indicator for fully implemented effects
+ * @version 2.25.0 - Added breathing glow effect for resolution phase cards
  */
-console.log('[components/game/Card.tsx] v2.24.0 loaded')
+console.log('[components/game/Card.tsx] v2.25.0 loaded')
 
 import { useState, useCallback, memo, useMemo } from 'react'
 import { Flame, Droplets, TreePine, Wind, Crown, Gem } from 'lucide-react'
@@ -107,6 +107,8 @@ export interface CardProps {
   currentRound?: number
   /** Whether to show implementation status badge (for development/debugging) */
   showImplementationStatus?: boolean
+  /** Whether this card has pending resolution effect (shows breathing glow) */
+  hasPendingResolution?: boolean
   /** Additional CSS classes */
   className?: string
 }
@@ -318,6 +320,7 @@ export const Card = memo(function Card({
   isNewMarker = false,
   currentRound,
   showImplementationStatus = true,
+  hasPendingResolution = false,
   className = '',
 }: CardProps) {
   const [imageError, setImageError] = useState(false)
@@ -399,6 +402,7 @@ export const Card = memo(function Card({
             flex-shrink-0 cursor-pointer
             transition-all duration-200
             ${isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900' : ''}
+            ${hasPendingResolution ? 'animate-resolution-breathing' : ''}
             ${className}
           `}
           style={{
@@ -413,6 +417,10 @@ export const Card = memo(function Card({
           onMouseLeave={handleMouseLeave}
           data-testid={`card-compact-${card.instanceId}`}
         >
+          {/* Resolution pending glow overlay */}
+          {hasPendingResolution && (
+            <div className="absolute inset-0 z-30 pointer-events-none rounded-lg animate-resolution-glow" />
+          )}
           {/* Image */}
           <div className="absolute inset-0">
             <CardImage

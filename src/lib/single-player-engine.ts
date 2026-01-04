@@ -14,6 +14,7 @@ import {
   type StonePool,
   type SinglePlayerAction,
   type ScoreBreakdown,
+  type ScoreHistoryEntry,
   type EffectProcessingResult,
   SinglePlayerPhase,
   SinglePlayerActionType,
@@ -52,9 +53,25 @@ export interface ArtifactEffectResult {
   /** Whether the effect requires player input */
   requiresInput?: boolean
   /** Type of input required */
-  inputType?: 'SELECT_CARDS' | 'SELECT_STONES' | 'CHOOSE_OPTION'
+  inputType?: 'SELECT_CARDS' | 'SELECT_STONES' | 'CHOOSE_OPTION' | 'SELECT_PAYMENT'
   /** Options for player to choose from */
   options?: ArtifactEffectOption[]
+  /** Stone payment options for SELECT_PAYMENT mode */
+  stonePaymentOptions?: StonePaymentOption[]
+  /** Required payment amount */
+  paymentAmount?: number
+}
+
+/**
+ * Stone payment option for player to choose
+ */
+export interface StonePaymentOption {
+  /** Option identifier */
+  id: string
+  /** Stones to be spent */
+  stones: Partial<StonePool>
+  /** Human-readable description */
+  description: string
 }
 
 /**
@@ -410,6 +427,8 @@ export class SinglePlayerEngine {
         isComplete: false,  // Start with artifact selection active
         confirmedArtifactId: null,
       },
+      // Score history
+      scoreHistory: [],
     } as SinglePlayerGameState
 
     this.notifyStateChange()
@@ -1046,9 +1065,29 @@ export class SinglePlayerEngine {
 
     // Apply instant score bonus from effects (like Ifrit)
     let newInstantBonusScore = this.state.player.instantBonusScore
+    let newScoreHistory = this.state.scoreHistory
+
     if (effectResult.scoreModifier) {
+      const previousScore = this.state.player.field.reduce((sum, card) => sum + card.baseScore, 0) + this.state.player.instantBonusScore
       newInstantBonusScore += effectResult.scoreModifier
+      const newScore = previousScore + effectResult.scoreModifier
+
+      // Record score change in history
+      const historyEntry: ScoreHistoryEntry = {
+        timestamp: Date.now(),
+        round: this.state.round,
+        previousScore: previousScore,
+        newScore: newScore,
+        delta: effectResult.scoreModifier,
+        reason: effectResult.message || `直接加 ${effectResult.scoreModifier} 分`,
+        cardId: card.cardId,
+        cardName: card.name,
+        cardNameTw: card.nameTw,
+      }
+      newScoreHistory = [...this.state.scoreHistory, historyEntry]
+
       console.log(`[SinglePlayerEngine] Added ${effectResult.scoreModifier} to instant bonus score (now ${newInstantBonusScore})`)
+      console.log(`[SinglePlayerEngine] Score history entry added:`, historyEntry)
     }
 
     // Handle drawn cards from effects
@@ -1103,6 +1142,7 @@ export class SinglePlayerEngine {
         instantBonusScore: newInstantBonusScore,
       },
       actionsThisRound: [...this.state.actionsThisRound, action],
+      scoreHistory: newScoreHistory,
       updatedAt: Date.now(),
     }
 
@@ -2885,7 +2925,7 @@ export class SinglePlayerEngine {
       // CORE ARTIFACTS
       // ============================================
       case 'incense_burner':
-        result = this.executeIncenseBurner(optionId, selectedCards)
+        result = this.executeIncenseBurner(optionId, selectedCards, selectedStones)
         break
       case 'monkey_king_staff':
         result = this.executeMonkeyKingStaff(selectedCards)
@@ -2977,13 +3017,126 @@ export class SinglePlayerEngine {
   }
 
   /**
+   * Get all valid payment combinations for a given amount
+   * @param amount The required payment amount
+   * @returns Array of payment options
+   */
+  private getPaymentCombinations(amount: number): StonePaymentOption[] {
+    if (!this.state) return []
+
+    const { ONE, THREE, SIX } = this.state.player.stones
+    const options: StonePaymentOption[] = []
+    let optionId = 0
+
+    // Generate all valid combinations
+    // Loop through possible SIX stones (highest value first for efficiency)
+    const maxSix = Math.min(SIX, Math.ceil(amount / 6))
+    for (let six = 0; six <= maxSix; six++) {
+      const remainingAfterSix = amount - six * 6
+
+      // If SIX alone covers the amount
+      if (remainingAfterSix <= 0 && six > 0) {
+        const desc = `${six}個紫石(6分)`
+        options.push({
+          id: `payment_${optionId++}`,
+          stones: { SIX: six },
+          description: desc,
+        })
+        continue
+      }
+
+      // Loop through possible THREE stones
+      const maxThree = Math.min(THREE, Math.ceil(remainingAfterSix / 3))
+      for (let three = 0; three <= maxThree; three++) {
+        const remainingAfterThree = remainingAfterSix - three * 3
+
+        // If SIX + THREE covers the amount
+        if (remainingAfterThree <= 0 && (six > 0 || three > 0)) {
+          const parts: string[] = []
+          if (six > 0) parts.push(`${six}個紫石(6分)`)
+          if (three > 0) parts.push(`${three}個藍石(3分)`)
+          options.push({
+            id: `payment_${optionId++}`,
+            stones: { SIX: six || undefined, THREE: three || undefined },
+            description: parts.join(' + '),
+          })
+          continue
+        }
+
+        // Check if we can cover remaining with ONE stones
+        if (remainingAfterThree > 0 && remainingAfterThree <= ONE) {
+          const parts: string[] = []
+          if (six > 0) parts.push(`${six}個紫石(6分)`)
+          if (three > 0) parts.push(`${three}個藍石(3分)`)
+          parts.push(`${remainingAfterThree}個紅石(1分)`)
+          options.push({
+            id: `payment_${optionId++}`,
+            stones: {
+              SIX: six || undefined,
+              THREE: three || undefined,
+              ONE: remainingAfterThree,
+            },
+            description: parts.join(' + '),
+          })
+        }
+      }
+    }
+
+    // Remove duplicate options and sort by efficiency (less overpayment first)
+    const uniqueOptions = options.filter((opt, index, self) =>
+      index === self.findIndex(o => o.description === opt.description)
+    )
+
+    // Sort by total value (prefer exact payment)
+    return uniqueOptions.sort((a, b) => {
+      const valueA = (a.stones.ONE ?? 0) + (a.stones.THREE ?? 0) * 3 + (a.stones.SIX ?? 0) * 6
+      const valueB = (b.stones.ONE ?? 0) + (b.stones.THREE ?? 0) * 3 + (b.stones.SIX ?? 0) * 6
+      return valueA - valueB
+    })
+  }
+
+  /**
+   * Deduct specific stones from player's pool
+   * @param stones The stones to deduct
+   * @returns true if successful, false otherwise
+   */
+  private deductSpecificStones(stones: Partial<StonePool>): boolean {
+    if (!this.state) return false
+
+    const currentStones = this.state.player.stones
+
+    // Validate player has enough of each stone type
+    if ((stones.ONE ?? 0) > currentStones.ONE) return false
+    if ((stones.THREE ?? 0) > currentStones.THREE) return false
+    if ((stones.SIX ?? 0) > currentStones.SIX) return false
+
+    // Deduct stones
+    this.state = {
+      ...this.state,
+      player: {
+        ...this.state.player,
+        stones: {
+          ...currentStones,
+          ONE: currentStones.ONE - (stones.ONE ?? 0),
+          THREE: currentStones.THREE - (stones.THREE ?? 0),
+          SIX: currentStones.SIX - (stones.SIX ?? 0),
+        },
+      },
+      updatedAt: Date.now(),
+    }
+
+    return true
+  }
+
+  /**
    * Execute Incense Burner effect
-   * Option A: Buy 1 card for 3 stones
+   * Option A: Buy 1 card for 3 stones (with payment selection)
    * Option B: Shelter 2 cards from deck
    */
   private executeIncenseBurner(
     optionId?: string,
-    selectedCards?: string[]
+    selectedCards?: string[],
+    selectedPayment?: Partial<StonePool>
   ): ArtifactEffectResult {
     if (!this.state) {
       return { success: false, message: 'Game not started' }
@@ -3001,6 +3154,25 @@ export class SinglePlayerEngine {
 
     if (optionId === 'buy_card') {
       // Buy 1 card from buy area for 3 stones
+      const PAYMENT_AMOUNT = 3
+
+      // Step 1: Select payment method first
+      if (!selectedPayment) {
+        const paymentOptions = this.getPaymentCombinations(PAYMENT_AMOUNT)
+        if (paymentOptions.length === 0) {
+          return { success: false, message: '石頭分數不足（需要3分）' }
+        }
+        return {
+          success: false,
+          message: '請選擇如何支付 3 分',
+          requiresInput: true,
+          inputType: 'SELECT_PAYMENT',
+          stonePaymentOptions: paymentOptions,
+          paymentAmount: PAYMENT_AMOUNT,
+        }
+      }
+
+      // Step 2: Select card to purchase
       if (!selectedCards || selectedCards.length !== 1) {
         return {
           success: false,
@@ -3016,15 +3188,14 @@ export class SinglePlayerEngine {
         return { success: false, message: '卡牌不在買入區' }
       }
 
-      // Check and deduct 3 points worth of stones
-      const totalStones = calculateStonePoolValue(this.state.player.stones)
-      if (totalStones < 3) {
-        return { success: false, message: '石頭分數不足（需要3分）' }
+      // Validate payment is sufficient
+      const paymentValue = (selectedPayment.ONE ?? 0) + (selectedPayment.THREE ?? 0) * 3 + (selectedPayment.SIX ?? 0) * 6
+      if (paymentValue < PAYMENT_AMOUNT) {
+        return { success: false, message: '支付金額不足（需要3分）' }
       }
 
-      // Deduct stones worth 3 points (prefer smaller denominations)
-      const stonesSpent = this.deductStones(3)
-      if (!stonesSpent) {
+      // Deduct the selected stones
+      if (!this.deductSpecificStones(selectedPayment)) {
         return { success: false, message: '無法扣除石頭' }
       }
 
@@ -3047,7 +3218,6 @@ export class SinglePlayerEngine {
         player: {
           ...this.state.player,
           hand: newHand,
-          stones: this.state.player.stones,
         },
         updatedAt: Date.now(),
       }
@@ -3055,7 +3225,7 @@ export class SinglePlayerEngine {
       return {
         success: true,
         message: `香爐：支付3分購買了 ${card.nameTw}`,
-        stonesSpent,
+        stonesSpent: selectedPayment,
         cardsDrawn: [card],
       }
     } else if (optionId === 'shelter_deck') {
@@ -4085,60 +4255,6 @@ export class SinglePlayerEngine {
         unavailableReason: !fieldHasCards ? '場上沒有卡牌' : undefined,
       },
     ]
-  }
-
-  /**
-   * Deduct stones from player pool
-   * Prefers smaller denominations first
-   * @param amount Amount to deduct
-   * @returns Stones deducted or null if insufficient
-   */
-  private deductStones(amount: number): Partial<StonePool> | null {
-    if (!this.state) return null
-
-    const currentStones = this.state.player.stones
-    const totalValue = calculateStonePoolValue(currentStones)
-    if (totalValue < amount) return null
-
-    const deducted: Partial<StonePool> = {}
-    let remaining = amount
-    const newStones = { ...currentStones }
-
-    // Deduct ONE stones first (1 point each)
-    while (remaining > 0 && newStones.ONE > 0) {
-      newStones.ONE--
-      deducted.ONE = (deducted.ONE ?? 0) + 1
-      remaining--
-    }
-
-    // Then THREE stones (3 points each)
-    while (remaining > 0 && newStones.THREE > 0) {
-      newStones.THREE--
-      deducted.THREE = (deducted.THREE ?? 0) + 1
-      remaining -= 3
-    }
-
-    // Then SIX stones (6 points each)
-    while (remaining > 0 && newStones.SIX > 0) {
-      newStones.SIX--
-      deducted.SIX = (deducted.SIX ?? 0) + 1
-      remaining -= 6
-    }
-
-    // If we've deducted enough
-    if (remaining <= 0) {
-      this.state = {
-        ...this.state,
-        player: {
-          ...this.state.player,
-          stones: newStones,
-        },
-        updatedAt: Date.now(),
-      }
-      return deducted
-    }
-
-    return null
   }
 
   /**

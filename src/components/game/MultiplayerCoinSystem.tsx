@@ -226,6 +226,7 @@ export const MultiplayerCoinSystem = memo(function MultiplayerCoinSystem({
         players={playerCoinData}
         currentPlayerId={currentPlayerId}
         currentTurnPlayerId={currentTurnPlayerId}
+        onCoinClick={onReturnCoin}
       />
 
       {/* Flying Coin Animations */}

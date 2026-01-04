@@ -2,9 +2,9 @@
  * PlayersFieldArea Component
  * Displays all players' field cards - each player gets a horizontal row
  * Integrated with hand preview and current turn cards display
- * @version 5.5.0 - 支援點擊手牌縮略圖切換底部手牌區
+ * @version 5.7.0 - Complete resolution phase integration with breathing glow effect
  */
-console.log('[components/game/PlayersFieldArea.tsx] v5.5.0 loaded')
+console.log('[components/game/PlayersFieldArea.tsx] v5.7.0 loaded')
 
 import { memo, useMemo, useCallback, useState } from 'react'
 import { Card } from './Card'
@@ -59,6 +59,10 @@ export interface PlayersFieldAreaProps {
   onCurrentTurnCardClick?: (playerId: string, cardId: string) => void
   /** Callback when hand preview is clicked - used to toggle hand panel (optional) */
   onHandPreviewClick?: (playerId: string) => void
+  /** Cards with pending resolution effects (show breathing glow) */
+  pendingResolutionCards?: string[]
+  /** Callback when a field card with pending resolution is clicked */
+  onResolutionCardClick?: (playerId: string, cardId: string) => void
   /** Additional CSS classes */
   className?: string
 }
@@ -81,6 +85,10 @@ interface PlayerFieldSectionProps {
   onCurrentCardSell?: (cardId: string) => void
   onCurrentTurnCardClick?: (cardId: string) => void
   onHandPreviewClick?: () => void
+  /** Cards with pending resolution effects (show breathing glow) */
+  pendingResolutionCards?: string[]
+  /** Callback when a field card with pending resolution is clicked */
+  onResolutionCardClick?: (cardId: string) => void
 }
 
 const PlayerFieldSection = memo(function PlayerFieldSection({
@@ -97,12 +105,16 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
   onCurrentCardMoveToHand,
   onCurrentCardSell,
   onCurrentTurnCardClick,
+  pendingResolutionCards,
+  onResolutionCardClick,
 }: PlayerFieldSectionProps) {
   const colorConfig = PLAYER_COLORS[player.color]
 
-  const handleCardClick = useCallback((cardId: string) => {
+  // Note: handleCardClick is prepared for future use when card click handling is needed
+  const _handleCardClick = useCallback((cardId: string) => {
     onCardClick?.(cardId)
   }, [onCardClick])
+  void _handleCardClick // Suppress unused warning
 
   const handleCardReturn = useCallback((cardId: string) => {
     onCardReturn?.(cardId)
@@ -125,6 +137,23 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
     console.log('[PlayerFieldSection] handleCurrentCardSell called:', { playerId: player.playerId, cardId })
     onCurrentCardSell?.(cardId)
   }, [onCurrentCardSell, player.playerId])
+
+  // Handle field card click - check for resolution phase first
+  const handleFieldCardClick = useCallback((cardId: string) => {
+    // In RESOLUTION phase, prioritize resolution card handling
+    if (phase === 'RESOLUTION' && pendingResolutionCards?.includes(cardId)) {
+      console.log('[PlayerFieldSection] Resolution card clicked:', cardId)
+      onResolutionCardClick?.(cardId)
+      return
+    }
+    // Otherwise, use normal card click handler
+    onCardClick?.(cardId)
+  }, [phase, pendingResolutionCards, onResolutionCardClick, onCardClick])
+
+  // Check if a card has pending resolution effect
+  const hasPendingResolution = useCallback((cardId: string): boolean => {
+    return pendingResolutionCards?.includes(cardId) ?? false
+  }, [pendingResolutionCards])
 
   // Get phase label for current turn cards
   const getPhaseLabel = () => {
@@ -368,10 +397,12 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
                                   index={slotIndex}
                                   compact={true}
                                   currentRound={currentRound}
-                                  onClick={onCardClick ? () => handleCardClick(card.instanceId) : undefined}
+                                  hasPendingResolution={hasPendingResolution(card.instanceId)}
+                                  onClick={() => handleFieldCardClick(card.instanceId)}
                                   className={cn(
                                     'shadow-md',
-                                    player.isCurrentTurn && 'ring-1 ring-vale-500/30'
+                                    player.isCurrentTurn && 'ring-1 ring-vale-500/30',
+                                    hasPendingResolution(card.instanceId) && 'cursor-pointer'
                                   )}
                                 />
 
@@ -528,6 +559,8 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
   onCurrentCardSell,
   onCurrentTurnCardClick,
   onHandPreviewClick,
+  pendingResolutionCards,
+  onResolutionCardClick,
   className,
 }: PlayersFieldAreaProps) {
   console.log('[PlayersFieldArea] Props received:', {
@@ -647,6 +680,8 @@ export const PlayersFieldArea = memo(function PlayersFieldArea({
               onCurrentCardSell={(cardId) => handlePlayerCurrentCardSell(player.playerId, cardId)}
               onCurrentTurnCardClick={(cardId) => handleCurrentTurnCardClick(player.playerId, cardId)}
               onHandPreviewClick={player.playerId === currentPlayerId ? () => onHandPreviewClick?.(player.playerId) : undefined}
+              pendingResolutionCards={pendingResolutionCards}
+              onResolutionCardClick={(cardId) => onResolutionCardClick?.(player.playerId, cardId)}
             />
           ))}
         </div>

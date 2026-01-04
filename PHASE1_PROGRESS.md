@@ -72,11 +72,78 @@ if (hasLightningEffect(card.cardId)) {
 
 ---
 
-## 🔄 Phase 1.2: 神器系統 - 進行中
+## ✅ Phase 1.2: 神器系統 - 完成！
 
 ### 策略
 
 將神器系統作為獨立模組整合到 multiplayer-game.ts
+
+### 實施內容
+
+**檔案變更**:
+1. `src/services/artifact-processor.ts` (v1.0.0 - 新建)
+   - ✅ executeIncenseBurner: 香爐效果（購買或棲息地）
+   - ✅ executeMonkeyKingStaff: 齊天大聖金箍棒（棄牌換石頭）
+   - ✅ executeBookOfThoth: 透特之書（石頭升級）
+   - ✅ getPaymentCombinations: 計算支付組合
+
+2. `src/services/multiplayer-game.ts` (v4.14.0 → v4.15.0)
+   - ✅ 新增 useArtifact 方法
+   - ✅ PlayerState 加入 artifactUsedThisRound 欄位
+   - ✅ 每回合開始 ACTION 階段時重置 artifactUsedThisRound
+
+### 關鍵實現
+
+```typescript
+// multiplayer-game.ts: useArtifact 方法
+async useArtifact(
+  gameId: string,
+  playerId: string,
+  artifactId: string,
+  optionId?: string,
+  selectedPayment?: Partial<StonePool>,
+  selectedCards?: string[],
+  selectedStones?: Partial<StonePool>
+): Promise<{ success: boolean; message: string; requiresInput?: boolean }> {
+  // 驗證神器已選擇
+  if (playerArtifactThisRound !== artifactId) {
+    return { success: false, message: '你沒有選擇此神器' }
+  }
+
+  // 檢查是否已使用
+  if (player.artifactUsedThisRound) {
+    return { success: false, message: '此神器本回合已使用' }
+  }
+
+  // 執行神器效果
+  const artifactProcessor = await import('./artifact-processor')
+  return await artifactProcessor.executeIncenseBurner(...)
+}
+```
+
+### 支援的 ACTION 神器
+
+1. **香爐 (Incense Burner)**
+   - 選項 A: 支付 3 分購買買入區的 1 張卡
+   - 選項 B: 將牌庫頂的 2 張卡棲息地
+   - artifact-processor.ts: ✅ 已實現
+   - 支付系統：✅ getPaymentCombinations
+
+2. **齊天大聖金箍棒 (Monkey King Staff)**
+   - 效果：棄掉 2 張手牌，獲得 1 顆紅石、1 顆藍石和 1 顆綠石
+   - artifact-processor.ts: ✅ 已實現
+
+3. **透特之書 (Book of Thoth)**
+   - 效果：升級石頭最多 2 次（ONE → THREE → SIX）
+   - artifact-processor.ts: ✅ 已實現
+   - 升級驗證：✅ 最多 2 次、檢查石頭數量
+
+### 測試狀態
+
+- ⏸️ **待測試**: 需要啟動多人遊戲測試神器執行
+- ⏸️ **待驗證**: 香爐購買卡牌的支付系統
+- ⏸️ **待驗證**: 透特之書的石頭升級邏輯
+- ⏸️ **待整合**: MultiplayerGame.tsx UI 整合（ArtifactActionPanel）
 
 ### 需要實施的內容
 
@@ -160,9 +227,10 @@ if (hasLightningEffect(card.cardId)) {
 ### 已完成
 - ✅ Phase 0: 測試基準線建立
 - ✅ Phase 1.1: 閃電效果整合到多人模式
+- ✅ Phase 1.2: 神器系統整合（ACTION 類型）
 
 ### 進行中
-- 🔄 Phase 1.2: 神器系統整合 (0%)
+- 🔄 Phase 1.2: MultiplayerGame.tsx UI 整合
 
 ### 待開始
 - ⏸️ Phase 1.3: 分數歷史記錄
@@ -170,8 +238,8 @@ if (hasLightningEffect(card.cardId)) {
 - ⏸️ Phase 3: 清理舊代碼
 
 ### 完成度
-- **Phase 1**: 33% (1/3 完成)
-- **整體專案**: 15% (Phase 0 + 1.1)
+- **Phase 1**: 66% (2/3 完成)
+- **整體專案**: 25% (Phase 0 + 1.1 + 1.2)
 
 ---
 

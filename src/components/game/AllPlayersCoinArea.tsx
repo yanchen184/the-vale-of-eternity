@@ -35,6 +35,8 @@ export interface AllPlayersCoinAreaProps {
   currentPlayerId: string
   /** ID of player whose turn it is */
   currentTurnPlayerId: string
+  /** Callback when current player clicks their own coin to discard */
+  onCoinClick?: (coinType: StoneType) => void
   /** Additional CSS classes */
   className?: string
 }
@@ -101,7 +103,7 @@ const BankDisplay = memo(
 export const AllPlayersCoinArea = memo(
   forwardRef<AllPlayersCoinAreaRef, AllPlayersCoinAreaProps>(
     function AllPlayersCoinArea(
-      { players, currentPlayerId, currentTurnPlayerId, className = '' },
+      { players, currentPlayerId, currentTurnPlayerId, onCoinClick, className = '' },
       ref
     ) {
       const containerRef = useRef<HTMLDivElement>(null)
@@ -204,6 +206,7 @@ export const AllPlayersCoinArea = memo(
                   playerCoins={player.playerCoins}
                   isCurrentPlayer={player.playerId === currentPlayerId}
                   isPlayerTurn={player.playerId === currentTurnPlayerId}
+                  onCoinClick={player.playerId === currentPlayerId ? onCoinClick : undefined}
                 />
               ))}
             </div>

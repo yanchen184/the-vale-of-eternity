@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lightning Effect Overlay Test</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: linear-gradient(to bottom, #0f172a, #1e293b, #0f172a);
+      color: white;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    .header {
+      height: 3.5rem; /* h-14 */
+      background: rgba(30, 41, 59, 0.9);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1rem;
+    }
+
+    .header-title {
+      font-weight: bold;
+      font-size: 1.125rem;
+    }
+
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    /* Score Bar (底部分數條) */
+    .score-bar {
+      height: 3rem; /* h-12 */
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(8px);
+      border-top: 1px solid rgba(168, 85, 247, 0.3);
+      display: flex;
+      align-items: center;
+      padding: 0 1rem;
+      gap: 1rem;
+      z-index: 20;
+    }
+
+    .score-player {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+    }
+
+    .score-value {
+      font-weight: bold;
+      color: #4ade80;
+      font-size: 1.125rem;
+    }
+
+    /* Lightning Overlay (模擬) */
+    .lightning-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: calc(100vh - 3rem); /* 減去底部分數條高度 */
+      z-index: 9998;
+      background: linear-gradient(
+        180deg,
+        rgba(0, 0, 0, 0.7) 0%,
+        rgba(15, 23, 42, 0.85) 50%,
+        rgba(0, 0, 0, 0) 100% /* 底部漸變為透明 */
+      );
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: flex-start; /* 頂部對齊 */
+      justify-content: center;
+      padding-top: 10vh; /* 文字從上方開始 */
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease-out;
+    }
+
+    .lightning-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .lightning-text-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+      padding: 3rem;
+    }
+
+    .lightning-emoji {
+      font-size: 4rem;
+      animation: emoji-spin 2s ease-in-out infinite;
+      filter: drop-shadow(0 0 20px rgba(251, 191, 36, 0.8));
+    }
+
+    @keyframes emoji-spin {
+      0%, 100% {
+        transform: rotate(-5deg) scale(1);
+      }
+      25% {
+        transform: rotate(5deg) scale(1.1);
+      }
+      50% {
+        transform: rotate(-3deg) scale(1.05);
+      }
+      75% {
+        transform: rotate(3deg) scale(1.08);
+      }
+    }
+
+    .lightning-title {
+      font-size: 2rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #fdba74, #f97316, #dc2626);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      filter: drop-shadow(0 0 10px rgba(249, 115, 22, 0.6));
+    }
+
+    .lightning-reason {
+      font-size: 1.25rem;
+      color: #fef3c7;
+      text-align: center;
+    }
+
+    .lightning-score-badge {
+      display: flex;
+      align-items: baseline;
+      gap: 0.5rem;
+      margin-top: 1.5rem;
+      padding: 1rem 2rem;
+      background: linear-gradient(135deg, rgba(249, 115, 22, 0.3), rgba(220, 38, 38, 0.3));
+      border: 2px solid rgba(251, 191, 36, 0.5);
+      border-radius: 1rem;
+      box-shadow: 0 0 20px rgba(251, 191, 36, 0.4);
+    }
+
+    .lightning-score-plus {
+      font-size: 3rem;
+      font-weight: 800;
+      background: linear-gradient(180deg, #fef3c7, #fbbf24, #f59e0b);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .lightning-score-label {
+      font-size: 1.5rem;
+      color: #fed7aa;
+      font-weight: 600;
+    }
+
+    /* Test Controls */
+    .controls {
+      display: flex;
+      gap: 1rem;
+    }
+
+    button {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 0.5rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-show {
+      background: linear-gradient(to bottom right, #10b981, #059669);
+      color: white;
+    }
+
+    .btn-show:hover {
+      transform: scale(1.05);
+    }
+
+    .btn-hide {
+      background: linear-gradient(to bottom right, #ef4444, #dc2626);
+      color: white;
+    }
+
+    .btn-hide:hover {
+      transform: scale(1.05);
+    }
+
+    .info-box {
+      margin-top: 2rem;
+      padding: 1.5rem;
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 0.5rem;
+      max-width: 600px;
+    }
+
+    .info-box h3 {
+      color: #fbbf24;
+      margin-bottom: 0.5rem;
+    }
+
+    .info-box ul {
+      list-style: none;
+      padding-left: 1rem;
+    }
+
+    .info-box li {
+      margin: 0.5rem 0;
+      color: #cbd5e1;
+    }
+
+    .info-box li::before {
+      content: "✓ ";
+      color: #4ade80;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <div class="header-title">永恆之谷 - 閃電效果測試</div>
+    <div style="font-size: 0.75rem; color: #94a3b8;">第 3 回合</div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <div style="text-align: center;">
+      <h1 style="font-size: 2rem; margin-bottom: 2rem;">閃電效果覆蓋層測試</h1>
+
+      <div class="controls">
+        <button class="btn-show" onclick="showLightning()">
+          ⚡ 顯示閃電效果
+        </button>
+        <button class="btn-hide" onclick="hideLightning()">
+          ✕ 隱藏效果
+        </button>
+      </div>
+
+      <div class="info-box">
+        <h3>修改重點：</h3>
+        <ul>
+          <li>遮罩高度改為 calc(100vh - 3rem)，不覆蓋底部分數條</li>
+          <li>背景漸層底部改為透明 (rgba(0, 0, 0, 0))，露出分數條</li>
+          <li>文字容器改為頂部對齊 (align-items: flex-start)</li>
+          <li>增加 padding-top: 10vh，文字從畫面上方顯示</li>
+          <li>分數條永遠可見，不會被遮擋</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Score Bar (底部分數條) -->
+  <div class="score-bar">
+    <div class="score-player">
+      <span>玩家：</span>
+      <span style="color: #fbbf24; font-weight: bold;">測試玩家</span>
+    </div>
+    <div style="flex: 1; height: 1px; background: rgba(148, 163, 184, 0.3);"></div>
+    <div class="score-player">
+      <span>分數：</span>
+      <span class="score-value">42</span>
+    </div>
+    <div style="width: 200px; height: 8px; background: rgba(71, 85, 105, 0.5); border-radius: 4px; overflow: hidden;">
+      <div style="width: 70%; height: 100%; background: linear-gradient(to right, #4ade80, #22c55e);"></div>
+    </div>
+  </div>
+
+  <!-- Lightning Overlay -->
+  <div class="lightning-overlay" id="lightningOverlay">
+    <div class="lightning-text-container">
+      <!-- Lightning emoji -->
+      <div class="lightning-emoji">⚡</div>
+
+      <!-- Card name -->
+      <h2 class="lightning-title">
+        伊夫利特 (Ifrit) 的閃電效果
+      </h2>
+
+      <!-- Reason text -->
+      <div class="lightning-reason">
+        <p>場上有 5 張卡</p>
+        <p style="margin-top: 0.5rem; color: #4ade80; font-weight: bold; font-size: 1.5rem;">
+          伊夫利特獲得 +5 分加成！
+        </p>
+      </div>
+
+      <!-- Score badge -->
+      <div class="lightning-score-badge">
+        <span class="lightning-score-plus">+5</span>
+        <span class="lightning-score-label">分</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function showLightning() {
+      document.getElementById('lightningOverlay').classList.add('active');
+    }
+
+    function hideLightning() {
+      document.getElementById('lightningOverlay').classList.remove('active');
+    }
+  </script>
+</body>
+</html>

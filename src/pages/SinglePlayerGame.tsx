@@ -1,9 +1,9 @@
 /**
- * Single Player Game Page v9.13.0
+ * Single Player Game Page v9.14.0
  * Main gameplay interface for single-player mode - With artifact action UI
- * @version 9.13.0 - Auto-trigger INSTANT artifact effect when confirmed
+ * @version 9.14.0 - Added stone payment selection for Incense Burner artifact
  */
-console.log('[pages/SinglePlayerGame.tsx] v9.13.0 loaded - Auto-trigger INSTANT artifact')
+console.log('[pages/SinglePlayerGame.tsx] v9.14.0 loaded - Incense Burner payment selection')
 
 
 import { useEffect, useCallback, useMemo, useState } from 'react'
@@ -43,7 +43,6 @@ import {
   LeftSidebar,
   RightSidebar,
   PlayersFieldArea,
-  ScoreBar,
   ScoreTrack,
   HuntingPhaseUI,
   ActionPhaseUI,
@@ -51,18 +50,20 @@ import {
   ArtifactActionPanel,
   ArtifactEffectModal,
   StoneUpgradeModal,
+  StonePaymentModal,
 } from '@/components/game'
+import type { StonePaymentOption } from '@/lib/single-player-engine'
 import type { PlayerCoinInfo } from '@/components/game/MultiplayerCoinSystem'
 import type { EffectInputType } from '@/components/game/ArtifactEffectModal'
 import type { StoneUpgrade } from '@/components/game/StoneUpgradeModal'
 import { FixedHandPanel } from '@/components/game/FixedHandPanel'
 import { ResolutionConfirmModal } from '@/components/game/ResolutionConfirmModal'
 import { LightningEffect } from '@/components/game/LightningEffect'
+import { ScoreHistory } from '@/components/game/ScoreHistory'
 import { Modal } from '@/components/ui/Modal'
 import { cn } from '@/lib/utils'
 import type { PlayerSidebarData } from '@/components/game/LeftSidebar'
 import type { PlayerFieldData } from '@/components/game/PlayersFieldArea'
-import type { ScoreBarPlayerData } from '@/components/game/ScoreBar'
 import type { PlayerScoreInfo } from '@/components/game/ScoreTrack'
 
 // ============================================
@@ -235,6 +236,7 @@ export default function SinglePlayerGame() {
   // Artifact action UI state (v9.4.0)
   const [showArtifactEffectModal, setShowArtifactEffectModal] = useState(false)
   const [showStoneUpgradeModal, setShowStoneUpgradeModal] = useState(false)
+  const [showStonePaymentModal, setShowStonePaymentModal] = useState(false)
   const [artifactEffectInputType, setArtifactEffectInputType] = useState<EffectInputType>('CHOOSE_OPTION')
   const [artifactEffectOptions, setArtifactEffectOptions] = useState<ArtifactEffectOption[]>([])
   const [artifactSelectableCards, setArtifactSelectableCards] = useState<CardInstance[]>([])
@@ -242,6 +244,9 @@ export default function SinglePlayerGame() {
   const [artifactMinCardSelection, setArtifactMinCardSelection] = useState(1)
   const [artifactMaxCardSelection, setArtifactMaxCardSelection] = useState(1)
   const [pendingArtifactOptionId, setPendingArtifactOptionId] = useState<string | null>(null)
+  const [pendingPayment, setPendingPayment] = useState<Partial<typeof stones> | null>(null)
+  const [stonePaymentOptions, setStonePaymentOptions] = useState<StonePaymentOption[]>([])
+  const [stonePaymentAmount, setStonePaymentAmount] = useState(0)
   const [artifactResultMessage, setArtifactResultMessage] = useState<string | null>(null)
 
   // Resolution phase state (v9.7.0)
@@ -274,6 +279,7 @@ export default function SinglePlayerGame() {
   // Monitor Ifrit effect trigger - now using LightningEffect component
   const ifritEffectTriggered = useGameStore(state => state.ifritEffectTriggered)
   const [showLightningEffect, setShowLightningEffect] = useState(false)
+  const [scoreModalTab, setScoreModalTab] = useState<'track' | 'history'>('track')
 
   // Start lightning effect when Ifrit is triggered
   useEffect(() => {
@@ -323,14 +329,6 @@ export default function SinglePlayerGame() {
     const processedSet = new Set(processedResolutionCards || [])
     return pendingResolutionCards.filter(cardId => !processedSet.has(cardId)).length
   }, [pendingResolutionCards, processedResolutionCards])
-
-  // ScoreBar data
-  const scoreBarData: ScoreBarPlayerData[] = useMemo(() => [{
-    playerId: 'single-player',
-    name: playerName || 'Player',
-    color: 'green' as const,
-    score: totalStoneValue,
-  }], [playerName, totalStoneValue])
 
   // Player score data for score track
   const playerScores: PlayerScoreInfo[] = useMemo(() => [{
@@ -799,6 +797,21 @@ export default function SinglePlayerGame() {
     console.log('[SinglePlayerGame] handleConfirmArtifactOption:', optionId)
 
     if (optionId === 'buy_card') {
+      // For Incense Burner buy_card option, first get payment options
+      const result = executeArtifactEffect(optionId)
+
+      // Check if it requires payment selection
+      if (result.requiresInput && result.inputType === 'SELECT_PAYMENT' && result.stonePaymentOptions) {
+        console.log('[SinglePlayerGame] Showing payment selection modal')
+        setPendingArtifactOptionId(optionId)
+        setStonePaymentOptions(result.stonePaymentOptions)
+        setStonePaymentAmount(result.paymentAmount || 3)
+        setShowArtifactEffectModal(false)
+        setShowStonePaymentModal(true)
+        return
+      }
+
+      // Fallback to old behavior (shouldn't happen with new code)
       setPendingArtifactOptionId(optionId)
       setArtifactEffectInputType('SELECT_CARDS')
       setArtifactSelectableCards(market || [])
@@ -829,18 +842,49 @@ export default function SinglePlayerGame() {
 
   // Handle artifact card selection confirmation
   const handleConfirmArtifactCards = useCallback((cardIds: string[]) => {
-    console.log('[SinglePlayerGame] handleConfirmArtifactCards:', cardIds)
+    console.log('[SinglePlayerGame] handleConfirmArtifactCards:', cardIds, 'pendingPayment:', pendingPayment)
 
-    const result = executeArtifactEffect(pendingArtifactOptionId || undefined, cardIds)
+    // If we have a pending payment (from Incense Burner), pass it along
+    const result = executeArtifactEffect(
+      pendingArtifactOptionId || undefined,
+      cardIds,
+      pendingPayment || undefined
+    )
     setShowArtifactEffectModal(false)
     setPendingArtifactOptionId(null)
+    setPendingPayment(null)
     setArtifactSelectableCards([])
 
     if (result.success) {
       setArtifactResultMessage(result.message)
       setTimeout(() => setArtifactResultMessage(null), 3000)
     }
-  }, [executeArtifactEffect, pendingArtifactOptionId])
+  }, [executeArtifactEffect, pendingArtifactOptionId, pendingPayment])
+
+  // Handle stone payment confirmation (for Incense Burner)
+  const handleConfirmStonePayment = useCallback((payment: Partial<typeof stones>) => {
+    console.log('[SinglePlayerGame] handleConfirmStonePayment:', payment)
+
+    // Store the payment and show card selection
+    setPendingPayment(payment)
+    setShowStonePaymentModal(false)
+
+    // Now show card selection for purchasing
+    setArtifactEffectInputType('SELECT_CARDS')
+    setArtifactSelectableCards(market || [])
+    setArtifactCardSelectionLabel('選擇1張買入區卡牌購買')
+    setArtifactMinCardSelection(1)
+    setArtifactMaxCardSelection(1)
+    setShowArtifactEffectModal(true)
+  }, [market])
+
+  // Handle closing stone payment modal
+  const handleCloseStonePaymentModal = useCallback(() => {
+    setShowStonePaymentModal(false)
+    setPendingArtifactOptionId(null)
+    setStonePaymentOptions([])
+    setStonePaymentAmount(0)
+  }, [])
 
   // Handle artifact option with card selection
   const handleConfirmArtifactOptionWithCards = useCallback((optionId: string, cardIds: string[]) => {
@@ -1036,15 +1080,7 @@ export default function SinglePlayerGame() {
             unprocessedActionCards={currentTurnCards?.length || 0}
           />
         }
-        scoreBar={
-          <ScoreBar
-            players={scoreBarData}
-            currentPlayerId="single-player"
-            maxScore={60}
-            discardCount={discardPile.length}
-            onDiscardClick={() => setShowDiscardModal(true)}
-          />
-        }
+        scoreBar={null}
         mainContent={
           <div className="w-full h-full overflow-auto custom-scrollbar">
             {/* DRAW Phase - Using shared HuntingPhaseUI for artifact + card selection */}
@@ -1319,14 +1355,14 @@ export default function SinglePlayerGame() {
         </div>
       </Modal>
 
-      {/* Score Modal */}
+      {/* Score Modal with Tabs */}
       <Modal
         isOpen={showScoreModal}
         onClose={() => setShowScoreModal(false)}
         size="wide"
       >
         <div className="flex flex-col h-full max-h-[80vh]">
-          {/* Effect Reason Display - Fixed at top */}
+          {/* Effect Reason Display - Fixed at top (only when triggered by lightning effect) */}
           {ifritEffectTriggered && (
             <div className="flex-shrink-0 p-4 bg-gradient-to-r from-orange-900/50 to-red-900/50 border-b-2 border-orange-500/50">
               <div className="flex items-center gap-3">
@@ -1343,16 +1379,46 @@ export default function SinglePlayerGame() {
             </div>
           )}
 
-          {/* ScoreTrack - Scrollable */}
+          {/* Tabs */}
+          <div className="flex-shrink-0 flex border-b border-slate-700">
+            <button
+              className={cn(
+                'flex-1 px-4 py-3 text-sm font-medium transition-colors',
+                scoreModalTab === 'track'
+                  ? 'bg-slate-700 text-vale-400 border-b-2 border-vale-400'
+                  : 'text-slate-400 hover:text-slate-300 hover:bg-slate-800/50'
+              )}
+              onClick={() => setScoreModalTab('track')}
+            >
+              分數進度條
+            </button>
+            <button
+              className={cn(
+                'flex-1 px-4 py-3 text-sm font-medium transition-colors',
+                scoreModalTab === 'history'
+                  ? 'bg-slate-700 text-vale-400 border-b-2 border-vale-400'
+                  : 'text-slate-400 hover:text-slate-300 hover:bg-slate-800/50'
+              )}
+              onClick={() => setScoreModalTab('history')}
+            >
+              分數變化記錄
+            </button>
+          </div>
+
+          {/* Tab Content */}
           <div className="flex-1 overflow-y-auto p-6">
-            <ScoreTrack
-              players={playerScores}
-              maxScore={60}
-              currentPlayerId="single-player"
-              onScoreAdjust={handleScoreAdjust}
-              allowAdjustment={true}
-              onFlipToggle={handleFlipToggle}
-            />
+            {scoreModalTab === 'track' ? (
+              <ScoreTrack
+                players={playerScores}
+                maxScore={60}
+                currentPlayerId="single-player"
+                onScoreAdjust={handleScoreAdjust}
+                allowAdjustment={true}
+                onFlipToggle={handleFlipToggle}
+              />
+            ) : (
+              <ScoreHistory history={gameState?.scoreHistory || []} />
+            )}
           </div>
         </div>
       </Modal>
@@ -1483,6 +1549,17 @@ export default function SinglePlayerGame() {
         onConfirmUpgrades={handleConfirmStoneUpgrades}
       />
 
+      {/* Stone Payment Modal (Incense Burner) v9.14.0 */}
+      <StonePaymentModal
+        isOpen={showStonePaymentModal}
+        onClose={handleCloseStonePaymentModal}
+        playerStones={stones || EMPTY_STONE_POOL}
+        paymentOptions={stonePaymentOptions}
+        paymentAmount={stonePaymentAmount}
+        onConfirmPayment={handleConfirmStonePayment}
+        title="香爐 - 選擇支付方式"
+      />
+
       {/* Resolution Confirm Modal - For Imp RECOVER_CARD effect (v9.7.0) */}
       <ResolutionConfirmModal
         isOpen={showResolutionModal}
@@ -1502,6 +1579,7 @@ export default function SinglePlayerGame() {
         cardNameTw={ifritEffectTriggered?.cardNameTw || ''}
         scoreChange={ifritEffectTriggered?.scoreChange || 0}
         reason={ifritEffectTriggered?.reason || ''}
+        showScoreModal={ifritEffectTriggered?.showScoreModal || false}
         onLightningComplete={handleLightningComplete}
         onOpenModal={handleLightningOpenModal}
         onEffectComplete={handleLightningEffectComplete}

@@ -1,0 +1,176 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - banner [ref=e5]:
+      - generic [ref=e6]:
+        - generic [ref=e7]:
+          - generic [ref=e8]:
+            - heading "永恆之谷" [level=1] [ref=e9]
+            - generic [ref=e10]:
+              - generic [ref=e11]: "房間:"
+              - generic [ref=e12]: 單人遊戲
+            - generic [ref=e14]: 第 1 回合
+          - generic [ref=e15]: 選卡階段
+        - generic [ref=e17]: 輪到你了！
+        - generic [ref=e18]:
+          - button "查看分數" [ref=e19] [cursor=pointer]
+          - button "查看怪獸區" [ref=e20] [cursor=pointer]
+          - button "查看棲息地" [ref=e21] [cursor=pointer]
+          - button "離開遊戲" [ref=e22] [cursor=pointer]
+    - generic [ref=e23]:
+      - complementary [ref=e25]:
+        - heading "玩家資訊 (1 人)" [level=3] [ref=e27]:
+          - generic [ref=e28]: 玩家資訊
+          - generic [ref=e29]: (1 人)
+        - generic [ref=e33]:
+          - generic [ref=e46]:
+            - heading "Player 你" [level=4] [ref=e47]:
+              - generic [ref=e48]: Player
+              - generic [ref=e49]: 你
+            - generic [ref=e50]: "玩家 #1"
+          - generic "只能在自己回合切換" [ref=e51]:
+            - generic [ref=e52]:
+              - generic [ref=e53]:
+                - generic [ref=e54]: 場地上限
+                - generic [ref=e55]:
+                  - generic [ref=e56]: 回合 1
+                  - generic [ref=e57]: +
+                  - generic [ref=e58]: 區域 +0
+              - generic [ref=e59]:
+                - generic [ref=e60]: 最多
+                - generic [ref=e61]: "1"
+          - generic [ref=e64]:
+            - generic [ref=e65]:
+              - generic [ref=e67]: "?"
+              - generic [ref=e69]: "66"
+            - generic [ref=e71]: 牌組
+          - generic [ref=e72]: 輪到你行動了！
+        - generic [ref=e74]: 選卡階段
+      - generic [ref=e77]:
+        - generic [ref=e78]:
+          - heading "神器選擇階段" [level=2] [ref=e79]
+          - paragraph [ref=e80]: 選擇一個神器，然後點擊「確認選擇」
+        - generic [ref=e81]:
+          - generic [ref=e82]:
+            - generic [ref=e84] [cursor=pointer]:
+              - img "Salamander" [ref=e86]
+              - generic [ref=e87]:
+                - generic [ref=e88]:
+                  - generic [ref=e89]:
+                    - img [ref=e90]
+                    - generic [ref=e93]: "1"
+                  - img "FIRE" [ref=e95]
+                - generic [ref=e97]: 火蜥蜴
+              - 'generic "未實現: EARN_STONES" [ref=e98]':
+                - generic [ref=e99]: 未實現
+            - generic [ref=e101] [cursor=pointer]:
+              - img "Succubus" [ref=e103]
+              - generic [ref=e104]:
+                - generic [ref=e105]:
+                  - generic [ref=e106]:
+                    - img [ref=e107]
+                    - generic [ref=e110]: "1"
+                  - img "FIRE" [ref=e112]
+                - generic [ref=e114]: 魅魔
+              - 'generic "未實現: CONDITIONAL_AREA" [ref=e115]':
+                - generic [ref=e116]: 未實現
+            - generic [ref=e118] [cursor=pointer]:
+              - img "Yuki Onna Exalted" [ref=e120]
+              - generic [ref=e121]:
+                - generic [ref=e122]:
+                  - generic [ref=e123]:
+                    - img [ref=e124]
+                    - generic [ref=e127]: "4"
+                  - img "WATER" [ref=e129]
+                - generic [ref=e132]: 崇高雪女
+              - 'generic "未實現: EARN_STONES" [ref=e133]':
+                - generic [ref=e134]: 未實現
+            - generic [ref=e136] [cursor=pointer]:
+              - img "Medusa" [ref=e138]
+              - generic [ref=e139]:
+                - generic [ref=e140]:
+                  - generic [ref=e141]:
+                    - img [ref=e142]
+                    - generic [ref=e145]: "4"
+                  - img "EARTH" [ref=e147]
+                - generic [ref=e149]: 美杜莎
+              - 'generic "未實現: DISCARD_FROM_HAND" [ref=e150]':
+                - generic [ref=e151]: 未實現
+          - generic [ref=e153]:
+            - generic [ref=e156]:
+              - heading "選擇神器" [level=3] [ref=e157]
+              - paragraph [ref=e158]: Player - 第 1 回合 (點擊神器選擇，使用右側「確認選擇」按鈕)
+            - generic [ref=e159]:
+              - button "透特之書 ✕ 行動 透特之書" [ref=e161] [cursor=pointer]:
+                - img "透特之書" [ref=e163]
+                - generic [ref=e165]:
+                  - generic [ref=e166]: ✕
+                  - generic [ref=e167]: 行動
+                - paragraph [ref=e169]: 透特之書
+              - button "庫庫爾坎寶石 ✕ 行動 庫庫爾坎寶石" [ref=e171] [cursor=pointer]:
+                - img "庫庫爾坎寶石" [ref=e173]
+                - generic [ref=e175]:
+                  - generic [ref=e176]: ✕
+                  - generic [ref=e177]: 行動
+                - paragraph [ref=e179]: 庫庫爾坎寶石
+              - button "金羊毛 ✕ 行動 金羊毛" [ref=e181] [cursor=pointer]:
+                - img "金羊毛" [ref=e183]
+                - generic [ref=e185]:
+                  - generic [ref=e186]: ✕
+                  - generic [ref=e187]: 行動
+                - paragraph [ref=e189]: 金羊毛
+      - complementary [ref=e191]:
+        - heading "銀行 & 資源" [level=3] [ref=e193]
+        - generic [ref=e194]:
+          - generic [ref=e195]:
+            - generic [ref=e196]:
+              - heading "銀行" [level=3] [ref=e197]
+              - generic [ref=e198]: 可拿取
+            - generic [ref=e199]:
+              - button "1 元" [ref=e200] [cursor=pointer]:
+                - img "1 元"
+              - button "3 元" [ref=e201] [cursor=pointer]:
+                - img "3 元"
+              - button "6 元" [ref=e202] [cursor=pointer]:
+                - img "6 元"
+          - generic [ref=e206]:
+            - generic [ref=e207]:
+              - generic [ref=e208]:
+                - generic "Player" [ref=e209]
+                - generic "Player" [ref=e218]: 你
+              - generic [ref=e219]:
+                - generic [ref=e220]: "0"
+                - generic [ref=e221]: 元
+            - generic [ref=e236]: 0/6
+    - contentinfo [ref=e237]:
+      - generic [ref=e238]:
+        - generic [ref=e240]: Score
+        - generic [ref=e243]:
+          - generic [ref=e244]:
+            - generic [ref=e245]: "#1"
+            - generic [ref=e247]: Player (你)
+          - generic [ref=e248]: "0"
+        - button "🗑️ 棄置牌堆 0 張" [ref=e249] [cursor=pointer]:
+          - generic [ref=e250]: 🗑️ 棄置牌堆
+          - generic [ref=e251]:
+            - generic [ref=e252]: "0"
+            - generic [ref=e253]: 張
+  - generic [ref=e255]:
+    - generic [ref=e256]:
+      - generic [ref=e257]:
+        - img [ref=e258]
+        - generic [ref=e263]: 我的手牌 (0 張)
+      - generic [ref=e264]:
+        - button "最小化" [ref=e265] [cursor=pointer]:
+          - img [ref=e266]
+        - button "標準視圖" [ref=e267] [cursor=pointer]:
+          - img [ref=e268]
+        - button "展開視圖" [ref=e273] [cursor=pointer]:
+          - img [ref=e274]
+    - generic [ref=e280]:
+      - img [ref=e285]
+      - paragraph [ref=e290]: 手牌為空
+      - paragraph [ref=e291]: 從市場選擇卡片加入手牌
+```

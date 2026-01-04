@@ -2,9 +2,9 @@
  * HuntingPhaseUI Component
  * Shared hunting phase UI for both single-player and multiplayer games
  * Supports: Card selection, Artifact selection, Seven-League Boots selection
- * @version 1.0.0
+ * @version 1.1.0 - Changed cards to compact mode to match hand panel size
  */
-console.log('[components/game/HuntingPhaseUI.tsx] v1.0.0 loaded')
+console.log('[components/game/HuntingPhaseUI.tsx] v1.1.0 loaded')
 
 import { Card } from './Card'
 import { CompactArtifactSelector } from './CompactArtifactSelector'
@@ -176,7 +176,7 @@ export function HuntingPhaseUI({
                   <Card
                     card={card}
                     index={index}
-                    compact={false}
+                    compact={true}
                     currentRound={currentRound}
                     onClick={() => canClickForShelter && onSelectSevenLeagueBootsCard?.(card.instanceId)}
                     isSelected={isSelectedForShelter}
@@ -216,7 +216,7 @@ export function HuntingPhaseUI({
                 <Card
                   card={card}
                   index={index}
-                  compact={false}
+                  compact={true}
                   currentRound={currentRound}
                   onClick={() => canClick && onToggleCard(card.instanceId)}
                   selectedByColor={selectionInfo?.color}

@@ -1,9 +1,9 @@
 /**
  * Effect Implementation Status Checker
  * Tracks which card effects have been implemented in the game
- * @version 1.4.0 - Added Imp (F002) effects: EARN_STONES + RECOVER_CARD
+ * @version 3.0.0 - Use effect.isImplemented property instead of white/blacklists
  */
-console.log('[utils/effect-implementation-status.ts] v1.4.0 loaded')
+console.log('[utils/effect-implementation-status.ts] v3.0.0 loaded')
 
 import type { CardInstance } from '@/types/cards'
 import { EffectType } from '@/types/cards'
@@ -13,17 +13,9 @@ import { EffectType } from '@/types/cards'
 // ============================================
 
 /**
- * Fully implemented effects - ONLY lightning effects (閃電效果) and resolution effects
- * These are instant effects that trigger automatically or resolution effects
- * Manual review in progress - effects will be added one by one after verification
+ * @deprecated No longer using whitelists - check effect.isImplemented instead
  */
-export const FULLY_IMPLEMENTED_EFFECTS: readonly EffectType[] = [
-  // Ifrit (F007) - Earn 1 stone per card on field
-  EffectType.EARN_PER_ELEMENT,
-  // Imp (F002) - Earn stones on tame + resolution phase return to hand
-  EffectType.EARN_STONES,
-  EffectType.RECOVER_CARD,
-] as const
+export const FULLY_IMPLEMENTED_EFFECTS: readonly EffectType[] = [] as const
 
 /**
  * Partially implemented effects - basic functionality works but may have limitations
@@ -105,7 +97,7 @@ export function getEffectImplementationStatus(effectType: EffectType): Implement
 
 /**
  * Get the implementation status of all effects on a card
- * Returns the "worst" status among all effects
+ * Checks each effect's isImplemented property
  */
 export function getCardImplementationStatus(card: CardInstance): ImplementationStatus {
   const effects = card.effects
@@ -126,29 +118,27 @@ export function getCardImplementationStatus(card: CardInstance): ImplementationS
     return ImplementationStatus.NO_EFFECTS
   }
 
-  // Check each effect and return the worst status
-  let hasPartial = false
-  let hasNotImplemented = false
+  // Check implementation status of all effects
+  let allImplemented = true
+  let anyImplemented = false
 
   for (const effect of meaningfulEffects) {
-    const status = getEffectImplementationStatus(effect.type)
-
-    if (status === ImplementationStatus.NOT_IMPLEMENTED) {
-      hasNotImplemented = true
-    } else if (status === ImplementationStatus.PARTIALLY_IMPLEMENTED) {
-      hasPartial = true
+    if (effect.isImplemented === true) {
+      anyImplemented = true
+    } else {
+      allImplemented = false
     }
   }
 
-  // Return worst status
-  if (hasNotImplemented) {
-    return ImplementationStatus.NOT_IMPLEMENTED
+  // Return status based on effects
+  if (allImplemented && meaningfulEffects.length > 0) {
+    return ImplementationStatus.FULLY_IMPLEMENTED
   }
-  if (hasPartial) {
+  if (anyImplemented) {
     return ImplementationStatus.PARTIALLY_IMPLEMENTED
   }
 
-  return ImplementationStatus.FULLY_IMPLEMENTED
+  return ImplementationStatus.NOT_IMPLEMENTED
 }
 
 /**

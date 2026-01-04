@@ -1,8 +1,8 @@
 /**
  * Firebase initialization and configuration (Database only)
- * @version 1.1.0
+ * @version 1.2.0 - Added single-player emulator support
  */
-console.log('[firebase.ts] v1.1.0 loaded')
+console.log('[firebase.ts] v1.2.0 loaded')
 
 import { initializeApp } from 'firebase/app'
 import { getDatabase, connectDatabaseEmulator } from 'firebase/database'
@@ -18,16 +18,27 @@ const firebaseConfig = {
   measurementId: "G-8W75K5SH0Y"
 }
 
-// Initialize Firebase
+// Initialize Firebase Apps
 const app = initializeApp(firebaseConfig)
+const singlePlayerApp = initializeApp(firebaseConfig, 'single-player')
 
-// Initialize database only
+// Multiplayer database (production Firebase)
 export const database = getDatabase(app)
+console.log('[Firebase] Multiplayer database using production Firebase')
 
-// Connect to emulators in development
-if (import.meta.env.DEV && import.meta.env.VITE_USE_EMULATOR === 'true') {
-  connectDatabaseEmulator(database, 'localhost', 9000)
-  console.log('[Firebase] Connected to database emulator')
+// Single-player database (local emulator)
+export const singlePlayerDatabase = getDatabase(singlePlayerApp)
+
+// Connect single-player to emulator (always in dev mode)
+if (import.meta.env.DEV) {
+  try {
+    connectDatabaseEmulator(singlePlayerDatabase, 'localhost', 9000)
+    console.log('[Firebase] ✅ Single-player database connected to emulator at localhost:9000')
+    console.log('[Firebase] 💡 Make sure Firebase emulator is running: firebase emulators:start')
+  } catch (error) {
+    console.error('[Firebase] ❌ Failed to connect to emulator:', error)
+    console.warn('[Firebase] 🚨 Please run: firebase emulators:start')
+  }
 }
 
 export default app

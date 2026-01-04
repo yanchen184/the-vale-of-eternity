@@ -1,13 +1,14 @@
 /**
- * Game State Store for Single Player Mode v3.4.0
+ * Game State Store for Single Player Mode v3.11.0
  * Using Zustand for state management
  * Supports single-player game with Stone Economy System
- * @version 3.4.0 - Added takeCardsFromMarket action for free card selection in DRAW phase
+ * @version 3.11.0 - Fixed infinite loops: added shallow comparison to resolution card hooks
  */
-console.log('[stores/useGameStore.ts] v3.4.0 loaded')
+console.log('[stores/useGameStore.ts] v3.11.0 loaded')
 
 import { create } from 'zustand'
 import { devtools, subscribeWithSelector } from 'zustand/middleware'
+import { useShallow } from 'zustand/shallow'
 import type { CardInstance, StoneType } from '@/types/cards'
 import {
   type SinglePlayerGameState,
@@ -27,7 +28,40 @@ import {
   SinglePlayerError,
   SinglePlayerErrorCode,
   SINGLE_PLAYER_CONSTANTS,
+  type ArtifactEffectResult,
+  type ArtifactEffectOption,
+  type ArtifactState,
 } from '@/lib/single-player-engine'
+import { EffectType, EffectTrigger } from '@/types/cards'
+
+// ============================================
+// HELPER: Check if card is Ifrit (F007)
+// ============================================
+
+/**
+ * Import lightning effect cards registry
+ */
+import { hasLightningEffect } from '@/data/lightning-effect-cards'
+
+/**
+ * Check if card has lightning effect (Ifrit, Imp, etc.)
+ */
+function hasLightningEffectCard(card: CardInstance): boolean {
+  return hasLightningEffect(card.cardId)
+}
+
+/**
+ * Check if card has ON_TAME scoring effect
+ * @deprecated Currently unused - kept for future use
+ */
+function _hasOnTameScoringEffect(card: CardInstance): boolean {
+  return card.effects.some(
+    effect => effect.trigger === EffectTrigger.ON_TAME &&
+    (effect.type === EffectType.CONDITIONAL_AREA || effect.type === EffectType.EARN_PER_ELEMENT)
+  )
+}
+// Prevent unused variable warning
+void _hasOnTameScoringEffect
 
 // ============================================
 // STORE INTERFACE
@@ -43,6 +77,15 @@ interface GameStore {
   isLoading: boolean
   /** Error message */
   error: string | null
+  /** Lightning effect triggered (for UI to display visual effect) */
+  ifritEffectTriggered: {
+    cardName: string
+    cardNameTw: string
+    scoreChange: number
+    reason: string
+    /** Whether to show score modal (true for score effects, false for stone effects) */
+    showScoreModal: boolean
+  } | null
 
   // === Game Lifecycle ===
   /** Start a new single-player game */
@@ -67,6 +110,8 @@ interface GameStore {
   takeCardsFromMarket: (cardInstanceIds: string[]) => void
 
   // === Action Phase Actions ===
+  /** Draw a card during ACTION phase */
+  drawCardInActionPhase: () => void
   /** Tame a creature */
   tameCreature: (cardInstanceId: string, from: 'HAND' | 'MARKET') => void
   /** Move current turn card to hand */
@@ -77,14 +122,46 @@ interface GameStore {
   pass: () => void
   /** Complete settlement and move to next round (after processing all currentTurnCards) */
   completeSettlement: () => void
+  /** Return a card from field to hand */
+  returnCardToHand: (cardInstanceId: string) => void
   /** Discard a card from field to discard pile */
   discardCard: (cardInstanceId: string) => void
   /** Move a card from field to sanctuary */
   moveToSanctuary: (cardInstanceId: string) => void
+  /** Take a card from discard pile to hand */
+  takeCardFromDiscard: (cardInstanceId: string) => void
+  /** Take a card from sanctuary to hand */
+  takeCardFromSanctuary: (cardInstanceId: string) => void
   /** Manually end the game */
   endGame: () => void
   /** Exchange stones */
   exchangeStones: (fromType: StoneType, toType: StoneType, amount: number) => void
+  /** Toggle area bonus (0→1→2→0) */
+  toggleAreaBonus: () => void
+
+  // === Artifact Actions (v3.6.0) ===
+  /** Execute artifact effect with optional parameters */
+  executeArtifactEffect: (
+    optionId?: string,
+    selectedCards?: string[],
+    selectedStones?: Partial<StonePool>
+  ) => ArtifactEffectResult
+  /** Get current artifact state */
+  getArtifactState: () => ArtifactState | null
+  /** Get artifact effect options for current artifact */
+  getArtifactEffectOptions: () => ArtifactEffectOption[]
+  /** Check if current artifact can be used */
+  canUseArtifact: () => boolean
+
+  // === Resolution Phase Actions (v3.7.0) ===
+  /** Process a resolution card (activate effect or skip) */
+  processResolutionCard: (cardInstanceId: string, activate: boolean) => void
+  /** Check if a card has pending resolution effect */
+  hasPendingResolutionEffect: (cardInstanceId: string) => boolean
+  /** Get unprocessed resolution cards */
+  getUnprocessedResolutionCards: () => string[]
+  /** Check if all resolution cards have been processed */
+  allResolutionCardsProcessed: () => boolean
 
   // === Queries ===
   /** Check if a card can be tamed */
@@ -152,6 +229,7 @@ export const useGameStore = create<GameStore>()(
         engine,
         isLoading: false,
         error: null,
+        ifritEffectTriggered: null,
 
         // === Game Lifecycle ===
         startGame: (playerName: string, expansionMode: boolean = true) => {
@@ -268,12 +346,78 @@ export const useGameStore = create<GameStore>()(
         },
 
         // === Action Phase Actions ===
+        drawCardInActionPhase: () => {
+          const { gameState } = get()
+          if (!gameState) return
+
+          console.log('[useGameStore] 🃏 執行抽牌！')
+
+          try {
+            engine.drawCardInActionPhase()
+            console.log('[useGameStore] ✅ 抽牌成功！')
+          } catch (err) {
+            console.error('[useGameStore] ❌ 抽牌失敗:', err)
+            const message = err instanceof SinglePlayerError
+              ? err.message
+              : 'Failed to draw card in action phase'
+            set({ error: message })
+          }
+        },
+
+        // === Action Phase Actions ===
         tameCreature: (cardInstanceId: string, from: 'HAND' | 'MARKET') => {
           const { gameState } = get()
           if (!gameState) return
 
+          // Find the card being tamed
+          let card: CardInstance | undefined
+          if (from === 'HAND') {
+            card = gameState.player.hand.find(c => c.instanceId === cardInstanceId)
+          } else {
+            card = gameState.market.find(c => c.instanceId === cardInstanceId)
+          }
+
           try {
+            // First, tame the creature (moves card to field)
             engine.tameCreature(cardInstanceId, from)
+
+            // Check if this card has lightning effect (Ifrit, Imp, etc.)
+            if (card && hasLightningEffectCard(card)) {
+              const fieldCount = get().gameState?.player.field.length || 0
+              console.log('[useGameStore] Lightning effect card detected!', {
+                cardId: card.cardId,
+                cardName: card.name,
+                fieldCount,
+              })
+
+              // Build effect description based on card type
+              let reason = ''
+              let effectValue = 0
+              let showScoreModal = false // Only show score modal for score-giving effects
+
+              if (card.cardId === 'F007') {
+                // Ifrit: +1 score per card on field (SCORE EFFECT)
+                effectValue = fieldCount
+                reason = `場上有 ${fieldCount} 張卡\n伊夫利特獲得 +${fieldCount} 分加成！`
+                showScoreModal = true // Show score modal for Ifrit
+              } else if (card.cardId === 'F002') {
+                // Imp: Earn 2x ONE stones (STONE EFFECT)
+                effectValue = 2
+                reason = `獲得 ${effectValue} 個 1 點石頭`
+                showScoreModal = false // Don't show score modal for Imp
+              }
+
+              // Set flag for UI to detect lightning effect (triggers visual effect)
+              set({
+                ifritEffectTriggered: {
+                  cardName: card.name,
+                  cardNameTw: card.nameTw,
+                  scoreChange: effectValue,
+                  reason: reason,
+                  showScoreModal: showScoreModal
+                }
+              })
+            }
           } catch (err) {
             const message = err instanceof SinglePlayerError
               ? err.message
@@ -338,6 +482,52 @@ export const useGameStore = create<GameStore>()(
           }
         },
 
+        // === Resolution Phase Actions (v3.7.0) ===
+        processResolutionCard: (cardInstanceId: string, activate: boolean) => {
+          const { gameState } = get()
+          if (!gameState) return
+
+          try {
+            engine.processResolutionCard(cardInstanceId, activate)
+            console.log('[useGameStore] Resolution card processed:', cardInstanceId, 'activate:', activate)
+          } catch (err) {
+            const message = err instanceof SinglePlayerError
+              ? err.message
+              : 'Failed to process resolution card'
+            set({ error: message })
+          }
+        },
+
+        hasPendingResolutionEffect: (cardInstanceId: string) => {
+          return engine.hasPendingResolutionEffect(cardInstanceId)
+        },
+
+        getUnprocessedResolutionCards: () => {
+          return engine.getUnprocessedResolutionCards()
+        },
+
+        allResolutionCardsProcessed: () => {
+          const { gameState } = get()
+          if (!gameState) return true
+          const pendingCount = gameState.pendingResolutionCards?.length ?? 0
+          const processedCount = gameState.processedResolutionCards?.length ?? 0
+          return pendingCount === 0 || processedCount >= pendingCount
+        },
+
+        returnCardToHand: (cardInstanceId: string) => {
+          const { gameState } = get()
+          if (!gameState) return
+
+          try {
+            engine.returnCardToHand(cardInstanceId)
+          } catch (err) {
+            const message = err instanceof SinglePlayerError
+              ? err.message
+              : 'Failed to return card to hand'
+            set({ error: message })
+          }
+        },
+
         discardCard: (cardInstanceId: string) => {
           const { gameState } = get()
           if (!gameState) return
@@ -362,6 +552,34 @@ export const useGameStore = create<GameStore>()(
             const message = err instanceof SinglePlayerError
               ? err.message
               : 'Failed to move card to sanctuary'
+            set({ error: message })
+          }
+        },
+
+        takeCardFromDiscard: (cardInstanceId: string) => {
+          const { gameState } = get()
+          if (!gameState) return
+
+          try {
+            engine.takeCardFromDiscard(cardInstanceId)
+          } catch (err) {
+            const message = err instanceof SinglePlayerError
+              ? err.message
+              : 'Failed to take card from discard pile'
+            set({ error: message })
+          }
+        },
+
+        takeCardFromSanctuary: (cardInstanceId: string) => {
+          const { gameState } = get()
+          if (!gameState) return
+
+          try {
+            engine.takeCardFromSanctuary(cardInstanceId)
+          } catch (err) {
+            const message = err instanceof SinglePlayerError
+              ? err.message
+              : 'Failed to take card from sanctuary'
             set({ error: message })
           }
         },
@@ -392,6 +610,58 @@ export const useGameStore = create<GameStore>()(
               : 'Failed to exchange stones'
             set({ error: message })
           }
+        },
+
+        toggleAreaBonus: () => {
+          const { gameState } = get()
+          if (!gameState) return
+
+          try {
+            engine.toggleAreaBonus()
+          } catch (err) {
+            const message = err instanceof SinglePlayerError
+              ? err.message
+              : 'Failed to toggle area bonus'
+            set({ error: message })
+          }
+        },
+
+        // === Artifact Actions (v3.6.0) ===
+        executeArtifactEffect: (
+          optionId?: string,
+          selectedCards?: string[],
+          selectedStones?: Partial<StonePool>
+        ): ArtifactEffectResult => {
+          const { gameState } = get()
+          if (!gameState) {
+            return { success: false, message: 'Game not started' }
+          }
+
+          try {
+            const result = engine.executeArtifactEffect(optionId, selectedCards, selectedStones)
+            if (!result.success) {
+              set({ error: result.message })
+            }
+            return result
+          } catch (err) {
+            const message = err instanceof SinglePlayerError
+              ? err.message
+              : 'Failed to execute artifact effect'
+            set({ error: message })
+            return { success: false, message }
+          }
+        },
+
+        getArtifactState: (): ArtifactState | null => {
+          return engine.getArtifactState()
+        },
+
+        getArtifactEffectOptions: (): ArtifactEffectOption[] => {
+          return engine.getArtifactEffectOptions()
+        },
+
+        canUseArtifact: (): boolean => {
+          return engine.canUseArtifact()
         },
 
         // === Queries ===
@@ -769,6 +1039,21 @@ export const selectIsExpansionMode = (state: GameStore): boolean =>
 export const selectArtifactSelectionPhase = (state: GameStore): { isComplete: boolean; confirmedArtifactId?: string | null } | null =>
   state.gameState?.artifactSelectionPhase ?? null
 
+// Cache empty arrays for resolution phase
+const EMPTY_RESOLUTION_CARDS: string[] = []
+
+/**
+ * Select pending resolution cards
+ */
+export const selectPendingResolutionCards = (state: GameStore): string[] =>
+  state.gameState?.pendingResolutionCards ?? EMPTY_RESOLUTION_CARDS
+
+/**
+ * Select processed resolution cards
+ */
+export const selectProcessedResolutionCards = (state: GameStore): string[] =>
+  state.gameState?.processedResolutionCards ?? EMPTY_RESOLUTION_CARDS
+
 // ============================================
 // HOOKS
 // ============================================
@@ -838,11 +1123,14 @@ export function useGameOver(): {
   reason: string | null
   breakdown: ScoreBreakdown | null
 } {
-  const isOver = useGameStore(selectIsGameOver)
-  const score = useGameStore(selectFinalScore)
-  const reason = useGameStore(selectEndReason)
-  const breakdown = useGameStore(selectScoreBreakdown)
-  return { isOver, score, reason, breakdown }
+  return useGameStore(
+    useShallow((state) => ({
+      isOver: selectIsGameOver(state),
+      score: selectFinalScore(state),
+      reason: selectEndReason(state),
+      breakdown: selectScoreBreakdown(state),
+    }))
+  )
 }
 
 /**
@@ -920,9 +1208,26 @@ export function useIsExpansionMode(): boolean {
 
 /**
  * Hook to get artifact selection phase state
+ * Using shallow equality comparison to prevent infinite loops
  */
 export function useArtifactSelectionPhase(): { isComplete: boolean; confirmedArtifactId?: string | null } | null {
   return useGameStore(selectArtifactSelectionPhase)
+}
+
+/**
+ * Hook to get pending resolution cards
+ * Using shallow comparison to prevent infinite loops
+ */
+export function usePendingResolutionCards(): string[] {
+  return useGameStore(useShallow(selectPendingResolutionCards))
+}
+
+/**
+ * Hook to get processed resolution cards
+ * Using shallow comparison to prevent infinite loops
+ */
+export function useProcessedResolutionCards(): string[] {
+  return useGameStore(useShallow(selectProcessedResolutionCards))
 }
 
 // ============================================
@@ -937,6 +1242,13 @@ export {
   SINGLE_PLAYER_CONSTANTS,
 }
 
-export type { SinglePlayerGameState, StonePool, ScoreBreakdown }
+export type {
+  SinglePlayerGameState,
+  StonePool,
+  ScoreBreakdown,
+  ArtifactEffectResult,
+  ArtifactEffectOption,
+  ArtifactState,
+}
 
 export default useGameStore

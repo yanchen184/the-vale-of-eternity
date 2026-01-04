@@ -1,4 +1,4 @@
-# 單人遊戲測試流程規範 v1.0.0
+# 單人遊戲測試流程規範 v2.0.0
 
 本文件定義所有單人遊戲功能的標準化測試流程，使用 Chrome DevTools MCP 進行自動化測試。
 
@@ -460,6 +460,332 @@ expected_result:
 
 ---
 
+### TEST_09: 動態場地格子數測試
+
+**測試目標：** 驗證場地格子數會根據回合數動態調整
+
+```yaml
+test_id: TEST_09
+test_name: "場地格子數隨回合變化"
+category: "遊戲機制"
+version_introduced: "v7.6.0"
+
+steps:
+  - step: 1
+    action: "執行遊戲初始化至 ACTION 階段"
+    verify: "進入第 1 回合 ACTION 階段"
+
+  - step: 2
+    action: "檢查場地空格子數量"
+    verify: "空格子 = 1（回合數 1）"
+
+  - step: 3
+    action: "記錄當前區域指示物值（AREA_BONUS = 0）"
+    verify: "區域指示物 = 0"
+
+  - step: 4
+    action: "點擊『跳過』進入下一回合"
+    verify: "進入第 2 回合 DRAW 階段"
+
+  - step: 5
+    action: "點擊『抽牌』進入 ACTION 階段"
+    verify: "進入第 2 回合 ACTION 階段"
+
+  - step: 6
+    action: "檢查場地空格子數量"
+    verify: "空格子 = 2（回合數 2）"
+
+  - step: 7
+    action: "繼續跳過到第 10 回合"
+    verify: "進入第 10 回合"
+
+  - step: 8
+    action: "檢查場地空格子數量"
+    verify: "空格子 = 10（回合數 10）"
+
+  - step: 9
+    action: "繼續跳過到第 12+ 回合"
+    verify: "進入第 12+ 回合"
+
+  - step: 10
+    action: "檢查場地空格子數量"
+    verify: "空格子 = 12（上限 12）"
+
+expected_result:
+  - field_slots_formula: "min(round + areaBonus, 12)"
+  - round_1_slots: 1
+  - round_2_slots: 2
+  - round_10_slots: 10
+  - max_slots: 12
+```
+
+---
+
+### TEST_10: 區域指示物與場地容量整合測試
+
+**測試目標：** 驗證區域指示物切換會影響場地格子數量
+
+```yaml
+test_id: TEST_10
+test_name: "區域指示物影響場地容量"
+category: "遊戲機制"
+version_introduced: "v7.7.0"
+
+steps:
+  - step: 1
+    action: "執行遊戲初始化至第 3 回合 ACTION 階段"
+    verify: "當前回合 = 3，區域指示物 = 0"
+
+  - step: 2
+    action: "檢查場地空格子數量"
+    verify: "空格子 = 3（回合 3 + 區域 0）"
+
+  - step: 3
+    action: "點擊區域指示物切換按鈕（切換到 +1）"
+    verify: "區域指示物 = +1"
+
+  - step: 4
+    action: "檢查場地空格子數量"
+    verify: "空格子 = 4（回合 3 + 區域 1）"
+
+  - step: 5
+    action: "再次點擊切換按鈕（切換到 +2）"
+    verify: "區域指示物 = +2"
+
+  - step: 6
+    action: "檢查場地空格子數量"
+    verify: "空格子 = 5（回合 3 + 區域 2）"
+
+  - step: 7
+    action: "召喚 2 張卡片到場上"
+    verify: "場上有 2 張卡片，空格子 = 3"
+
+  - step: 8
+    action: "點擊切換按鈕（切換回 0）"
+    verify: "區域指示物 = 0"
+
+  - step: 9
+    action: "檢查場地空格子數量"
+    verify: "空格子 = 1（回合 3 + 區域 0 - 已召喚 2 張）"
+
+  - step: 10
+    action: "嘗試召喚第 4 張卡片"
+    verify: "無法召喚（超過場地容量 3）"
+
+expected_result:
+  - area_bonus_affects_slots: true
+  - max_field_size_enforced: true
+  - dynamic_slot_update: true
+```
+
+---
+
+### TEST_11: 場上卡片多種操作測試
+
+**測試目標：** 驗證場上卡片的完整操作選項（回手、棄置、移至棲息地）
+
+```yaml
+test_id: TEST_11
+test_name: "場上卡片完整操作測試"
+category: "卡片操作"
+version_introduced: "v7.8.0"
+
+steps:
+  - step: 1
+    action: "執行遊戲初始化至 ACTION 階段"
+    verify: "手牌有 2 張卡"
+
+  - step: 2
+    action: "召喚第一張卡片到場上"
+    verify: "場上有 1 張卡，手牌剩 1 張"
+
+  - step: 3
+    action: "點擊場上的卡片"
+    verify: "卡片被選中，顯示操作面板"
+
+  - step: 4
+    action: "確認操作面板包含以下按鈕"
+    verify: "按鈕列表：『回手』、『棄置』、『棲息地』"
+
+  - step: 5
+    action: "記錄卡片名稱（CARD_NAME）"
+    verify: "成功讀取卡片名稱"
+
+  - step: 6
+    action: "點擊『回手』按鈕"
+    verify: "卡片返回手牌，場上清空"
+
+  - step: 7
+    action: "檢查手牌"
+    verify: "手牌 = 2 張，包含 CARD_NAME"
+
+  - step: 8
+    action: "再次召喚同一張卡到場上"
+    verify: "場上有 1 張卡"
+
+  - step: 9
+    action: "點擊場上卡片，選擇『棄置』"
+    verify: "卡片移至棄牌堆"
+
+  - step: 10
+    action: "開啟棄牌堆 Modal"
+    verify: "棄牌堆有 1 張卡，名稱 = CARD_NAME"
+
+  - step: 11
+    action: "召喚手牌最後一張卡到場上"
+    verify: "場上有 1 張卡"
+
+  - step: 12
+    action: "點擊場上卡片，選擇『棲息地』"
+    verify: "卡片移至棲息地"
+
+  - step: 13
+    action: "檢查棲息地區域"
+    verify: "棲息地 = 1 張卡"
+
+expected_result:
+  - field_card_actions: ["回手", "棄置", "棲息地"]
+  - return_to_hand_works: true
+  - discard_from_field_works: true
+  - sanctuary_from_field_works: true
+```
+
+---
+
+### TEST_12: 棄牌堆拿牌手牌上限測試
+
+**測試目標：** 驗證從棄牌堆拿牌時會檢查手牌上限
+
+```yaml
+test_id: TEST_12
+test_name: "棄牌堆拿牌手牌上限檢查"
+category: "卡片操作"
+version_introduced: "v7.9.0"
+
+prerequisite:
+  - hand_limit: 12
+
+steps:
+  - step: 1
+    action: "執行遊戲初始化至 ACTION 階段"
+    verify: "遊戲開始"
+
+  - step: 2
+    action: "使用修改器或作弊將手牌數量增加到 12 張"
+    verify: "手牌 = 12（達到上限）"
+
+  - step: 3
+    action: "將 1 張手牌棄置"
+    verify: "手牌 = 11，棄牌堆 = 1"
+
+  - step: 4
+    action: "將 1 張手牌棄置"
+    verify: "手牌 = 10，棄牌堆 = 2"
+
+  - step: 5
+    action: "開啟棄牌堆 Modal"
+    verify: "棄牌堆顯示 2 張卡"
+
+  - step: 6
+    action: "點擊第一張卡，點擊『拿回手牌』"
+    verify: "手牌 = 11，棄牌堆 = 1"
+
+  - step: 7
+    action: "繼續拿回第二張卡"
+    verify: "手牌 = 12，棄牌堆 = 0"
+
+  - step: 8
+    action: "再次棄置 1 張卡"
+    verify: "手牌 = 11，棄牌堆 = 1"
+
+  - step: 9
+    action: "使用修改器將手牌數量增加到 12 張"
+    verify: "手牌 = 12（達到上限）"
+
+  - step: 10
+    action: "嘗試從棄牌堆拿回卡片"
+    verify: "顯示錯誤訊息：『手牌已達上限（12張），無法拿回卡片』"
+
+expected_result:
+  - hand_limit_enforced: true
+  - error_message_shown: true
+  - discard_pile_unchanged: true
+```
+
+---
+
+### TEST_13: 初始手牌狀態測試
+
+**測試目標：** 驗證選擇神器和初始卡片後，手牌應該是空的（不是 2 張）
+
+```yaml
+test_id: TEST_13
+test_name: "初始手牌狀態檢查"
+category: "遊戲初始化"
+priority: "HIGH"
+
+expected_behavior:
+  - 選擇神器後，手牌 = 0
+  - 選擇初始 2 張卡片後，手牌 = 0（這 2 張卡不應該直接進入手牌）
+  - 必須進入 ACTION 階段後，透過抽牌或其他方式才能獲得手牌
+
+steps:
+  - step: 1
+    action: "訪問首頁並點擊『單人遊戲』"
+    verify: "進入神器選擇畫面"
+
+  - step: 2
+    action: "選擇任一神器並確認"
+    verify: "進入初始卡片選擇畫面"
+
+  - step: 3
+    action: "檢查當前手牌數量"
+    verify: "手牌 = 0"
+
+  - step: 4
+    action: "選擇 2 張初始卡片並確認"
+    verify: "進入 ACTION 階段"
+
+  - step: 5
+    action: "檢查手牌數量"
+    verify: "手牌 = 0（初始卡片不應直接進手牌）"
+
+  - step: 6
+    action: "檢查場上卡片數量"
+    verify: "場上 = 0"
+
+  - step: 7
+    action: "檢查牌庫卡片數量"
+    verify: "牌庫應該包含初始選擇的 2 張卡"
+
+  - step: 8
+    action: "點擊『跳過』進入下一回合 DRAW 階段"
+    verify: "進入 DRAW 階段"
+
+  - step: 9
+    action: "點擊『抽牌』"
+    verify: "成功抽到 1 張卡"
+
+  - step: 10
+    action: "檢查手牌數量"
+    verify: "手牌 = 1（第一次正常抽牌）"
+
+expected_result:
+  - initial_hand_count: 0
+  - after_artifact_selection: 0
+  - after_initial_cards_selection: 0
+  - after_first_draw: 1
+  - initial_cards_location: "deck"
+
+bug_reference:
+  - issue: "選擇初始卡片後，手牌不應該有卡片"
+  - severity: "HIGH"
+  - reported_by: "User"
+  - date: "2026-01-02"
+```
+
+---
+
 ## Chrome DevTools 測試腳本範例
 
 ### 範例：TEST_01 自動化腳本
@@ -519,6 +845,287 @@ async function test01_sanctuary() {
 
 ---
 
+### 範例：TEST_09 自動化腳本
+
+```javascript
+// TEST_09: 動態場地格子數測試
+async function test09_dynamicFieldSlots() {
+  console.log('=== TEST_09: 動態場地格子數測試 ===');
+
+  // Step 1: 遊戲初始化至 ACTION 階段
+  await initGame();
+  await selectArtifact();
+  await selectInitialCards();
+
+  // Step 2: 檢查第 1 回合場地格子數
+  let fieldSlots = await page.evaluate(() => {
+    const emptySlots = document.querySelectorAll('[data-testid="field-empty-slot"]');
+    return emptySlots.length;
+  });
+  assert(fieldSlots === 1, `第 1 回合場地格子數錯誤: ${fieldSlots}`);
+
+  // Step 3-4: 進入第 2 回合
+  await page.click('[data-testid="btn-skip-phase"]');
+  await page.waitForSelector('[data-testid="btn-draw-card"]');
+  await page.click('[data-testid="btn-draw-card"]');
+
+  // Step 6: 檢查第 2 回合場地格子數
+  fieldSlots = await page.evaluate(() => {
+    const emptySlots = document.querySelectorAll('[data-testid="field-empty-slot"]');
+    return emptySlots.length;
+  });
+  assert(fieldSlots === 2, `第 2 回合場地格子數錯誤: ${fieldSlots}`);
+
+  // Step 7-8: 快進到第 10 回合
+  for (let i = 3; i <= 10; i++) {
+    await page.click('[data-testid="btn-skip-phase"]');
+    await page.click('[data-testid="btn-draw-card"]');
+  }
+
+  fieldSlots = await page.evaluate(() => {
+    const emptySlots = document.querySelectorAll('[data-testid="field-empty-slot"]');
+    return emptySlots.length;
+  });
+  assert(fieldSlots === 10, `第 10 回合場地格子數錯誤: ${fieldSlots}`);
+
+  // Step 9-10: 測試最大上限（12）
+  await page.click('[data-testid="btn-skip-phase"]');
+  await page.click('[data-testid="btn-draw-card"]');
+  await page.click('[data-testid="btn-skip-phase"]');
+  await page.click('[data-testid="btn-draw-card"]');
+  await page.click('[data-testid="btn-skip-phase"]');
+  await page.click('[data-testid="btn-draw-card"]');
+
+  fieldSlots = await page.evaluate(() => {
+    const emptySlots = document.querySelectorAll('[data-testid="field-empty-slot"]');
+    return emptySlots.length;
+  });
+  assert(fieldSlots === 12, `最大格子數錯誤: ${fieldSlots}，應為 12`);
+
+  console.log('✅ TEST_09 PASSED');
+}
+```
+
+---
+
+### 範例：TEST_10 自動化腳本
+
+```javascript
+// TEST_10: 區域指示物與場地容量整合測試
+async function test10_areaBonusIntegration() {
+  console.log('=== TEST_10: 區域指示物與場地容量整合測試 ===');
+
+  // Step 1: 快進到第 3 回合
+  await initGame();
+  await selectArtifact();
+  await selectInitialCards();
+
+  for (let i = 1; i < 3; i++) {
+    await page.click('[data-testid="btn-skip-phase"]');
+    await page.click('[data-testid="btn-draw-card"]');
+  }
+
+  // Step 2: 檢查初始格子數（回合 3 + 區域 0）
+  let fieldSlots = await page.evaluate(() => {
+    const emptySlots = document.querySelectorAll('[data-testid="field-empty-slot"]');
+    return emptySlots.length;
+  });
+  assert(fieldSlots === 3, `初始格子數錯誤: ${fieldSlots}`);
+
+  // Step 3: 切換區域指示物到 +1
+  await page.click('[data-testid="area-bonus-toggle"]');
+  await page.waitForTimeout(500);
+
+  // Step 4: 檢查格子數（回合 3 + 區域 1）
+  fieldSlots = await page.evaluate(() => {
+    const emptySlots = document.querySelectorAll('[data-testid="field-empty-slot"]');
+    return emptySlots.length;
+  });
+  assert(fieldSlots === 4, `區域 +1 後格子數錯誤: ${fieldSlots}`);
+
+  // Step 5: 切換到 +2
+  await page.click('[data-testid="area-bonus-toggle"]');
+  await page.waitForTimeout(500);
+
+  // Step 6: 檢查格子數（回合 3 + 區域 2）
+  fieldSlots = await page.evaluate(() => {
+    const emptySlots = document.querySelectorAll('[data-testid="field-empty-slot"]');
+    return emptySlots.length;
+  });
+  assert(fieldSlots === 5, `區域 +2 後格子數錯誤: ${fieldSlots}`);
+
+  // Step 7: 召喚 2 張卡片
+  await page.click('[data-testid="hand-card-0"]');
+  await page.click('[data-testid="action-召喚"]');
+  await page.click('[data-testid="hand-card-0"]');
+  await page.click('[data-testid="action-召喚"]');
+
+  const fieldCards = await page.evaluate(() => {
+    return document.querySelectorAll('[data-testid^="field-card-"]').length;
+  });
+  assert(fieldCards === 2, `場上卡片數量錯誤: ${fieldCards}`);
+
+  // Step 8: 切換回區域 0
+  await page.click('[data-testid="area-bonus-toggle"]');
+  await page.waitForTimeout(500);
+
+  // Step 9: 檢查格子數（回合 3 + 區域 0 - 已有 2 張）
+  fieldSlots = await page.evaluate(() => {
+    const emptySlots = document.querySelectorAll('[data-testid="field-empty-slot"]');
+    return emptySlots.length;
+  });
+  assert(fieldSlots === 1, `切回區域 0 後空格子數錯誤: ${fieldSlots}`);
+
+  console.log('✅ TEST_10 PASSED');
+}
+```
+
+---
+
+### 範例：TEST_11 自動化腳本
+
+```javascript
+// TEST_11: 場上卡片多種操作測試
+async function test11_fieldCardOperations() {
+  console.log('=== TEST_11: 場上卡片多種操作測試 ===');
+
+  // Step 1-2: 初始化並召喚卡片
+  await initGame();
+  await selectArtifact();
+  await selectInitialCards();
+
+  // 記錄卡片名稱
+  const cardName = await page.evaluate(() => {
+    const card = document.querySelector('[data-testid="hand-card-0"]');
+    return card.querySelector('.card-name').textContent;
+  });
+
+  // Step 2: 召喚卡片到場上
+  await page.click('[data-testid="hand-card-0"]');
+  await page.click('[data-testid="action-召喚"]');
+
+  // Step 3: 點擊場上卡片
+  await page.click('[data-testid="field-card-0"]');
+
+  // Step 4: 確認操作按鈕
+  const hasReturnBtn = await page.evaluate(() => {
+    return !!document.querySelector('[data-testid="action-回手"]');
+  });
+  const hasDiscardBtn = await page.evaluate(() => {
+    return !!document.querySelector('[data-testid="action-棄置"]');
+  });
+  const hasSanctuaryBtn = await page.evaluate(() => {
+    return !!document.querySelector('[data-testid="action-棲息地"]');
+  });
+
+  assert(hasReturnBtn && hasDiscardBtn && hasSanctuaryBtn, '操作按鈕不完整');
+
+  // Step 6: 測試『回手』功能
+  await page.click('[data-testid="action-回手"]');
+  await page.waitForTimeout(500);
+
+  let handCount = await page.evaluate(() => {
+    return document.querySelectorAll('[data-testid^="hand-card-"]').length;
+  });
+  assert(handCount === 2, `回手後手牌數錯誤: ${handCount}`);
+
+  // Step 8: 再次召喚同一張卡
+  const returnedCard = await page.evaluate((name) => {
+    const cards = document.querySelectorAll('[data-testid^="hand-card-"]');
+    for (let card of cards) {
+      if (card.querySelector('.card-name').textContent === name) {
+        return true;
+      }
+    }
+    return false;
+  }, cardName);
+  assert(returnedCard, '卡片未正確回到手牌');
+
+  // 召喚回場上
+  await page.evaluate((name) => {
+    const cards = document.querySelectorAll('[data-testid^="hand-card-"]');
+    for (let card of cards) {
+      if (card.querySelector('.card-name').textContent === name) {
+        card.click();
+        return;
+      }
+    }
+  }, cardName);
+  await page.click('[data-testid="action-召喚"]');
+
+  // Step 9: 測試『棄置』功能
+  await page.click('[data-testid="field-card-0"]');
+  await page.click('[data-testid="action-棄置"]');
+  await page.waitForTimeout(500);
+
+  // Step 10: 檢查棄牌堆
+  await page.click('[data-testid="discard-pile-btn"]');
+  const discardCard = await page.evaluate((name) => {
+    const cards = document.querySelectorAll('[data-testid^="discard-card-"]');
+    for (let card of cards) {
+      if (card.querySelector('.card-name').textContent === name) {
+        return true;
+      }
+    }
+    return false;
+  }, cardName);
+  assert(discardCard, '卡片未正確移至棄牌堆');
+
+  await page.click('[data-testid="modal-close"]');
+
+  // Step 11-13: 測試『棲息地』功能
+  await page.click('[data-testid="hand-card-0"]');
+  await page.click('[data-testid="action-召喚"]');
+  await page.click('[data-testid="field-card-0"]');
+  await page.click('[data-testid="action-棲息地"]');
+  await page.waitForTimeout(500);
+
+  const sanctuaryCount = await page.evaluate(() => {
+    return document.querySelectorAll('[data-testid^="sanctuary-card-"]').length;
+  });
+  assert(sanctuaryCount === 1, `棲息地卡片數錯誤: ${sanctuaryCount}`);
+
+  console.log('✅ TEST_11 PASSED');
+}
+```
+
+---
+
+### 通用輔助函數
+
+```javascript
+// 通用輔助函數
+async function initGame() {
+  await page.goto('http://localhost:5176/the-vale-of-eternity/');
+  await page.waitForSelector('[data-testid="btn-single-player"]');
+  await page.click('[data-testid="btn-single-player"]');
+  await page.waitForSelector('[data-testid="artifact-selection"]');
+}
+
+async function selectArtifact() {
+  const artifacts = await page.querySelectorAll('[data-testid^="artifact-card-"]');
+  await artifacts[0].click();
+  await page.click('[data-testid="btn-confirm-artifact"]');
+  await page.waitForSelector('[data-testid="initial-card-selection"]');
+}
+
+async function selectInitialCards() {
+  const marketCards = await page.querySelectorAll('[data-testid^="market-card-"]');
+  await marketCards[0].click();
+  await marketCards[1].click();
+  await page.click('[data-testid="btn-confirm-initial-cards"]');
+  await page.waitForSelector('[data-testid="phase-action"]');
+}
+
+function assert(condition, message) {
+  if (!condition) {
+    throw new Error(`❌ Assertion Failed: ${message}`);
+  }
+}
+```
+
+---
+
 ## 測試執行順序
 
 建議按以下順序執行測試：
@@ -532,9 +1139,13 @@ async function test01_sanctuary() {
    - TEST_02: 棄牌堆功能
    - TEST_03: 場上卡片回手
    - TEST_04: 從棄牌堆拿牌
+   - TEST_11: 場上卡片多種操作（整合測試）
+   - TEST_12: 棄牌堆拿牌手牌上限
 
 3. **進階機制測試**
    - TEST_05: 區域指示物切換
+   - TEST_09: 動態場地格子數
+   - TEST_10: 區域指示物與場地容量整合
 
 4. **遊戲流程測試**
    - TEST_08: 遊戲結束計分
@@ -576,4 +1187,19 @@ summary:
 
 ## 版本更新日誌
 
-- v1.0.0 (2026-01-02): 初始版本，包含 8 個核心測試用例
+- **v2.0.0** (2026-01-02): 重大更新
+  - 新增 TEST_09: 動態場地格子數測試（v7.6.0 功能）
+  - 新增 TEST_10: 區域指示物與場地容量整合測試（v7.7.0 功能）
+  - 新增 TEST_11: 場上卡片多種操作測試（v7.8.0 功能）
+  - 新增 TEST_12: 棄牌堆拿牌手牌上限測試（v7.9.0 功能）
+  - 新增 TEST_09、TEST_10、TEST_11 完整自動化腳本範例
+  - 新增通用輔助函數（initGame, selectArtifact, selectInitialCards, assert）
+  - 更新測試執行順序，包含新增測試項目
+  - 總測試用例數：12 個
+
+- **v1.0.0** (2026-01-02): 初始版本
+  - 建立基礎測試框架
+  - 定義標準化測試流程（PROC_INIT_GAME, PROC_SELECT_ARTIFACT, etc.）
+  - 包含 8 個核心測試用例（TEST_01 - TEST_08）
+  - 提供 TEST_01 自動化腳本範例
+  - 建立測試報告格式規範

@@ -2,9 +2,9 @@
  * ActionPhaseUI Component
  * Shared action phase UI for both single-player and multiplayer games
  * Displays player field areas and resolution phase controls
- * @version 1.2.0 - 支援手牌縮略圖點擊切換
+ * @version 1.3.0 - Added resolution phase card breathing effect integration
  */
-console.log('[components/game/ActionPhaseUI.tsx] v1.2.0 loaded')
+console.log('[components/game/ActionPhaseUI.tsx] v1.3.0 loaded')
 
 import { PlayersFieldArea } from './PlayersFieldArea'
 import { Button } from '@/components/ui/Button'
@@ -39,6 +39,9 @@ export interface ActionPhaseUIProps {
   onCurrentCardSell?: (playerId: string, cardId: string) => void
   onCurrentTurnCardClick?: (playerId: string, cardId: string) => void
   onHandPreviewClick?: (playerId: string) => void
+  // Resolution phase props (v1.3.0)
+  pendingResolutionCards?: string[]
+  onResolutionCardClick?: (playerId: string, cardId: string) => void
 }
 
 // ============================================
@@ -67,6 +70,8 @@ export function ActionPhaseUI({
   onCurrentCardSell,
   onCurrentTurnCardClick,
   onHandPreviewClick,
+  pendingResolutionCards,
+  onResolutionCardClick,
 }: ActionPhaseUIProps) {
   // Reserved for future use
   void _handCards
@@ -100,6 +105,8 @@ export function ActionPhaseUI({
             onCurrentCardSell={onCurrentCardSell}
             onCurrentTurnCardClick={onCurrentTurnCardClick}
             onHandPreviewClick={onHandPreviewClick}
+            pendingResolutionCards={pendingResolutionCards}
+            onResolutionCardClick={onResolutionCardClick}
           />
         )}
 
@@ -116,6 +123,8 @@ export function ActionPhaseUI({
             onCardDiscard={onCardDiscard}
             onCurrentCardMoveToHand={onCurrentCardMoveToHand}
             onCurrentCardSell={onCurrentCardSell}
+            pendingResolutionCards={pendingResolutionCards}
+            onResolutionCardClick={onResolutionCardClick}
           />
         )}
       </div>

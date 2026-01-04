@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>測試：行動階段抽牌功能</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #1a1a2e;
+      color: #eee;
+    }
+    h1 { color: #4ade80; }
+    .instructions {
+      background: #16213e;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      border-left: 4px solid #4ade80;
+    }
+    .step {
+      margin: 10px 0;
+      padding: 10px;
+      background: #0f3460;
+      border-radius: 4px;
+    }
+    button {
+      background: #4ade80;
+      color: #1a1a2e;
+      border: none;
+      padding: 12px 24px;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+      margin: 10px 10px 10px 0;
+    }
+    button:hover { background: #22c55e; }
+    button:disabled {
+      background: #666;
+      cursor: not-allowed;
+    }
+    #result {
+      margin-top: 20px;
+      padding: 15px;
+      background: #16213e;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      font-family: 'Courier New', monospace;
+    }
+    .success { color: #4ade80; }
+    .error { color: #ef4444; }
+    .info { color: #60a5fa; }
+  </style>
+</head>
+<body>
+  <h1>🃏 測試：行動階段抽牌功能</h1>
+
+  <div class="instructions">
+    <h2>測試步驟：</h2>
+    <div class="step">1. 打開遊戲頁面：<a href="http://localhost:5173/the-vale-of-eternity/" target="_blank" style="color: #60a5fa;">http://localhost:5173/the-vale-of-eternity/</a></div>
+    <div class="step">2. 點擊下方「開始自動測試」按鈕</div>
+    <div class="step">3. 測試將自動：初始化遊戲 → 選擇神器 → 選擇初始卡片 → 進入 ACTION 階段 → 點擊抽牌按鈕 → 驗證手牌數量</div>
+  </div>
+
+  <button onclick="runTest()">🚀 開始自動測試</button>
+  <button onclick="clearResult()">🗑️ 清除結果</button>
+
+  <div id="result"></div>
+
+  <script>
+    const resultDiv = document.getElementById('result');
+
+    function log(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const className = type === 'success' ? 'success' : type === 'error' ? 'error' : 'info';
+      resultDiv.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+      resultDiv.scrollTop = resultDiv.scrollHeight;
+    }
+
+    function clearResult() {
+      resultDiv.innerHTML = '';
+    }
+
+    async function runTest() {
+      clearResult();
+      log('========================================', 'info');
+      log('開始測試：行動階段抽牌功能', 'info');
+      log('========================================', 'info');
+
+      try {
+        // 檢查遊戲頁面是否開啟
+        log('檢查遊戲頁面...', 'info');
+        const gameWindow = window.open('', 'gameTab');
+
+        if (!gameWindow || gameWindow.closed) {
+          log('❌ 請先打開遊戲頁面！', 'error');
+          log('點擊上方連結打開遊戲後再重試', 'error');
+          return;
+        }
+
+        log('✓ 遊戲頁面已找到', 'success');
+
+        // 注入測試腳本到遊戲頁面
+        const testScript = `
+          (async function() {
+            const utils = {
+              sleep: (ms) => new Promise(r => setTimeout(r, ms)),
+              click: async (selector) => {
+                const el = document.querySelector(selector);
+                if (!el) throw new Error('找不到元素: ' + selector);
+                el.click();
+                await utils.sleep(300);
+              },
+              count: (selector) => document.querySelectorAll(selector).length,
+              getText: (selector) => {
+                const el = document.querySelector(selector);
+                return el ? el.textContent.trim() : '';
+              },
+              waitFor: async (selector, timeout = 5000) => {
+                const start = Date.now();
+                while (Date.now() - start < timeout) {
+                  if (document.querySelector(selector)) return true;
+                  await utils.sleep(100);
+                }
+                throw new Error('等待超時: ' + selector);
+              }
+            };
+
+            try {
+              // Step 1: 點擊開始遊戲
+              console.log('[TEST] Step 1: 點擊開始遊戲');
+              const startBtn = Array.from(document.querySelectorAll('button'))
+                .find(btn => btn.textContent.includes('開始遊戲'));
+              if (startBtn) {
+                startBtn.click();
+                await utils.sleep(1000);
+              }
+
+              // Step 2: 選擇神器
+              console.log('[TEST] Step 2: 選擇神器');
+              await utils.waitFor('[data-testid="artifact-card"]', 5000);
+              const artifactCard = document.querySelector('[data-testid="artifact-card"]');
+              if (artifactCard) {
+                artifactCard.click();
+                await utils.sleep(500);
+              }
+
+              const confirmArtifact = Array.from(document.querySelectorAll('button'))
+                .find(btn => btn.textContent.includes('確認'));
+              if (confirmArtifact) {
+                confirmArtifact.click();
+                await utils.sleep(1000);
+              }
+
+              // Step 3: 選擇初始卡片
+              console.log('[TEST] Step 3: 選擇初始卡片');
+              const marketCards = document.querySelectorAll('[data-testid="market-card"]');
+              if (marketCards.length >= 2) {
+                marketCards[0].click();
+                await utils.sleep(200);
+                marketCards[1].click();
+                await utils.sleep(500);
+              }
+
+              const confirmCards = Array.from(document.querySelectorAll('button'))
+                .find(btn => btn.textContent.includes('確認'));
+              if (confirmCards) {
+                confirmCards.click();
+                await utils.sleep(1500);
+              }
+
+              // Step 4: 確認進入 ACTION 階段
+              console.log('[TEST] Step 4: 確認 ACTION 階段');
+              const phase = utils.getText('[class*="phase"], [class*="Phase"]');
+              if (!phase.includes('行動') && !phase.includes('ACTION')) {
+                throw new Error('未進入 ACTION 階段: ' + phase);
+              }
+
+              // Step 5: 記錄手牌數量
+              console.log('[TEST] Step 5: 記錄手牌數量');
+              const handCountBefore = utils.count('[class*="hand"] .card, [class*="Hand"] .card');
+              console.log('[TEST] 手牌數量（抽牌前）:', handCountBefore);
+
+              // Step 6: 查找並點擊抽牌按鈕
+              console.log('[TEST] Step 6: 查找抽牌按鈕');
+              const drawBtn = Array.from(document.querySelectorAll('button'))
+                .find(btn => btn.textContent.includes('抽牌') || btn.textContent.includes('🃏'));
+
+              if (!drawBtn) {
+                throw new Error('❌ 找不到抽牌按鈕！');
+              }
+
+              if (drawBtn.disabled) {
+                throw new Error('❌ 抽牌按鈕被禁用！');
+              }
+
+              console.log('[TEST] ✓ 找到抽牌按鈕，準備點擊');
+              drawBtn.click();
+              await utils.sleep(1500);
+
+              // Step 7: 檢查手牌數量
+              console.log('[TEST] Step 7: 檢查手牌數量');
+              const handCountAfter = utils.count('[class*="hand"] .card, [class*="Hand"] .card');
+              console.log('[TEST] 手牌數量（抽牌後）:', handCountAfter);
+
+              if (handCountAfter !== handCountBefore + 1) {
+                throw new Error(\`手牌數量錯誤！期望: \${handCountBefore + 1}, 實際: \${handCountAfter}\`);
+              }
+
+              // Step 8: 確認仍在 ACTION 階段
+              console.log('[TEST] Step 8: 確認仍在 ACTION 階段');
+              const phaseAfter = utils.getText('[class*="phase"], [class*="Phase"]');
+              if (!phaseAfter.includes('行動') && !phaseAfter.includes('ACTION')) {
+                throw new Error('階段錯誤: ' + phaseAfter);
+              }
+
+              return {
+                success: true,
+                handBefore: handCountBefore,
+                handAfter: handCountAfter,
+                message: 'TEST PASSED ✓'
+              };
+
+            } catch (error) {
+              return {
+                success: false,
+                error: error.message
+              };
+            }
+          })();
+        `;
+
+        log('正在遊戲頁面執行測試...', 'info');
+
+        const result = await gameWindow.eval(testScript);
+
+        if (result.success) {
+          log('========================================', 'success');
+          log('✅ 測試通過！', 'success');
+          log(`手牌數量變化: ${result.handBefore} → ${result.handAfter}`, 'success');
+          log('抽牌功能正常運作！', 'success');
+          log('========================================', 'success');
+        } else {
+          log('========================================', 'error');
+          log('❌ 測試失敗！', 'error');
+          log('錯誤: ' + result.error, 'error');
+          log('========================================', 'error');
+        }
+
+      } catch (error) {
+        log('========================================', 'error');
+        log('❌ 測試執行錯誤: ' + error.message, 'error');
+        log('請確保：', 'error');
+        log('1. 遊戲頁面已在新分頁開啟', 'error');
+        log('2. 遊戲正常載入', 'error');
+        log('3. 沒有 Console 錯誤', 'error');
+        log('========================================', 'error');
+      }
+    }
+
+    log('測試腳本已載入，請按「開始自動測試」按鈕', 'info');
+  </script>
+</body>
+</html>

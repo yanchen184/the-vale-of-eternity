@@ -1,0 +1,294 @@
+
+> the-vale-of-eternity@2.0.0 test
+> vitest
+
+
+[1m[7m[34m DEV [39m[27m[22m [34mv2.1.9 [39m[90mD:/claude-mode/the-vale-of-eternity[39m
+
+[90mstdout[2m | src/cards/F002-Imp/Imp.integration.test.ts
+[22m[39m[types/cards.ts] v3.0.0 loaded
+[cards/F002-Imp/Imp.card.ts] v1.0.0 loaded
+
+[90mstdout[2m | src/data/cards/__tests__/base-cards.test.ts
+[22m[39m[types/cards.ts] v3.0.0 loaded
+
+[90mstdout[2m | src/lib/__tests__/effect-system.test.ts
+[22m[39m[types/cards.ts] v3.0.0 loaded
+
+[90mstdout[2m | src/cards/F001-Hestia/Hestia.test.ts
+[22m[39m[types/cards.ts] v3.0.0 loaded
+[cards/F001-Hestia/Hestia.card.ts] v1.0.0 loaded
+
+[90mstdout[2m | src/cards/F002-Imp/Imp.test.ts
+[22m[39m[types/cards.ts] v3.0.0 loaded
+[cards/F002-Imp/Imp.card.ts] v1.0.0 loaded
+
+[90mstdout[2m | src/data/cards/__tests__/mvp-cards.test.ts
+[22m[39m[types/cards.ts] v3.0.0 loaded
+[data/cards/mvp-cards.ts] v3.0.0 loaded
+
+[90mstdout[2m | src/cards/F001-Hestia/Hestia.integration.test.ts
+[22m[39m[types/cards.ts] v3.0.0 loaded
+[cards/F001-Hestia/Hestia.card.ts] v1.0.0 loaded
+
+[90mstdout[2m | src/lib/__tests__/game-utils.test.ts
+[22m[39m[types/cards.ts] v3.0.0 loaded
+[lib/game-utils.ts] v3.0.0 loaded
+
+ [32m✓[39m src/cards/F001-Hestia/Hestia.test.ts [2m([22m[2m24 tests[22m[2m)[22m[90m 8[2mms[22m[39m
+ [32m✓[39m src/cards/F002-Imp/Imp.test.ts [2m([22m[2m34 tests[22m[2m)[22m[90m 9[2mms[22m[39m
+ [31m❯[39m src/lib/__tests__/game-utils.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/data/cards/__tests__/mvp-cards.test.ts [2m([22m[2m62 tests[22m[2m)[22m[90m 26[2mms[22m[39m
+[90mstdout[2m | src/data/cards/__tests__/base-cards.test.ts
+[22m[39m[data/cards/fire-cards.ts] v3.1.0 loaded
+
+[90mstdout[2m | src/lib/__tests__/effect-system.test.ts
+[22m[39m[types/game.ts] v3.4.0 loaded
+[lib/effect-system.ts] v3.0.0 loaded
+
+ [31m❯[39m src/lib/__tests__/effect-system.test.ts [2m([22m[2m0 test[22m[2m)[22m
+[90mstdout[2m | src/data/cards/__tests__/base-cards.test.ts
+[22m[39m[data/cards/water-cards.ts] v3.0.0 loaded
+
+[90mstdout[2m | src/cards/F002-Imp/Imp.integration.test.ts
+[22m[39m[lib/effects/BaseEffect.ts] v1.0.0 loaded
+
+[90mstdout[2m | src/cards/F001-Hestia/Hestia.integration.test.ts
+[22m[39m[lib/effects/BaseEffect.ts] v1.0.0 loaded
+
+[90mstdout[2m | src/data/cards/__tests__/base-cards.test.ts
+[22m[39m[data/cards/earth-cards.ts] v3.0.0 loaded
+
+[90mstdout[2m | src/cards/F002-Imp/Imp.integration.test.ts
+[22m[39m[lib/effects/EffectRegistry.ts] v1.0.0 loaded
+
+[90mstdout[2m | src/cards/F001-Hestia/Hestia.integration.test.ts
+[22m[39m[lib/effects/EffectRegistry.ts] v1.0.0 loaded
+[cards/F001-Hestia/Hestia.effect.ts] v1.0.0 loaded
+
+[90mstdout[2m | src/cards/F002-Imp/Imp.integration.test.ts
+[22m[39m[types/game.ts] v3.4.0 loaded
+[lib/effect-system.ts] v3.0.0 loaded
+[cards/F002-Imp/Imp.effect.ts] v1.0.0 loaded
+
+[90mstdout[2m | src/data/cards/__tests__/base-cards.test.ts
+[22m[39m[data/cards/wind-cards.ts] v3.0.0 loaded
+
+ [32m✓[39m src/cards/F001-Hestia/Hestia.integration.test.ts [2m([22m[2m16 tests[22m[2m)[22m[90m 9[2mms[22m[39m
+ [32m✓[39m src/cards/F002-Imp/Imp.integration.test.ts [2m([22m[2m29 tests[22m[2m)[22m[90m 11[2mms[22m[39m
+[90mstdout[2m | src/data/cards/__tests__/base-cards.test.ts
+[22m[39m[data/cards/dragon-cards.ts] v3.0.0 loaded
+[data/cards/base-cards.ts] v3.0.0 loaded
+
+[90mstdout[2m | src/data/cards/__tests__/base-cards.test.ts
+[22m[39m[lib/card-images.ts] v2.4.0 loaded
+
+[90mstderr[2m | src/data/cards/__tests__/base-cards.test.ts[2m > [22m[2mBase Cards Data[2m > [22m[2mCard Image Mapping[2m > [22m[2mshould return placeholder for invalid card ID
+[22m[39m[card-images] No image found for card ID: INVALID
+
+ [31m❯[39m src/data/cards/__tests__/base-cards.test.ts [2m([22m[2m26 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[90m 24[2mms[22m[39m
+[31m   [31m×[31m Base Cards Data[2m > [22mCard Image Mapping[2m > [22mshould have image mappings for all 70 cards[90m 5[2mms[22m[31m[39m
+[31m     → expected 98 to be 70 // Object.is equality[39m
+[90mstdout[2m | src/stores/__tests__/useGameStore.test.ts
+[22m[39m[types/game.ts] v3.4.0 loaded
+[types/manual.ts] v1.0.0 loaded
+
+[90mstdout[2m | src/stores/__tests__/useGameStore.test.ts
+[22m[39m[types/cards.ts] v3.0.0 loaded
+[data/cards/index.ts] v3.0.0 loaded
+
+[90mstdout[2m | src/stores/__tests__/useGameStore.test.ts
+[22m[39m[data/cards/fire-cards.ts] v3.1.0 loaded
+[data/cards/water-cards.ts] v3.0.0 loaded
+[data/cards/earth-cards.ts] v3.0.0 loaded
+[data/cards/wind-cards.ts] v3.0.0 loaded
+
+[90mstdout[2m | src/stores/__tests__/useGameStore.test.ts
+[22m[39m[data/cards/dragon-cards.ts] v3.0.0 loaded
+[data/cards/base-cards.ts] v3.0.0 loaded
+[data/cards/mvp-cards.ts] v3.0.0 loaded
+[lib/card-images.ts] v2.4.0 loaded
+
+[90mstdout[2m | src/stores/__tests__/useGameStore.test.ts
+[22m[39m[types/artifacts.ts] v1.0.0 loaded
+[data/artifacts.ts] v1.0.0 loaded
+[lib/single-player-engine.ts] v7.25.0 loaded - Resolution effects must be activated
+[SinglePlayerEngine] Initialized v7.19.0
+[data/lightning-effect-cards.ts] v1.0.0 loaded
+[stores/useGameStore.ts] v3.11.0 loaded
+[SinglePlayerEngine] Initialized v7.19.0
+
+ [31m❯[39m src/stores/__tests__/useGameStore.test.ts [2m([22m[2m49 tests[22m[2m | [22m[31m5 failed[39m[2m)[22m[90m 44[2mms[22m[39m
+[31m   [31m×[31m useGameStore[2m > [22mstartGame[2m > [22mshould initialize with empty hand and field[90m 6[2mms[22m[31m[39m
+[31m     → expected [ { instanceId: 'F002-1', …(18) } ] to have a length of +0 but got 1[39m
+[31m   [31m×[31m useGameStore[2m > [22mAction Phase Actions[2m > [22mpass[2m > [22mshould transition back to DRAW phase[90m 2[2mms[22m[31m[39m
+[31m     → expected 'ACTION' to be 'DRAW' // Object.is equality[39m
+[31m   [31m×[31m useGameStore[2m > [22mAction Phase Actions[2m > [22mpass[2m > [22mshould increment round[90m 1[2mms[22m[31m[39m
+[31m     → expected 1 to be 2 // Object.is equality[39m
+[31m   [31m×[31m useGameStore[2m > [22mSelectors[2m > [22mselectHand should return player hand[90m 1[2mms[22m[31m[39m
+[31m     → expected [ { instanceId: 'F002-1', …(18) } ] to have a length of +0 but got 1[39m
+[31m   [31m×[31m useGameStore[2m > [22mHooks[2m > [22museHand should return player hand[90m 1[2mms[22m[31m[39m
+[31m     → expected [ { instanceId: 'F002-1', …(18) } ] to have a length of +0 but got 1[39m
+
+[31m⎯⎯⎯⎯⎯⎯[1m[7m Failed Suites 2 [27m[22m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/lib/__tests__/effect-system.test.ts[2m [ src/lib/__tests__/effect-system.test.ts ][22m
+[31m[1mError[22m: Failed to resolve import "@/lib/game-engine" from "src/test/test-helpers.ts". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/claude-mode/the-vale-of-eternity/src/test/test-helpers.ts[39m:15:26
+[33m  4  |  }
+  5  |  import { Element, EffectType, EffectTrigger, CardLocation } from "@/types/cards";
+  6  |  import { GamePhase } from "@/lib/game-engine";
+     |                             ^
+  7  |  export function createTestPlayer(overrides = {}) {
+  8  |    const id = overrides.id ?? `player-${generateTestId()}`;[39m
+[90m [2m❯[22m TransformPluginContext._formatError node_modules/vitest/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:[2m49258:41[22m[39m
+[90m [2m❯[22m TransformPluginContext.error node_modules/vitest/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:[2m49253:16[22m[39m
+[90m [2m❯[22m normalizeUrl node_modules/vitest/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:[2m64307:23[22m[39m
+[90m [2m❯[22m node_modules/vitest/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:[2m64439:39[22m[39m
+[90m [2m❯[22m TransformPluginContext.transform node_modules/vitest/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:[2m64366:7[22m[39m
+[90m [2m❯[22m PluginContainer.transform node_modules/vitest/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:[2m49099:18[22m[39m
+[90m [2m❯[22m loadAndTransform node_modules/vitest/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:[2m51978:27[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/lib/__tests__/game-utils.test.ts[2m [ src/lib/__tests__/game-utils.test.ts ][22m
+[31m[1mError[22m: Failed to resolve import "@/lib/game-engine" from "src/test/test-helpers.ts". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/claude-mode/the-vale-of-eternity/src/test/test-helpers.ts[39m:15:26
+[33m  4  |  }
+  5  |  import { Element, EffectType, EffectTrigger, CardLocation } from "@/types/cards";
+  6  |  import { GamePhase } from "@/lib/game-engine";
+     |                             ^
+  7  |  export function createTestPlayer(overrides = {}) {
+  8  |    const id = overrides.id ?? `player-${generateTestId()}`;[39m
+[90m [2m❯[22m TransformPluginContext._formatError node_modules/vitest/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:[2m49258:41[22m[39m
+[90m [2m❯[22m TransformPluginContext.error node_modules/vitest/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:[2m49253:16[22m[39m
+[90m [2m❯[22m normalizeUrl node_modules/vitest/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:[2m64307:23[22m[39m
+[90m [2m❯[22m node_modules/vitest/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:[2m64439:39[22m[39m
+[90m [2m❯[22m TransformPluginContext.transform node_modules/vitest/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:[2m64366:7[22m[39m
+[90m [2m❯[22m PluginContainer.transform node_modules/vitest/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:[2m49099:18[22m[39m
+[90m [2m❯[22m loadAndTransform node_modules/vitest/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:[2m51978:27[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[1m[7m Failed Tests 6 [27m[22m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/stores/__tests__/useGameStore.test.ts[2m > [22museGameStore[2m > [22mstartGame[2m > [22mshould initialize with empty hand and field
+[31m[1mAssertionError[22m: expected [ { instanceId: 'F002-1', …(18) } ] to have a length of +0 but got 1[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 0[39m
+[31m+ 1[39m
+
+[36m [2m❯[22m src/stores/__tests__/useGameStore.test.ts:[2m154:38[22m[39m
+    [90m152| [39m
+    [90m153| [39m      [35mconst[39m { gameState } [33m=[39m useGameStore[33m.[39m[34mgetState[39m()
+    [90m154| [39m      [34mexpect[39m(gameState[33m?.[39mplayer[33m.[39mhand)[33m.[39m[34mtoHaveLength[39m([34m0[39m)
+    [90m   | [39m                                     [31m^[39m
+    [90m155| [39m      [34mexpect[39m(gameState[33m?.[39mplayer[33m.[39mfield)[33m.[39m[34mtoHaveLength[39m([34m0[39m)
+    [90m156| [39m    })
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/stores/__tests__/useGameStore.test.ts[2m > [22museGameStore[2m > [22mAction Phase Actions[2m > [22mpass[2m > [22mshould transition back to DRAW phase
+[31m[1mAssertionError[22m: expected 'ACTION' to be 'DRAW' // Object.is equality[39m
+
+Expected: [32m"DRAW"[39m
+Received: [31m"ACTION"[39m
+
+[36m [2m❯[22m src/stores/__tests__/useGameStore.test.ts:[2m272:34[22m[39m
+    [90m270| [39m
+    [90m271| [39m        [35mconst[39m { gameState } [33m=[39m useGameStore[33m.[39m[34mgetState[39m()
+    [90m272| [39m        [34mexpect[39m(gameState[33m?.[39mphase)[33m.[39m[34mtoBe[39m([33mSinglePlayerPhase[39m[33m.[39m[33mDRAW[39m)
+    [90m   | [39m                                 [31m^[39m
+    [90m273| [39m      })
+    [90m274| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/stores/__tests__/useGameStore.test.ts[2m > [22museGameStore[2m > [22mAction Phase Actions[2m > [22mpass[2m > [22mshould increment round
+[31m[1mAssertionError[22m: expected 1 to be 2 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 2[39m
+[31m+ 1[39m
+
+[36m [2m❯[22m src/stores/__tests__/useGameStore.test.ts:[2m284:34[22m[39m
+    [90m282| [39m
+    [90m283| [39m        [35mconst[39m { gameState } [33m=[39m useGameStore[33m.[39m[34mgetState[39m()
+    [90m284| [39m        [34mexpect[39m(gameState[33m?.[39mround)[33m.[39m[34mtoBe[39m(roundBefore [33m+[39m [34m1[39m)
+    [90m   | [39m                                 [31m^[39m
+    [90m285| [39m      })
+    [90m286| [39m    })
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/stores/__tests__/useGameStore.test.ts[2m > [22museGameStore[2m > [22mSelectors[2m > [22mselectHand should return player hand
+[31m[1mAssertionError[22m: expected [ { instanceId: 'F002-1', …(18) } ] to have a length of +0 but got 1[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 0[39m
+[31m+ 1[39m
+
+[36m [2m❯[22m src/stores/__tests__/useGameStore.test.ts:[2m404:33[22m[39m
+    [90m402| [39m    [34mit[39m([32m'selectHand should return player hand'[39m[33m,[39m () [33m=>[39m {
+    [90m403| [39m      [35mconst[39m state [33m=[39m useGameStore[33m.[39m[34mgetState[39m()
+    [90m404| [39m      [34mexpect[39m([34mselectHand[39m(state))[33m.[39m[34mtoHaveLength[39m([34m0[39m)
+    [90m   | [39m                                [31m^[39m
+    [90m405| [39m    })
+    [90m406| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/stores/__tests__/useGameStore.test.ts[2m > [22museGameStore[2m > [22mHooks[2m > [22museHand should return player hand
+[31m[1mAssertionError[22m: expected [ { instanceId: 'F002-1', …(18) } ] to have a length of +0 but got 1[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 0[39m
+[31m+ 1[39m
+
+[36m [2m❯[22m src/stores/__tests__/useGameStore.test.ts:[2m478:30[22m[39m
+    [90m476| [39m    [34mit[39m([32m'useHand should return player hand'[39m[33m,[39m () [33m=>[39m {
+    [90m477| [39m      [35mconst[39m { result } [33m=[39m [34mrenderHook[39m(() [33m=>[39m [34museHand[39m())
+    [90m478| [39m      [34mexpect[39m(result[33m.[39mcurrent)[33m.[39m[34mtoHaveLength[39m([34m0[39m)
+    [90m   | [39m                             [31m^[39m
+    [90m479| [39m    })
+    [90m480| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/data/cards/__tests__/base-cards.test.ts[2m > [22mBase Cards Data[2m > [22mCard Image Mapping[2m > [22mshould have image mappings for all 70 cards
+[31m[1mAssertionError[22m: expected 98 to be 70 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 70[39m
+[31m+ 98[39m
+
+[36m [2m❯[22m src/data/cards/__tests__/base-cards.test.ts:[2m189:35[22m[39m
+    [90m187| [39m  [34mdescribe[39m([32m'Card Image Mapping'[39m[33m,[39m () [33m=>[39m {
+    [90m188| [39m    [34mit[39m([32m'should have image mappings for all 70 cards'[39m[33m,[39m () [33m=>[39m {
+    [90m189| [39m      [34mexpect[39m([34mgetCardImageCount[39m())[33m.[39m[34mtoBe[39m([34m70[39m)
+    [90m   | [39m                                  [31m^[39m
+    [90m190| [39m    })
+    [90m191| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/8]⎯[22m[39m
+
+[2m Test Files [22m [1m[31m4 failed[39m[22m[2m | [22m[1m[32m5 passed[39m[22m[90m (9)[39m
+[2m      Tests [22m [1m[31m6 failed[39m[22m[2m | [22m[1m[32m234 passed[39m[22m[90m (240)[39m
+[2m   Start at [22m 11:07:27
+[2m   Duration [22m 20.31s[2m (transform 806ms, setup 22.53s, collect 6.40s, tests 131ms, environment 107.73s, prepare 2.65s)[22m
+
+[1m[7m[31m FAIL [39m[27m[22m [31mTests failed. Watching for file changes...[39m
+       [2mpress [22m[1mh[22m[2m to show help[22m[2m, [22m[2mpress [22m[1mq[22m[2m to quit[22m

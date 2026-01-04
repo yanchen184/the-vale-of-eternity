@@ -1,9 +1,9 @@
 /**
  * Fire Family Cards (15 cards)
  * Complete card data with Stone Economy System
- * @version 3.0.0
+ * @version 3.1.0 - Added isImplemented flags to F002 and F007
  */
-console.log('[data/cards/fire-cards.ts] v3.0.0 loaded')
+console.log('[data/cards/fire-cards.ts] v3.1.0 loaded')
 
 import {
   type CardTemplate,
@@ -60,16 +60,18 @@ export const FIRE_CARDS: readonly CardTemplate[] = [
         stones: [{ type: StoneType.ONE, amount: 2 }],
         description: 'Earn 1 1.',
         descriptionTw: '獲得 2 個 1 點石頭。',
+        isImplemented: true,
       },
       {
         type: EffectType.RECOVER_CARD,
         trigger: EffectTrigger.PERMANENT,
         description: 'Recover.',
         descriptionTw: '可被回收。',
+        isImplemented: true,
       },
     ],
     flavorText: 'Small but mischievous.',
-    flavorTextTw: '頑皮的火焰精靈，雖然弱小但忠誠。',
+    flavorTextTw: '頑皮的火焰精靈,雖然弱小但忠誠。',
     imageUrl: '200px-Imp.webp',
   },
   {
@@ -170,11 +172,12 @@ export const FIRE_CARDS: readonly CardTemplate[] = [
     baseScore: 6,
     effects: [
       {
-        type: EffectType.EARN_PER_ELEMENT,
+        type: EffectType.CONDITIONAL_AREA,
         trigger: EffectTrigger.ON_TAME,
-        stones: [{ type: StoneType.ONE, amount: 1 }],
-        description: 'Earn 1 for each card in your area.',
-        descriptionTw: '你場上的每張卡獲得 1 個 1 點石頭。',
+        value: 1,
+        description: 'Earn 1 point for each card in your area.',
+        descriptionTw: '你場上的每張卡立即獲得 1 分。',
+        isImplemented: true,
       },
     ],
     flavorText: 'Djinn of flames.',

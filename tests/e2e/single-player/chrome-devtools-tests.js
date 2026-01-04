@@ -427,6 +427,70 @@ async function test03_returnToHand() {
 }
 
 /**
+ * TEST_06: 在行動階段抽牌測試
+ */
+async function test06_drawInActionPhase() {
+  console.log('\n%c=== TEST_06: 在行動階段抽牌測試 ===', 'color: #f59e0b; font-size: 16px; font-weight: bold')
+
+  try {
+    // Step 1: 初始化遊戲
+    TestUtils.log(1, '初始化遊戲')
+    await procInitGame()
+    await procSelectArtifact()
+    await procSelectInitialCards()
+
+    // Step 2: 確認進入 ACTION 階段
+    TestUtils.log(2, '確認當前階段為 ACTION')
+    await TestUtils.sleep(1000)
+    const phaseText = await TestUtils.getText('[class*="phase"], [class*="Phase"]')
+    TestUtils.log(2, `當前階段: ${phaseText}`)
+    TestUtils.assert(phaseText.includes('行動') || phaseText.includes('ACTION'),
+      `階段錯誤: ${phaseText}`)
+
+    // Step 3: 記錄當前手牌數量
+    TestUtils.log(3, '記錄當前手牌數量')
+    await procOpenHand()
+    const handCountBefore = TestUtils.count('[class*="hand"] .card')
+    TestUtils.log(3, `手牌數量: ${handCountBefore}`)
+
+    // Step 4: 查找並點擊「抽牌」按鈕
+    TestUtils.log(4, '查找抽牌按鈕')
+    const drawBtn = Array.from(document.querySelectorAll('button'))
+      .find(btn => btn.textContent.includes('抽牌') || btn.textContent.includes('Draw'))
+
+    TestUtils.assert(drawBtn, '找不到抽牌按鈕')
+    TestUtils.assert(!drawBtn.disabled, '抽牌按鈕被禁用')
+
+    // Step 5: 點擊抽牌
+    TestUtils.log(5, '點擊抽牌按鈕')
+    drawBtn.click()
+    await TestUtils.sleep(1500) // 等待抽牌動畫
+
+    // Step 6: 檢查手牌是否增加
+    TestUtils.log(6, '檢查手牌數量變化')
+    const handCountAfter = TestUtils.count('[class*="hand"] .card')
+    TestUtils.log(6, `手牌數量變化: ${handCountBefore} → ${handCountAfter}`)
+    TestUtils.assert(handCountAfter === handCountBefore + 1,
+      `手牌數量錯誤: 期望 ${handCountBefore + 1}，實際 ${handCountAfter}`)
+
+    // Step 7: 確認仍在 ACTION 階段（不應自動跳過）
+    TestUtils.log(7, '確認仍在 ACTION 階段')
+    const phaseTextAfter = await TestUtils.getText('[class*="phase"], [class*="Phase"]')
+    TestUtils.log(7, `抽牌後階段: ${phaseTextAfter}`)
+    TestUtils.assert(phaseTextAfter.includes('行動') || phaseTextAfter.includes('ACTION'),
+      `階段不正確: ${phaseTextAfter}`)
+
+    TestUtils.success('TEST_06 PASSED - 行動階段抽牌功能正常')
+    return { status: 'PASS', testId: 'TEST_06' }
+
+  } catch (error) {
+    TestUtils.error(`TEST_06 FAILED: ${error.message}`)
+    console.error(error)
+    return { status: 'FAIL', testId: 'TEST_06', error: error.message }
+  }
+}
+
+/**
  * 執行所有測試
  */
 async function runAllTests() {
@@ -439,9 +503,10 @@ async function runAllTests() {
   const startTime = Date.now()
 
   // 執行測試
-  results.push(await test01_sanctuary())
+  // results.push(await test01_sanctuary())
   // results.push(await test02_discard())
   // results.push(await test03_returnToHand())
+  results.push(await test06_drawInActionPhase())
 
   const duration = ((Date.now() - startTime) / 1000).toFixed(1)
 

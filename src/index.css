@@ -1046,4 +1046,177 @@
   .animate-stagger-7 { animation-delay: 350ms; }
   .animate-stagger-8 { animation-delay: 400ms; }
   .animate-stagger-9 { animation-delay: 450ms; }
+
+  /* ============================================
+   * Effect Processing Animations
+   * For Ifrit and other card effect animations
+   * @version 1.0.0
+   * ============================================ */
+
+  /* Score particle flying animation */
+  @keyframes scoreFly {
+    0% {
+      opacity: 1;
+      transform: translate(0, 0) scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: translate(calc(cos(var(--fly-angle)) * 50px), calc(sin(var(--fly-angle)) * -80px)) scale(1.2);
+    }
+    100% {
+      opacity: 0;
+      transform: translate(calc(cos(var(--fly-angle)) * 80px), calc(sin(var(--fly-angle)) * -120px)) scale(0.5);
+    }
+  }
+
+  .animate-score-fly {
+    animation: scoreFly 1.5s ease-out forwards;
+  }
+
+  /* Shine effect for progress bar */
+  @keyframes shine {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(200%);
+    }
+  }
+
+  .animate-shine {
+    animation: shine 2s linear infinite;
+  }
+
+  /* Processing spinner glow */
+  @keyframes processingGlow {
+    0%, 100% {
+      box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+    }
+    50% {
+      box-shadow: 0 0 40px rgba(168, 85, 247, 0.8);
+    }
+  }
+
+  .animate-processing-glow {
+    animation: processingGlow 1.5s ease-in-out infinite;
+  }
+
+  /* Score counter animation */
+  @keyframes scoreCount {
+    0% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.2);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  .animate-score-count {
+    animation: scoreCount 0.3s ease-out;
+  }
+
+  /* Effect lightning flash */
+  @keyframes lightningFlash {
+    0%, 100% {
+      opacity: 0;
+    }
+    5%, 25% {
+      opacity: 1;
+    }
+    30%, 60% {
+      opacity: 0;
+    }
+    65%, 85% {
+      opacity: 0.7;
+    }
+    90% {
+      opacity: 0;
+    }
+  }
+
+  .animate-lightning-flash {
+    animation: lightningFlash 0.5s ease-out;
+  }
+
+  /* ============================================
+   * Resolution Phase Breathing Effect
+   * For cards with pending resolution effects (Imp)
+   * @version 1.0.0
+   * ============================================ */
+
+  /* Breathing scale animation for the card container */
+  @keyframes resolutionBreathing {
+    0%, 100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.03);
+    }
+  }
+
+  .animate-resolution-breathing {
+    animation: resolutionBreathing 2s ease-in-out infinite;
+    cursor: pointer;
+  }
+
+  /* Pulsing glow overlay effect */
+  @keyframes resolutionGlow {
+    0%, 100% {
+      box-shadow:
+        inset 0 0 20px rgba(245, 158, 11, 0.3),
+        0 0 15px rgba(245, 158, 11, 0.4),
+        0 0 30px rgba(245, 158, 11, 0.2);
+      border: 2px solid rgba(245, 158, 11, 0.6);
+    }
+    50% {
+      box-shadow:
+        inset 0 0 30px rgba(245, 158, 11, 0.5),
+        0 0 25px rgba(245, 158, 11, 0.6),
+        0 0 50px rgba(245, 158, 11, 0.3);
+      border: 2px solid rgba(245, 158, 11, 0.9);
+    }
+  }
+
+  .animate-resolution-glow {
+    animation: resolutionGlow 2s ease-in-out infinite;
+    background: radial-gradient(
+      ellipse at center,
+      rgba(245, 158, 11, 0.1) 0%,
+      transparent 70%
+    );
+  }
+
+  /* Resolution card hover enhancement */
+  .animate-resolution-breathing:hover {
+    animation: none;
+    transform: scale(1.05);
+    box-shadow:
+      inset 0 0 30px rgba(245, 158, 11, 0.5),
+      0 0 30px rgba(245, 158, 11, 0.7),
+      0 0 60px rgba(245, 158, 11, 0.4);
+  }
+
+  /* Resolution indicator badge */
+  .resolution-badge {
+    @apply absolute top-2 right-2 z-40;
+    @apply px-2 py-1 rounded-full;
+    @apply text-xs font-bold text-amber-900;
+    @apply bg-gradient-to-r from-amber-400 to-amber-500;
+    @apply shadow-lg;
+    animation: resolutionBadgePulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes resolutionBadgePulse {
+    0%, 100% {
+      transform: scale(1);
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+    }
+    50% {
+      transform: scale(1.1);
+      box-shadow: 0 0 20px rgba(245, 158, 11, 0.8);
+    }
+  }
 }

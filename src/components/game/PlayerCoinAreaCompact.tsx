@@ -32,6 +32,8 @@ export interface PlayerCoinAreaCompactProps {
   isPlayerTurn?: boolean
   /** Callback when returning a coin to bank */
   onReturnCoin?: (coinType: StoneType, slotElement: HTMLElement) => void
+  /** Callback when clicking a coin to discard (single player mode) */
+  onCoinClick?: (coinType: StoneType) => void
   /** Additional CSS classes */
   className?: string
 }
@@ -128,6 +130,7 @@ export const PlayerCoinAreaCompact = memo(
         isCurrentPlayer = false,
         isPlayerTurn = false,
         onReturnCoin,
+        onCoinClick,
         className = '',
       },
       ref
@@ -217,10 +220,15 @@ export const PlayerCoinAreaCompact = memo(
                 data-testid={`coin-slot-${playerId}-${slot.index}`}
                 data-coin-type={slot.stoneType}
                 onClick={() => {
-                  if (slot.stoneType && slot.config && onReturnCoin) {
-                    const element = slotRefs.current.get(slot.index)
-                    if (element) {
-                      onReturnCoin(slot.stoneType, element)
+                  if (slot.stoneType && slot.config) {
+                    // Priority: onCoinClick (single player direct discard) > onReturnCoin (multiplayer animation)
+                    if (onCoinClick) {
+                      onCoinClick(slot.stoneType)
+                    } else if (onReturnCoin) {
+                      const element = slotRefs.current.get(slot.index)
+                      if (element) {
+                        onReturnCoin(slot.stoneType, element)
+                      }
                     }
                   }
                 }}

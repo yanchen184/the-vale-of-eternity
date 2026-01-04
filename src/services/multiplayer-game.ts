@@ -1,16 +1,15 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 4.11.0 - Added action logs to moveCurrentDrawnCardToHand and sellCurrentDrawnCard
+ * @version 4.15.0 - Added ACTION artifact execution (Incense Burner, Monkey King Staff, Book of Thoth)
  */
-console.log('[services/multiplayer-game.ts] v4.11.0 loaded')
+console.log('[services/multiplayer-game.ts] v4.15.0 loaded - ACTION artifacts implemented')
 
 import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
 import { getAllBaseCards } from '@/data/cards'
 import type { CardInstance, CardTemplate } from '@/types/cards'
-import { CardLocation, StoneType, Element, EffectType } from '@/types/cards'
-// Note: EffectTrigger is available in '@/types/cards' if needed for future effect processing
+import { CardLocation, StoneType, Element, EffectType, EffectTrigger } from '@/types/cards'
 import { effectProcessor } from './effect-processor'
 import { scoreCalculator, type ScoreBreakdown } from './score-calculator'
 import { type PlayerColor, getColorByIndex } from '@/types/player-color'
@@ -94,6 +93,7 @@ export interface PlayerState {
   isConnected: boolean
   isFlipped: boolean  // Whether player has flipped their card for +60/-60
   zoneBonus: 0 | 1 | 2  // Zone indicator: 0/+1/+2 (extra field slots this round)
+  artifactUsedThisRound?: boolean  // v4.15.0: Whether ACTION artifact has been used this round
 }
 
 export interface HuntingState {
@@ -206,6 +206,14 @@ export interface GameRoom {
   // Action phase
   currentPlayerIndex: number
   passedPlayerIds: string[]
+
+  // Resolution phase (v4.14.0) - Process cards with resolution effects (e.g., Imp's RECOVER_CARD)
+  resolutionState?: {
+    /** Card instance IDs with pending resolution effects, per player */
+    pendingCards: { [playerId: string]: string[] }
+    /** Card instance IDs that have been processed (player chose yes/no), per player */
+    processedCards: { [playerId: string]: string[] }
+  }
 
   // UI state synchronization
   showScoreModal?: boolean  // Synchronized modal state controlled by current turn player
@@ -530,8 +538,24 @@ export class MultiplayerGameService {
     // Take cards for market (2 cards × player count)
     // 2 players: 4 cards, 3 players: 6 cards, 4 players: 8 cards
     const marketSize = game.playerIds.length * 2
-    const marketCards = shuffledDeck.slice(0, marketSize)
-    const remainingDeck = shuffledDeck.slice(marketSize)
+
+    // Force Ifrit (F007) to appear in market for testing
+    const ifritCard = shuffledDeck.find(card => card.cardId === 'F007')
+    const nonIfritCards = shuffledDeck.filter(card => card.cardId !== 'F007')
+
+    let marketCards: CardInstanceData[]
+    let remainingDeck: CardInstanceData[]
+
+    if (ifritCard) {
+      // Include Ifrit and fill rest of market from shuffled deck
+      const otherMarketCards = nonIfritCards.slice(0, marketSize - 1)
+      marketCards = [ifritCard, ...otherMarketCards]
+      remainingDeck = nonIfritCards.slice(marketSize - 1)
+    } else {
+      // Fallback if somehow Ifrit is not in deck
+      marketCards = shuffledDeck.slice(0, marketSize)
+      remainingDeck = shuffledDeck.slice(marketSize)
+    }
 
     // Update market cards location
     for (const card of marketCards) {
@@ -701,9 +725,11 @@ export class MultiplayerGameService {
       const updatedHand = [...currentHand, ...cardIds]
 
       // Update player's hand and ensure field is initialized
+      // v4.15.0: Reset artifactUsedThisRound when ACTION phase begins
       await update(ref(database, `games/${gameId}/players/${playerId}`), {
         hand: updatedHand,
         field: currentField, // Ensure field array exists
+        artifactUsedThisRound: false, // Reset for new round
       })
 
       // Update each card's location and clear selectedBy marker
@@ -2185,6 +2211,8 @@ export class MultiplayerGameService {
       currentDrawnCards: [],
     })
 
+    let shouldIdentifyResolutionCards = false
+
     await runTransaction(ref(database, `games/${gameId}`), (game: GameRoom | null) => {
       if (!game) return game
 
@@ -2214,10 +2242,16 @@ export class MultiplayerGameService {
         if (game.status === 'ACTION') {
           // All players passed in ACTION → Move to RESOLUTION phase
           game.status = 'RESOLUTION'
+          // Initialize empty resolution state (will be populated after transaction)
+          game.resolutionState = {
+            pendingCards: {},
+            processedCards: {}
+          }
           // Start resolution from this round's starting player
           const startingPlayerIndex = game.huntingPhase?.startingPlayerIndex ?? 0
           game.currentPlayerIndex = startingPlayerIndex
           game.passedPlayerIds = []  // Reset for tracking who finished resolution
+          shouldIdentifyResolutionCards = true  // Signal to identify cards after transaction
           console.log(`[MultiplayerGame] All players passed, moving to RESOLUTION phase - starting from player ${startingPlayerIndex} for game ${game.gameId}`)
         } else if (game.status === 'RESOLUTION') {
           // All players finished RESOLUTION → Start next round
@@ -2284,6 +2318,143 @@ export class MultiplayerGameService {
       game.updatedAt = Date.now()
       return game
     })
+
+    // After transaction: Identify resolution cards if we just entered RESOLUTION phase
+    if (shouldIdentifyResolutionCards) {
+      await this.identifyResolutionCards(gameId)
+    }
+  }
+
+  /**
+   * Identify cards with RECOVER_CARD PERMANENT effects for all players
+   * Called after entering RESOLUTION phase
+   */
+  private async identifyResolutionCards(gameId: string): Promise<void> {
+    const gameRef = ref(database, `games/${gameId}`)
+    const gameSnapshot = await get(gameRef)
+    if (!gameSnapshot.exists()) return
+
+    const game = gameSnapshot.val() as GameRoom
+    const pendingCards: { [playerId: string]: string[] } = {}
+    const processedCards: { [playerId: string]: string[] } = {}
+
+    for (const pid of game.playerIds) {
+      const playerRef = ref(database, `games/${gameId}/players/${pid}`)
+      const playerSnapshot = await get(playerRef)
+      if (!playerSnapshot.exists()) continue
+
+      const player = playerSnapshot.val() as PlayerState
+      pendingCards[pid] = []
+
+      // Check each card in player's field
+      for (const cardInstanceId of player.field) {
+        const cardRef = ref(database, `games/${gameId}/cards/${cardInstanceId}`)
+        const cardSnapshot = await get(cardRef)
+        if (!cardSnapshot.exists()) continue
+
+        const card = cardSnapshot.val() as CardInstanceData
+        // Get card template to check effects
+        const template = getAllBaseCards().find(c => c.id === card.cardId)
+        if (!template) continue
+
+        // Check if has RECOVER_CARD PERMANENT effect (like Imp F002)
+        const hasRecoverEffect = template.effects.some(
+          effect => effect.type === EffectType.RECOVER_CARD && effect.trigger === EffectTrigger.PERMANENT
+        )
+
+        if (hasRecoverEffect) {
+          pendingCards[pid].push(cardInstanceId)
+        }
+      }
+
+      processedCards[pid] = []
+      console.log(`[MultiplayerGame] Player ${pid} has ${pendingCards[pid].length} resolution cards:`, pendingCards[pid])
+    }
+
+    // Update resolution state
+    await update(ref(database, `games/${gameId}/resolutionState`), {
+      pendingCards,
+      processedCards
+    })
+  }
+
+  /**
+   * Process a resolution card's effect (player chose to activate or skip)
+   * For RECOVER_CARD effect: activate=true returns card to hand, activate=false keeps card on field
+   * Only activate=true marks the card as processed
+   * @param gameId Game ID
+   * @param playerId Player ID who owns the card
+   * @param cardInstanceId Card instance ID to process
+   * @param activate Whether to activate the effect (true = return to hand, false = stay on field)
+   */
+  async processResolutionCard(
+    gameId: string,
+    playerId: string,
+    cardInstanceId: string,
+    activate: boolean
+  ): Promise<void> {
+    // Get game room data
+    const gameRef = ref(database, `games/${gameId}`)
+    const gameSnapshot = await get(gameRef)
+    if (!gameSnapshot.exists()) {
+      throw new Error('Game not found')
+    }
+    const game = gameSnapshot.val() as GameRoom
+
+    if (game.status !== 'RESOLUTION') {
+      throw new Error('Not in resolution phase')
+    }
+
+    if (!game.resolutionState) {
+      throw new Error('Resolution state not initialized')
+    }
+
+    // Check if card is in pending list
+    const pending = game.resolutionState.pendingCards[playerId] || []
+    const processed = game.resolutionState.processedCards[playerId] || []
+
+    if (!pending.includes(cardInstanceId)) {
+      throw new Error('Card does not have pending resolution effect')
+    }
+
+    if (processed.includes(cardInstanceId)) {
+      throw new Error('Card already processed')
+    }
+
+    if (activate) {
+      // Get player data
+      const playerRef = ref(database, `games/${gameId}/players/${playerId}`)
+      const playerSnapshot = await get(playerRef)
+      if (!playerSnapshot.exists()) {
+        throw new Error('Player not found')
+      }
+      const player = playerSnapshot.val() as PlayerState
+
+      // Return card to hand
+      const cardIndex = player.field.indexOf(cardInstanceId)
+      if (cardIndex === -1) {
+        throw new Error('Card not found on field')
+      }
+
+      player.field.splice(cardIndex, 1)
+      player.hand.push(cardInstanceId)
+
+      // Update player and game state
+      const updates: { [path: string]: any } = {}
+      updates[`games/${gameId}/players/${playerId}/field`] = player.field
+      updates[`games/${gameId}/players/${playerId}/hand`] = player.hand
+      updates[`games/${gameId}/cards/${cardInstanceId}/location`] = CardLocation.HAND
+      updates[`games/${gameId}/resolutionState/processedCards/${playerId}`] = [...processed, cardInstanceId]
+      updates[`games/${gameId}/updatedAt`] = Date.now()
+
+      await update(ref(database), updates)
+
+      console.log(`[MultiplayerGame] Resolution activated: ${cardInstanceId} returned to hand for player ${playerId}`)
+    } else {
+      // Card stays on field, NOT marked as processed
+      // Player must choose "activate" to complete the resolution
+      console.log(`[MultiplayerGame] Resolution declined: ${cardInstanceId} stays on field for player ${playerId}`)
+    }
   }
 
   /**
@@ -2303,6 +2474,16 @@ export class MultiplayerGameService {
 
       if (playerId !== expectedPlayerId) {
         throw new Error('Not your turn for resolution')
+      }
+
+      // ✅ Check if player has processed all their resolution cards
+      if (game.resolutionState) {
+        const pending = game.resolutionState.pendingCards[playerId] || []
+        const processed = game.resolutionState.processedCards[playerId] || []
+
+        if (pending.length > 0 && processed.length < pending.length) {
+          throw new Error(`還有 ${pending.length - processed.length} 張結算效果卡片待處理（必須選擇『是，回到手上』）`)
+        }
       }
 
       // Mark player as finished resolution
@@ -3585,6 +3766,86 @@ export class MultiplayerGameService {
       })
 
       console.log(`[MultiplayerGame] Firebase update completed: currentPlayerIndex = ${nextPlayerIndex}`)
+    }
+  }
+
+  /**
+   * Use an ACTION type artifact during the action phase
+   * @param gameId - Game room ID
+   * @param playerId - Player using the artifact
+   * @param artifactId - Artifact ID to execute
+   * @param optionId - Optional option ID for artifacts with multiple choices
+   * @param selectedPayment - Optional payment for artifacts requiring stone payment
+   * @param selectedCards - Optional card IDs for effects requiring card selection
+   * @param selectedStones - Optional stone configuration for stone-based effects
+   * @version 1.0.0
+   */
+  async useArtifact(
+    gameId: string,
+    playerId: string,
+    artifactId: string,
+    optionId?: string,
+    selectedPayment?: Partial<StonePool>,
+    selectedCards?: string[],
+    selectedStones?: Partial<StonePool>
+  ): Promise<{ success: boolean; message: string; requiresInput?: boolean; inputType?: string; options?: any[] }> {
+    console.log('[MultiplayerGame] v4.15.0 useArtifact:', {
+      artifactId,
+      playerId,
+      optionId,
+      hasPayment: !!selectedPayment,
+      hasCards: !!selectedCards,
+      hasStones: !!selectedStones,
+    })
+
+    const gameRef = ref(database, `games/${gameId}`)
+    const snapshot = await get(gameRef)
+
+    if (!snapshot.exists()) {
+      return { success: false, message: 'Game not found' }
+    }
+
+    const game: GameRoom = snapshot.val()
+    const player = game.players[playerId]
+
+    if (!player) {
+      return { success: false, message: 'Player not found' }
+    }
+
+    // Validate artifact was selected by player this round
+    const currentRound = game.currentRound
+    const playerArtifactThisRound = game.artifactSelections?.[playerId]?.[currentRound]
+
+    if (playerArtifactThisRound !== artifactId) {
+      return { success: false, message: '你沒有選擇此神器' }
+    }
+
+    // Check if artifact has already been used this round
+    if (player.artifactUsedThisRound) {
+      return { success: false, message: '此神器本回合已使用' }
+    }
+
+    // Execute based on artifact ID
+    const artifactProcessor = await import('./artifact-processor')
+
+    switch (artifactId) {
+      case 'incense_burner':
+        return await artifactProcessor.executeIncenseBurner(
+          gameId,
+          playerId,
+          optionId,
+          selectedPayment,
+          selectedCards
+        )
+
+      case 'monkey_king_staff':
+        return await artifactProcessor.executeMonkeyKingStaff(gameId, playerId, selectedCards)
+
+      case 'book_of_thoth':
+        return await artifactProcessor.executeBookOfThoth(gameId, playerId, selectedStones)
+
+      default:
+        return { success: false, message: `神器 ${artifactId} 效果尚未實作` }
     }
   }
 
