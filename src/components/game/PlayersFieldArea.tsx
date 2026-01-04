@@ -2,9 +2,9 @@
  * PlayersFieldArea Component
  * Displays all players' field cards - each player gets a horizontal row
  * Integrated with hand preview and current turn cards display
- * @version 5.7.0 - Complete resolution phase integration with breathing glow effect
+ * @version 5.8.0 - Show action phase cards for all players during ACTION/RESOLUTION phases
  */
-console.log('[components/game/PlayersFieldArea.tsx] v5.7.0 loaded')
+console.log('[components/game/PlayersFieldArea.tsx] v5.8.0 loaded')
 
 import { memo, useMemo, useCallback, useState } from 'react'
 import { Card } from './Card'
@@ -221,8 +221,8 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
           <div className="flex flex-col gap-2">
             {/* Cards Row - Action Phase Slots + Divider + Field Cards */}
             <div className="flex gap-4 items-start">
-              {/* Action Phase Section - Fixed 2 slots - Always show during player's turn */}
-              {player.isCurrentTurn ? (
+              {/* Action Phase Section - Fixed 2 slots - Show for all players in ACTION/RESOLUTION phase */}
+              {(phase === 'ACTION' || phase === 'RESOLUTION') && player.currentTurnCards && player.currentTurnCards.length > 0 ? (
                   <div className="flex-shrink-0 p-3 rounded-lg bg-blue-900/20 border-2 border-blue-500/40">
                     {/* Phase Label */}
                     <div className="flex items-center gap-2 mb-2">
@@ -343,7 +343,7 @@ const PlayerFieldSection = memo(function PlayerFieldSection({
                 ) : null}
 
                 {/* Vertical Divider */}
-                {player.isCurrentTurn ? (
+                {(phase === 'ACTION' || phase === 'RESOLUTION') && player.currentTurnCards && player.currentTurnCards.length > 0 ? (
                   <div className="flex-shrink-0 w-1 bg-gradient-to-b from-blue-500/20 via-slate-600 to-blue-500/20 self-stretch rounded-full" />
                 ) : null}
 

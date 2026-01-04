@@ -1,15 +1,16 @@
 /**
- * Lightning Effect Component v1.1.0
+ * Lightning Effect Component v1.2.0
  * Dramatic lightning animation for Ifrit card effect
  * Features:
  * - SVG lightning bolt animation from top to bottom
  * - Full-screen blocking overlay
  * - Screen shake effect
  * - Animated text display with glow effects
+ * - Card image display with amber glow
  * - Lightning sound effect
- * @version 1.1.0
+ * @version 1.2.0 - Added card image display
  */
-console.log('[components/game/LightningEffect.tsx] v1.1.0 loaded')
+console.log('[components/game/LightningEffect.tsx] v1.2.0 loaded')
 
 import { useState, useEffect, useCallback } from 'react'
 import { useSound } from '@/hooks/useSound'
@@ -33,6 +34,8 @@ export interface LightningEffectProps {
   reason: string
   /** Whether to show score modal (true for score effects, false for stone effects) */
   showScoreModal?: boolean
+  /** Card image URL */
+  imageUrl?: string
   /** Callback when effect completes (before modal opens) */
   onLightningComplete?: () => void
   /** Callback when modal should open (after 2s) */
@@ -83,6 +86,7 @@ export function LightningEffect({
   scoreChange,
   reason,
   showScoreModal = false,
+  imageUrl,
   onLightningComplete,
   onOpenModal,
   onEffectComplete,
@@ -259,6 +263,20 @@ export function LightningEffect({
           {/* Animated text display */}
           {showText && (
             <div className="lightning-text-container">
+              {/* Card Image */}
+              {imageUrl && (
+                <div className="mb-6 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+                  <img
+                    src={`${import.meta.env.BASE_URL}cards/${imageUrl}`}
+                    alt={cardNameTw}
+                    className="w-48 h-auto mx-auto rounded-lg shadow-2xl border-4 border-amber-400/50"
+                    style={{
+                      filter: 'drop-shadow(0 0 20px rgba(251, 191, 36, 0.5))',
+                    }}
+                  />
+                </div>
+              )}
+
               {/* Lightning emoji with spin */}
               <div className="lightning-emoji">
                 <span className="lightning-emoji-icon">&#9889;</span>

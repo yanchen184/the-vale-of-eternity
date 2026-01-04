@@ -1,9 +1,9 @@
 /**
  * Game components exports
  * Core UI components for The Vale of Eternity game
- * @version 6.6.0 - Added StonePaymentModal for Incense Burner artifact
+ * @version 6.8.0 - Added ScoreHistory component with multi-player support
  */
-console.log('[components/game/index.ts] v6.6.0 loaded')
+console.log('[components/game/index.ts] v6.8.0 loaded')
 
 // Card components
 export { Card, CardBack } from './Card'
@@ -149,6 +149,13 @@ export type { StoneUpgradeModalProps, StoneUpgrade } from './StoneUpgradeModal'
 export { StonePaymentModal } from './StonePaymentModal'
 export type { StonePaymentModalProps } from './StonePaymentModal'
 
+export { FreeStoneSelectionModal } from './FreeStoneSelectionModal'
+export type { FreeStoneSelectionModalProps } from './FreeStoneSelectionModal'
+
 // Lightning Effect for Ifrit card (v6.5.0)
 export { LightningEffect } from './LightningEffect'
 export type { LightningEffectProps } from './LightningEffect'
+
+// Score History component (v6.8.0)
+export { ScoreHistory } from './ScoreHistory'
+export type { ScoreHistoryProps, PlayerHistoryData } from './ScoreHistory'

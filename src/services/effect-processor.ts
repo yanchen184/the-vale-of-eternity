@@ -1,9 +1,9 @@
 /**
  * Effect Processor for The Vale of Eternity
  * Handles all card effect processing (ON_TAME, PERMANENT, ON_SCORE)
- * @version 3.4.0 - Added CONDITIONAL_AREA effect for Ifrit (F007) - score points based on field size
+ * @version 3.5.0 - Fixed: Use effect.isImplemented property instead of whitelist check
  */
-console.log('[services/effect-processor.ts] v3.4.0 loaded')
+console.log('[services/effect-processor.ts] v3.5.0 loaded')
 
 import { ref, get, update } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -12,7 +12,8 @@ import type { CardEffect } from '@/types/cards'
 // Note: CardTemplate is used indirectly via getBaseCardById return type
 import { EffectType, EffectTrigger, StoneType, CardLocation } from '@/types/cards'
 import type { PlayerState, StonePool, CardInstanceData } from './multiplayer-game'
-import { isEffectFullyImplemented } from '@/utils/effect-implementation-status'
+// Reserved for future effect validation
+// import { isEffectFullyImplemented } from '@/utils/effect-implementation-status'
 
 // ============================================
 // TYPES
@@ -80,9 +81,9 @@ export class EffectProcessor {
    * Process a single effect
    */
   async processEffect(effect: CardEffect, context: EffectContext): Promise<EffectResult> {
-    // Check if effect is fully implemented
-    if (!isEffectFullyImplemented(effect.type)) {
-      console.log(`[EffectProcessor] Effect ${effect.type} is not fully implemented, skipping execution`)
+    // Check if effect is fully implemented using effect.isImplemented property
+    if (effect.isImplemented !== true) {
+      console.log(`[EffectProcessor] Effect ${effect.type} is not marked as implemented (isImplemented=${effect.isImplemented}), skipping execution`)
       return {
         success: false,
         message: `效果 ${effect.type} 尚未實現，不會自動執行`,

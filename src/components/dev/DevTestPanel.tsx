@@ -1,9 +1,9 @@
 /**
  * Developer Test Panel for Card Effects Testing
  * Only available in development mode
- * @version 1.0.0
+ * @version 1.1.0 - Improved UI: "加入手牌" button label
  */
-console.log('[components/dev/DevTestPanel.tsx] v1.0.0 loaded')
+console.log('[components/dev/DevTestPanel.tsx] v1.1.0 loaded')
 
 import { useState, useEffect } from 'react'
 import { getBaseCardById, getAllCards } from '@/data/cards'
@@ -210,13 +210,13 @@ export function DevTestPanel({
       <div className="p-4 max-h-[600px] overflow-y-auto">
         {/* Card Search */}
         <div className="mb-4">
-          <label className="block text-sm font-semibold mb-2">Card Search:</label>
+          <label className="block text-sm font-semibold mb-2">🔍 搜尋卡片:</label>
           <div className="flex gap-2">
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by ID or name..."
+              placeholder="輸入卡片 ID 或名稱..."
               className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-purple-500"
             />
             <button className="bg-purple-600 hover:bg-purple-700 px-3 py-2 rounded">
@@ -261,7 +261,7 @@ export function DevTestPanel({
                 className="flex-1 bg-purple-600 hover:bg-purple-700 px-3 py-2 rounded text-sm font-semibold"
                 data-testid="summon-card-button"
               >
-                Summon
+                🃏 加入手牌
               </button>
             </div>
           </div>
@@ -334,7 +334,8 @@ export function useDevTestPanel() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && e.key === 'T') {
+      // Changed to Ctrl + Shift + D (D for Debug/Dev)
+      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
         e.preventDefault()
         setIsOpen((prev) => !prev)
         console.log('[TEST] 🧪 Dev Test Panel toggled:', !isOpen)

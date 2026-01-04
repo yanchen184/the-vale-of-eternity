@@ -86,6 +86,8 @@ export interface ArtifactEffectDetails {
   affectsSheltering?: boolean
   /** Whether this artifact affects recall/hand */
   affectsRecall?: boolean
+  /** Whether this artifact affects play area capacity */
+  affectsPlayArea?: boolean
   /** Custom implementation notes */
   implementationNotes?: string
 }

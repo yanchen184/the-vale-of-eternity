@@ -52,6 +52,7 @@ import {
   ArtifactEffectModal,
   StoneUpgradeModal,
   StonePaymentModal,
+  FreeStoneSelectionModal,
 } from '@/components/game'
 import type { StonePaymentOption } from '@/lib/single-player-engine'
 import type { PlayerCoinInfo } from '@/components/game/MultiplayerCoinSystem'
@@ -239,6 +240,7 @@ export default function SinglePlayerGame() {
   const [showArtifactEffectModal, setShowArtifactEffectModal] = useState(false)
   const [showStoneUpgradeModal, setShowStoneUpgradeModal] = useState(false)
   const [showStonePaymentModal, setShowStonePaymentModal] = useState(false)
+  const [showFreeStoneSelectionModal, setShowFreeStoneSelectionModal] = useState(false)
   const [artifactEffectInputType, setArtifactEffectInputType] = useState<EffectInputType>('CHOOSE_OPTION')
   const [artifactEffectOptions, setArtifactEffectOptions] = useState<ArtifactEffectOption[]>([])
   const [artifactSelectableCards, setArtifactSelectableCards] = useState<CardInstance[]>([])
@@ -838,28 +840,26 @@ export default function SinglePlayerGame() {
   const handleConfirmArtifactOption = useCallback((optionId: string) => {
     console.log('[SinglePlayerGame] handleConfirmArtifactOption:', optionId)
 
-    if (optionId === 'buy_card') {
-      // For Incense Burner buy_card option, first get payment options
+    // Incense Burner: Increase field capacity (new effect v9.16.0)
+    if (optionId === 'increase_capacity') {
       const result = executeArtifactEffect(optionId)
 
-      // Check if it requires payment selection
-      if (result.requiresInput && result.inputType === 'SELECT_PAYMENT' && result.stonePaymentOptions) {
-        console.log('[SinglePlayerGame] Showing payment selection modal')
+      // Check if it requires free stone selection
+      if (result.requiresInput && result.inputType === 'FREE_STONE_SELECTION') {
+        console.log('[SinglePlayerGame] Showing free stone selection modal')
         setPendingArtifactOptionId(optionId)
-        setStonePaymentOptions(result.stonePaymentOptions)
         setStonePaymentAmount(result.paymentAmount || 3)
         setShowArtifactEffectModal(false)
-        setShowStonePaymentModal(true)
+        setShowFreeStoneSelectionModal(true)
         return
       }
 
-      // Fallback to old behavior (shouldn't happen with new code)
-      setPendingArtifactOptionId(optionId)
-      setArtifactEffectInputType('SELECT_CARDS')
-      setArtifactSelectableCards(market || [])
-      setArtifactCardSelectionLabel('選擇1張買入區卡牌購買')
-      setArtifactMinCardSelection(1)
-      setArtifactMaxCardSelection(1)
+      // Shouldn't reach here, but handle success if it does
+      setShowArtifactEffectModal(false)
+      if (result.success) {
+        setArtifactResultMessage(result.message)
+        setTimeout(() => setArtifactResultMessage(null), 3000)
+      }
       return
     }
 
@@ -925,6 +925,38 @@ export default function SinglePlayerGame() {
     setShowStonePaymentModal(false)
     setPendingArtifactOptionId(null)
     setStonePaymentOptions([])
+    setStonePaymentAmount(0)
+  }, [])
+
+  // Handle free stone selection confirmation (for Incense Burner capacity increase)
+  const handleConfirmFreeStonePayment = useCallback((payment: Partial<typeof stones>) => {
+    console.log('[SinglePlayerGame] handleConfirmFreeStonePayment:', payment)
+
+    // Execute the artifact effect with the selected payment
+    const result = executeArtifactEffect(
+      pendingArtifactOptionId || undefined,
+      undefined,
+      payment || undefined
+    )
+
+    setShowFreeStoneSelectionModal(false)
+    setPendingArtifactOptionId(null)
+    setStonePaymentAmount(0)
+
+    if (result.success) {
+      setArtifactResultMessage(result.message)
+      setTimeout(() => setArtifactResultMessage(null), 3000)
+    } else {
+      // Show error message
+      setArtifactResultMessage(result.message || '操作失敗')
+      setTimeout(() => setArtifactResultMessage(null), 3000)
+    }
+  }, [executeArtifactEffect, pendingArtifactOptionId])
+
+  // Handle closing free stone selection modal
+  const handleCloseFreeStoneSelectionModal = useCallback(() => {
+    setShowFreeStoneSelectionModal(false)
+    setPendingArtifactOptionId(null)
     setStonePaymentAmount(0)
   }, [])
 
@@ -1600,6 +1632,17 @@ export default function SinglePlayerGame() {
         paymentAmount={stonePaymentAmount}
         onConfirmPayment={handleConfirmStonePayment}
         title="香爐 - 選擇支付方式"
+      />
+
+      {/* Free Stone Selection Modal (Incense Burner capacity increase) v9.16.0 */}
+      <FreeStoneSelectionModal
+        isOpen={showFreeStoneSelectionModal}
+        onClose={handleCloseFreeStoneSelectionModal}
+        bankStones={stones || EMPTY_STONE_POOL}
+        requiredAmount={stonePaymentAmount}
+        onConfirmPayment={handleConfirmFreeStonePayment}
+        title="香爐 - 增加場上容量"
+        description="從銀行的石頭中選擇要支付的組合（需要 3 分）"
       />
 
       {/* Resolution Confirm Modal - For Imp RECOVER_CARD effect (v9.7.0) */}

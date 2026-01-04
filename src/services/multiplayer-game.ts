@@ -1,9 +1,9 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 4.20.0 - Added score history tracking for manual score adjustments
+ * @version 4.21.0 - Added imageUrl parameter to lightning effect
  */
-console.log('[services/multiplayer-game.ts] v4.20.0 loaded - Manual score adjustment tracking')
+console.log('[services/multiplayer-game.ts] v4.21.0 loaded - Lightning effect with card image')
 
 import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -232,6 +232,7 @@ export interface GameRoom {
     scoreChange: number
     reason: string
     showScoreModal: boolean
+    imageUrl?: string
     timestamp: number  // For deduplication and ordering
   } | null
 
@@ -4083,6 +4084,7 @@ export class MultiplayerGameService {
    * @param scoreChange Score change amount
    * @param reason Effect description
    * @param showScoreModal Whether to show score modal
+   * @param imageUrl Card image URL
    */
   async triggerLightningEffect(
     gameId: string,
@@ -4090,7 +4092,8 @@ export class MultiplayerGameService {
     cardNameTw: string,
     scoreChange: number,
     reason: string,
-    showScoreModal: boolean = true
+    showScoreModal: boolean = true,
+    imageUrl?: string
   ): Promise<void> {
     console.log(`[MultiplayerGame] Triggering lightning effect: ${cardNameTw} (+${scoreChange})`)
 
@@ -4104,6 +4107,7 @@ export class MultiplayerGameService {
         scoreChange,
         reason,
         showScoreModal,
+        imageUrl,
         timestamp: Date.now(),
       },
       updatedAt: Date.now(),
