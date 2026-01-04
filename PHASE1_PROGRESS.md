@@ -189,36 +189,73 @@ async useArtifact(
 
 ---
 
-## ⏸️ Phase 1.3: 分數歷史記錄 - 待開始
+## ✅ Phase 1.3: 分數歷史記錄 - 完成！
 
 ### 實施內容
 
-1. **PlayerState Schema 擴展**
-   ```typescript
-   interface PlayerState {
-     scoreHistory?: Array<{
-       round: number
-       cardId: string
-       cardName: string
-       scoreChange: number
-       timestamp: number
-     }>
-   }
-   ```
+**檔案變更**:
+1. `src/services/multiplayer-game.ts` (v4.15.0 → v4.16.0)
+   - ✅ PlayerState 加入 scoreHistory 欄位
+   - ✅ 新增 recordScoreHistory 私有方法
+   - ✅ togglePlayerFlip 整合分數歷史記錄
 
-2. **score-calculator.ts 修改**
-   - 每次計算分數時記錄到 scoreHistory
-   - 包含卡牌名稱和分數變化
+2. `src/components/game/ScoreHistory.tsx` (v1.0.0 - 已存在)
+   - ✅ 顯示分數變化時間軸
+   - ✅ 顯示卡牌名稱、回合、分數變化
 
-3. **MultiplayerGame.tsx**
-   - 加入 ScoreHistory 組件
-   - 在「查看歷史記錄」按鈕中顯示
+3. `src/types/game.ts` (v3.4.0 - 已存在)
+   - ✅ ScoreHistoryEntry 介面已定義
 
-### 預估工作量
-- Schema: 20 行
-- score-calculator.ts: 50 行
-- MultiplayerGame.tsx: 30 行
-- **總計**: ~100 行代碼
+### 關鍵實現
+
+```typescript
+// multiplayer-game.ts: recordScoreHistory 方法
+private async recordScoreHistory(
+  gameId: string,
+  playerId: string,
+  previousScore: number,
+  newScore: number,
+  reason: string,
+  cardId?: string,
+  cardName?: string,
+  cardNameTw?: string
+): Promise<void> {
+  const entry: ScoreHistoryEntry = {
+    timestamp: Date.now(),
+    round: game.currentRound,
+    previousScore,
+    newScore,
+    delta: newScore - previousScore,
+    reason,
+    cardId,
+    cardName,
+    cardNameTw,
+  }
+
+  const updatedHistory = [...(player.scoreHistory || []), entry]
+  await update(ref(database, `games/${gameId}/players/${playerId}`), {
+    scoreHistory: updatedHistory,
+  })
+}
+```
+
+### 記錄的分數變化
+
+1. **翻轉卡牌**: ±60 分
+   - togglePlayerFlip: ✅ 已整合
+   - 顯示「翻轉卡牌 +60」或「取消翻轉 -60」
+
+### 待擴展記錄點
+
+以下是未來可以加入分數歷史記錄的地方：
+- ⏸️ 閃電效果 (Ifrit F007): 即時加分效果
+- ⏸️ 神器效果: 分數調整類神器
+- ⏸️ 最終結算: 場地卡牌、石頭價值、ON_SCORE 效果
+
+### 測試狀態
+
+- ⏸️ **待測試**: 翻轉卡牌的分數歷史記錄
+- ⏸️ **待整合**: MultiplayerGame.tsx UI 整合（ScoreHistory 組件）
 
 ---
 
@@ -228,18 +265,18 @@ async useArtifact(
 - ✅ Phase 0: 測試基準線建立
 - ✅ Phase 1.1: 閃電效果整合到多人模式
 - ✅ Phase 1.2: 神器系統整合（ACTION 類型）
+- ✅ Phase 1.3: 分數歷史記錄
 
 ### 進行中
-- 🔄 Phase 1.2: MultiplayerGame.tsx UI 整合
+- 🔄 Phase 2: 單人模式遷移到 Firebase
 
 ### 待開始
-- ⏸️ Phase 1.3: 分數歷史記錄
-- ⏸️ Phase 2: 單人模式遷移
+- ⏸️ UI 整合（神器、分數歷史）
 - ⏸️ Phase 3: 清理舊代碼
 
 ### 完成度
-- **Phase 1**: 66% (2/3 完成)
-- **整體專案**: 25% (Phase 0 + 1.1 + 1.2)
+- **Phase 1**: 100% (3/3 完成) ✨
+- **整體專案**: 40% (Phase 0 + Phase 1 完整)
 
 ---
 

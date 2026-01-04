@@ -1,9 +1,9 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 4.15.0 - Added ACTION artifact execution (Incense Burner, Monkey King Staff, Book of Thoth)
+ * @version 4.16.0 - Added score history tracking for all score changes
  */
-console.log('[services/multiplayer-game.ts] v4.15.0 loaded - ACTION artifacts implemented')
+console.log('[services/multiplayer-game.ts] v4.16.0 loaded - Score history tracking added')
 
 import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -13,6 +13,7 @@ import { CardLocation, StoneType, Element, EffectType, EffectTrigger } from '@/t
 import { effectProcessor } from './effect-processor'
 import { scoreCalculator, type ScoreBreakdown } from './score-calculator'
 import { type PlayerColor, getColorByIndex } from '@/types/player-color'
+import type { ScoreHistoryEntry } from '@/types/game'
 
 // ============================================
 // CONSTANTS
@@ -94,6 +95,7 @@ export interface PlayerState {
   isFlipped: boolean  // Whether player has flipped their card for +60/-60
   zoneBonus: 0 | 1 | 2  // Zone indicator: 0/+1/+2 (extra field slots this round)
   artifactUsedThisRound?: boolean  // v4.15.0: Whether ACTION artifact has been used this round
+  scoreHistory?: ScoreHistoryEntry[]  // v4.16.0: Track all score changes
 }
 
 export interface HuntingState {
@@ -2796,6 +2798,59 @@ export class MultiplayerGameService {
   }
 
   /**
+   * Record a score change in player's history
+   * @param gameId Game room ID
+   * @param playerId Player ID
+   * @param previousScore Previous score
+   * @param newScore New score
+   * @param reason Reason for score change
+   * @param cardId Optional card ID that caused the change
+   * @param cardName Optional card name (English)
+   * @param cardNameTw Optional card name (Traditional Chinese)
+   * @version 4.16.0
+   */
+  private async recordScoreHistory(
+    gameId: string,
+    playerId: string,
+    previousScore: number,
+    newScore: number,
+    reason: string,
+    cardId?: string,
+    cardName?: string,
+    cardNameTw?: string
+  ): Promise<void> {
+    // Get current game round
+    const gameSnapshot = await get(ref(database, `games/${gameId}`))
+    if (!gameSnapshot.exists()) return
+    const game: GameRoom = gameSnapshot.val()
+
+    // Get current player's score history
+    const playerSnapshot = await get(ref(database, `games/${gameId}/players/${playerId}`))
+    if (!playerSnapshot.exists()) return
+    const player: PlayerState = playerSnapshot.val()
+
+    const entry: ScoreHistoryEntry = {
+      timestamp: Date.now(),
+      round: game.currentRound,
+      previousScore,
+      newScore,
+      delta: newScore - previousScore,
+      reason,
+      cardId,
+      cardName,
+      cardNameTw,
+    }
+
+    const updatedHistory = [...(player.scoreHistory || []), entry]
+
+    await update(ref(database, `games/${gameId}/players/${playerId}`), {
+      scoreHistory: updatedHistory,
+    })
+
+    console.log(`[MultiplayerGame] v4.16.0 Score history recorded for ${playerId}:`, entry)
+  }
+
+  /**
    * Toggle player's flip state
    * When flipped: adds +60 to score
    * When unflipped: removes -60 from score
@@ -2810,11 +2865,21 @@ export class MultiplayerGameService {
     const player: PlayerState = playerSnapshot.val()
     const newFlipState = !player.isFlipped
     const scoreAdjustment = newFlipState ? 60 : -60
+    const newScore = player.score + scoreAdjustment
 
     await update(ref(database, `games/${gameId}/players/${playerId}`), {
       isFlipped: newFlipState,
-      score: player.score + scoreAdjustment,
+      score: newScore,
     })
+
+    // v4.16.0: Record score change
+    await this.recordScoreHistory(
+      gameId,
+      playerId,
+      player.score,
+      newScore,
+      newFlipState ? '翻轉卡牌 +60' : '取消翻轉 -60'
+    )
 
     console.log(
       `[MultiplayerGame] Player ${playerId} ${newFlipState ? 'flipped' : 'unflipped'} - score adjusted by ${scoreAdjustment}`
