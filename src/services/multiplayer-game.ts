@@ -1,9 +1,9 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 4.19.0 - Fixed score history to use correct ScoreHistoryEntry format
+ * @version 4.20.0 - Added score history tracking for manual score adjustments
  */
-console.log('[services/multiplayer-game.ts] v4.19.0 loaded - Score history with previousScore/newScore/delta')
+console.log('[services/multiplayer-game.ts] v4.20.0 loaded - Manual score adjustment tracking')
 
 import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
@@ -96,6 +96,7 @@ export interface PlayerState {
   zoneBonus: 0 | 1 | 2  // Zone indicator: 0/+1/+2 (extra field slots this round)
   artifactUsedThisRound?: boolean  // v4.15.0: Whether ACTION artifact has been used this round
   scoreHistory?: ScoreHistoryEntry[]  // v4.16.0: Track all score changes
+  fieldCapacity?: number  // v4.20.0: Maximum field slots (default 10, modified by artifacts)
 }
 
 export interface HuntingState {
@@ -2757,6 +2758,7 @@ export class MultiplayerGameService {
 
   /**
    * Adjust player's score (manual adjustment)
+   * @version 4.20.0 - Added score history tracking for manual adjustments
    */
   async adjustPlayerScore(
     gameId: string,
@@ -2767,12 +2769,45 @@ export class MultiplayerGameService {
       throw new Error('Score cannot be negative')
     }
 
-    await update(ref(database, `games/${gameId}/players/${playerId}`), {
+    // Get current player state to calculate delta and create history entry
+    const playerRef = ref(database, `games/${gameId}/players/${playerId}`)
+    const playerSnapshot = await get(playerRef)
+
+    if (!playerSnapshot.exists()) {
+      throw new Error('Player not found')
+    }
+
+    const playerData: PlayerState = playerSnapshot.val()
+    const previousScore = playerData.score || 0
+    const delta = newScore - previousScore
+
+    // Get current game round
+    const gameRef = ref(database, `games/${gameId}`)
+    const gameSnapshot = await get(gameRef)
+    const game = gameSnapshot.exists() ? gameSnapshot.val() : null
+    const currentRound = game?.currentRound || 1
+
+    // Create score history entry
+    const currentHistory = playerData.scoreHistory || []
+    const newHistoryEntry: ScoreHistoryEntry = {
+      timestamp: Date.now(),
+      round: currentRound,
+      previousScore,
+      newScore,
+      delta,
+      reason: '手動調整',
+    }
+
+    // Update both score and history
+    await update(playerRef, {
       score: newScore,
+      scoreHistory: [...currentHistory, newHistoryEntry],
       updatedAt: Date.now(),
     })
 
-    console.log(`[MultiplayerGame] Player ${playerId} score adjusted to ${newScore}`)
+    console.log(
+      `[MultiplayerGame] Player ${playerId} score manually adjusted: ${previousScore} → ${newScore} (${delta >= 0 ? '+' : ''}${delta})`
+    )
   }
 
   /**
