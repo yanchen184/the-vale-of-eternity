@@ -1,9 +1,9 @@
 /**
  * Lightning Effect Cards Registry
  * Cards that should trigger lightning visual effect when played
- * @version 1.0.0
+ * @version 1.1.0 - Added score display (X分 → Y分) for Ifrit effect
  */
-console.log('[data/lightning-effect-cards.ts] v1.0.0 loaded')
+console.log('[data/lightning-effect-cards.ts] v1.1.0 loaded')
 
 /**
  * Card IDs that trigger lightning effect
@@ -27,13 +27,15 @@ export function hasLightningEffect(cardId: string): boolean {
  * @param cardName English card name
  * @param cardNameTw Traditional Chinese card name
  * @param effectValue Effect value (e.g., stones gained, score gained)
+ * @param currentScore Current player score (optional, for score-based effects)
  * @returns Lightning effect description
  */
 export function getLightningEffectDescription(
   cardId: string,
   cardName: string,
   cardNameTw: string,
-  effectValue: number
+  effectValue: number,
+  currentScore?: number
 ): {
   cardName: string
   cardNameTw: string
@@ -47,10 +49,11 @@ export function getLightningEffectDescription(
         reason: `獲得 ${effectValue} 個 1 點石頭`,
       }
     case 'F007': // Ifrit
+      const newScore = (currentScore || 0) + effectValue
       return {
         cardName,
         cardNameTw,
-        reason: `場上有 ${effectValue} 張卡\n伊夫利特獲得 +${effectValue} 分加成！`,
+        reason: `場上有 ${effectValue} 張卡\n伊夫利特獲得 +${effectValue} 分加成！\n${currentScore || 0} 分 → ${newScore} 分`,
       }
     default:
       return {

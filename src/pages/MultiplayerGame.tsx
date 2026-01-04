@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 6.19.0 - Fixed Ifrit effect: fetch updated field count from Firebase
+ * @version 6.20.0 - Added score display (X分 → Y分) to Ifrit lightning effect
  */
-console.log('[pages/MultiplayerGame.tsx] v6.19.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v6.20.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -885,11 +885,13 @@ export function MultiplayerGame() {
               const updatedPlayerState = playerSnapshot.val()
               const fieldCardCount = updatedPlayerState.field?.length || 0
               const effectValue = card.cardId === 'F007' ? fieldCardCount : 2 // Ifrit vs Imp
+              const currentScore = updatedPlayerState.score || 0
               const description = getLightningEffectDescription(
                 card.cardId,
                 cardTemplate?.name || '',
                 cardTemplate?.nameTw || '',
-                effectValue
+                effectValue,
+                currentScore // Pass current score for score display
               )
 
               // Trigger lightning effect via Firebase (all players will see it)
