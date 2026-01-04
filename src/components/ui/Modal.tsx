@@ -1,11 +1,11 @@
 /**
  * Modal component
- * @version 1.1.0 - Added 'wide' size option (80vw)
+ * @version 1.2.0 - Added minimize functionality
  */
-console.log('[components/ui/Modal.tsx] v1.1.0 loaded')
+console.log('[components/ui/Modal.tsx] v1.2.0 loaded')
 
-import { useEffect, useCallback, type ReactNode } from 'react'
-import { X } from 'lucide-react'
+import { useEffect, useCallback, useState, type ReactNode } from 'react'
+import { X, Minus, Maximize2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from './Button'
 
@@ -18,6 +18,7 @@ export interface ModalProps {
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'full' | 'wide'
   closeOnOverlayClick?: boolean
   showCloseButton?: boolean
+  showMinimizeButton?: boolean
   className?: string
 }
 
@@ -39,16 +40,36 @@ export function Modal({
   size = 'md',
   closeOnOverlayClick = true,
   showCloseButton = true,
+  showMinimizeButton = false,
   className,
 }: ModalProps) {
+  // Minimize state
+  const [isMinimized, setIsMinimized] = useState(false)
+
+  // Handle minimize toggle
+  const toggleMinimize = useCallback(() => {
+    setIsMinimized(prev => !prev)
+  }, [])
+
+  // Reset minimize state when modal closes/opens
+  useEffect(() => {
+    if (!isOpen) {
+      setIsMinimized(false)
+    }
+  }, [isOpen])
+
   // Handle escape key
   const handleEscape = useCallback(
     (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        onClose()
+        if (isMinimized) {
+          setIsMinimized(false)
+        } else {
+          onClose()
+        }
       }
     },
-    [onClose]
+    [onClose, isMinimized]
   )
 
   // Add/remove event listener
@@ -65,6 +86,49 @@ export function Modal({
   }, [isOpen, handleEscape])
 
   if (!isOpen) return null
+
+  // Minimized mode - show compact bar
+  if (isMinimized) {
+    return (
+      <div
+        className="fixed bottom-4 right-4 z-50"
+        data-testid="modal-minimized"
+      >
+        <div
+          className="bg-slate-800 border border-slate-700 rounded-lg shadow-2xl px-4 py-3 flex items-center gap-3 animate-slide-up"
+          style={{ minWidth: '300px' }}
+        >
+          {title && (
+            <h2 className="text-sm font-semibold text-slate-100 flex-1 truncate">
+              {title}
+            </h2>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleMinimize}
+            aria-label="還原"
+            data-testid="modal-restore-button"
+            className="flex-shrink-0"
+          >
+            <Maximize2 className="h-4 w-4" />
+          </Button>
+          {showCloseButton && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              aria-label="關閉"
+              data-testid="modal-close-button"
+              className="flex-shrink-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
@@ -94,7 +158,7 @@ export function Modal({
         data-testid="modal-content"
       >
         {/* Header */}
-        {(title || showCloseButton) && (
+        {(title || showCloseButton || showMinimizeButton) && (
           <div className="flex items-center justify-between p-4 border-b border-slate-700">
             {title && (
               <h2
@@ -104,18 +168,30 @@ export function Modal({
                 {title}
               </h2>
             )}
-            {showCloseButton && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onClose}
-                className="ml-auto"
-                aria-label="關閉"
-                data-testid="modal-close-button"
-              >
-                <X className="h-5 w-5" />
-              </Button>
-            )}
+            <div className="flex items-center gap-2 ml-auto">
+              {showMinimizeButton && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleMinimize}
+                  aria-label="最小化"
+                  data-testid="modal-minimize-button"
+                >
+                  <Minus className="h-5 w-5" />
+                </Button>
+              )}
+              {showCloseButton && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onClose}
+                  aria-label="關閉"
+                  data-testid="modal-close-button"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              )}
+            </div>
           </div>
         )}
 

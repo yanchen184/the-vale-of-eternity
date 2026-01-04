@@ -390,6 +390,7 @@ export const ArtifactEffectModal = memo(function ArtifactEffectModal({
       onClose={handleClose}
       title={`${artifact.nameTw} - 選擇效果`}
       size="xl"
+      showMinimizeButton={true}
       className={className}
     >
       <div className="p-4 space-y-4" data-testid="artifact-effect-modal">
