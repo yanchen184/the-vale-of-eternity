@@ -1,0 +1,142 @@
+
+Running 1 test using 1 worker
+
+
+[TEST] PHASE 1: Navigating to game
+[BROWSER] [MultiplayerGame] Created room 732742 (game_1767584625421_6ssrm4kif)
+[BROWSER] [MultiplayerGame] Created room 850183 (game_1767584625423_e8hvz7lhg)
+[BROWSER] [MultiplayerGame] Game game_1767584625421_6ssrm4kif started with 1 players
+[BROWSER] [MultiplayerGame] disabledArtifacts calculation: {sanctuaryCount: 0, hasSanctuaryCards: false, disabled: Array(1)}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 0, playerIds: Array(0), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] disabledArtifacts calculation: {sanctuaryCount: 0, hasSanctuaryCards: false, disabled: Array(1)}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 0, playerIds: Array(0), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Setting up Firebase listeners for game: game_1767584625421_6ssrm4kif
+[BROWSER] [MultiplayerGame] Setting up Firebase listeners for game: game_1767584625421_6ssrm4kif
+[BROWSER] [MultiplayerGame] Game game_1767584625423_e8hvz7lhg started with 1 players
+[BROWSER] [MultiplayerGame] Setting up Firebase listeners for game: game_1767584625423_e8hvz7lhg
+[BROWSER] [MultiplayerGame] Game update: {status: HUNTING, currentPlayerIndex: 0, isComplete: undefined}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[TEST] Game loaded
+
+[TEST] PHASE 2: Handling artifacts
+
+[TEST] PHASE 3: Selecting market cards
+[TEST] Reached ACTION phase
+
+[TEST] PHASE 4: Setting up field with Fire element cards
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] Dev-taming card directly to field (will trigger ON_TAME): {instanceId: F002_test_1767584629873_011lqgvpc, cardId: F002, name: Imp, nameTw: 小惡魔, element: FIRE}
+[BROWSER] [MultiplayerGame] Game update: {status: HUNTING, currentPlayerIndex: 0, isComplete: undefined}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] Card added to field, now processing ON_TAME effects...
+[BROWSER] [MultiplayerGame] Calling EffectProcessor.processOnTameEffects()...
+[BROWSER] [EffectProcessor] ========== processOnTameEffects START ==========
+[BROWSER] [EffectProcessor] Card instance ID: F002_test_1767584629873_011lqgvpc
+[BROWSER] [EffectProcessor] Card: {baseScore: 2, cardId: F002, cost: 1, element: FIRE, hasUsedAbility: false}
+[BROWSER] [EffectProcessor] Template: 小惡魔 F002
+[BROWSER] [EffectProcessor] ON_TAME effects found: 1
+[BROWSER] [EffectProcessor] Processing effect: EARN_STONES isImplemented: true
+[BROWSER] [EffectProcessor] processEarnStones called
+[BROWSER] [EffectProcessor] effect.stones: [Object]
+[BROWSER] [EffectProcessor] Processing stone: type=ONE, amount=2
+[BROWSER] [EffectProcessor] Total stones to gain: {ONE: 2}
+[BROWSER] [EffectProcessor] Current stones BEFORE: {EARTH: 0, FIRE: 0, ONE: 0, SIX: 0, THREE: 0}
+[BROWSER] [EffectProcessor] Adding 2 to ONE: 0 → 2
+[BROWSER] [EffectProcessor] Updated stones AFTER: {EARTH: 0, FIRE: 0, ONE: 2, SIX: 0, THREE: 0}
+[BROWSER] [MultiplayerGame] Game update: {status: HUNTING, currentPlayerIndex: 0, isComplete: undefined}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [EffectProcessor] ✅ Firebase updated successfully
+[BROWSER] [EffectProcessor] Effect result: {success: true, stonesGained: Object, message: Gained stones: {"ONE":2}}
+[BROWSER] [EffectProcessor] ========== processOnTameEffects END ==========
+[BROWSER] [EffectProcessor] Total results: 1
+[BROWSER] [MultiplayerGame] ON_TAME effect results: [Object]
+[BROWSER] [MultiplayerGame] ✅ Card tamed successfully with ON_TAME effects triggered!
+[TEST] Directly tamed F002
+[BROWSER] [MultiplayerGame] Dev-taming card directly to field (will trigger ON_TAME): {instanceId: F002_test_1767584633251_7ltk8hdgz, cardId: F002, name: Imp, nameTw: 小惡魔, element: FIRE}
+[BROWSER] [MultiplayerGame] Game update: {status: HUNTING, currentPlayerIndex: 0, isComplete: undefined}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] Card added to field, now processing ON_TAME effects...
+[BROWSER] [MultiplayerGame] Calling EffectProcessor.processOnTameEffects()...
+[BROWSER] [EffectProcessor] ========== processOnTameEffects START ==========
+[BROWSER] [EffectProcessor] Card instance ID: F002_test_1767584633251_7ltk8hdgz
+[BROWSER] [EffectProcessor] Card: {baseScore: 2, cardId: F002, cost: 1, element: FIRE, hasUsedAbility: false}
+[BROWSER] [EffectProcessor] Template: 小惡魔 F002
+[BROWSER] [EffectProcessor] ON_TAME effects found: 1
+[BROWSER] [EffectProcessor] Processing effect: EARN_STONES isImplemented: true
+[BROWSER] [EffectProcessor] processEarnStones called
+[BROWSER] [EffectProcessor] effect.stones: [Object]
+[BROWSER] [EffectProcessor] Processing stone: type=ONE, amount=2
+[BROWSER] [EffectProcessor] Total stones to gain: {ONE: 2}
+[BROWSER] [EffectProcessor] Current stones BEFORE: {EARTH: 0, FIRE: 0, ONE: 2, SIX: 0, THREE: 0}
+[BROWSER] [EffectProcessor] Adding 2 to ONE: 2 → 4
+[BROWSER] [EffectProcessor] Updated stones AFTER: {EARTH: 0, FIRE: 0, ONE: 4, SIX: 0, THREE: 0}
+[BROWSER] [MultiplayerGame] Game update: {status: HUNTING, currentPlayerIndex: 0, isComplete: undefined}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [EffectProcessor] ✅ Firebase updated successfully
+[BROWSER] [EffectProcessor] Effect result: {success: true, stonesGained: Object, message: Gained stones: {"ONE":2}}
+[BROWSER] [EffectProcessor] ========== processOnTameEffects END ==========
+[BROWSER] [EffectProcessor] Total results: 1
+[BROWSER] [MultiplayerGame] ON_TAME effect results: [Object]
+[BROWSER] [MultiplayerGame] ✅ Card tamed successfully with ON_TAME effects triggered!
+[TEST] Directly tamed F002
+[TEST] Field setup complete: 2x F002 (FIRE)
+
+[TEST] PHASE 5: Taming F010 (Lava Giant)
+[BROWSER] [MultiplayerGame] Dev-taming card directly to field (will trigger ON_TAME): {instanceId: F010_test_1767584636606_zjytndyau, cardId: F010, name: Lava Giant, nameTw: 熔岩巨人, element: FIRE}
+[BROWSER] [MultiplayerGame] Game update: {status: HUNTING, currentPlayerIndex: 0, isComplete: undefined}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] Card added to field, now processing ON_TAME effects...
+[BROWSER] [MultiplayerGame] Calling EffectProcessor.processOnTameEffects()...
+[BROWSER] [EffectProcessor] ========== processOnTameEffects START ==========
+[BROWSER] [EffectProcessor] Card instance ID: F010_test_1767584636606_zjytndyau
+[BROWSER] [EffectProcessor] Card: {baseScore: 8, cardId: F010, cost: 3, element: FIRE, hasUsedAbility: false}
+[BROWSER] [EffectProcessor] Template: 熔岩巨人 F010
+[BROWSER] [EffectProcessor] ON_TAME effects found: 1
+[BROWSER] [EffectProcessor] Processing effect: EARN_PER_ELEMENT isImplemented: true
+[BROWSER] [EffectProcessor] EARN_PER_ELEMENT (F010 Lava Giant): found 3 FIRE cards
+[BROWSER] [EffectProcessor] EARN_PER_ELEMENT (Score): 3 FIRE element cards x 2 points = 6 total points
+[BROWSER] [MultiplayerGame] Game update: {status: HUNTING, currentPlayerIndex: 0, isComplete: undefined}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [EffectProcessor] EARN_PER_ELEMENT (Score): updated score 1 -> 7 (+6)
+[BROWSER] [EffectProcessor] Effect result: {success: true, scoreChange: 6, message: Earned 6 points from 3 FIRE element cards}
+[BROWSER] [EffectProcessor] ========== processOnTameEffects END ==========
+[BROWSER] [EffectProcessor] Total results: 1
+[BROWSER] [MultiplayerGame] ON_TAME effect results: [Object]
+[BROWSER] [MultiplayerGame] ✅ Card tamed successfully with ON_TAME effects triggered!
+[TEST] Directly tamed F010
+
+[TEST] PHASE 6: Analyzing console logs
+[TEST] Earn per element log: [EffectProcessor] EARN_PER_ELEMENT (F010 Lava Giant): found 3 FIRE cards
+[TEST] Score update log: [EffectProcessor] EARN_PER_ELEMENT (Score): updated score 1 -> 7 (+6)
+[TEST] Score change: 6
+
+[TEST] ✅ F010 ON_TAME TEST PASSED
+========================================
+ON_TAME: Earned 6 points for 3 Fire cards ✅
+Expected: 3 Fire cards × 2 points = 6 points
+========================================
+  ✓  1 [chromium] › tests\e2e\cards\F010-lava-giant.spec.ts:92:3 › F010 - 熔岩巨人 - ON_TAME Test › ON_TAME: Earn 2 points per Fire card (16.9s)
+
+  1 passed (17.9s)

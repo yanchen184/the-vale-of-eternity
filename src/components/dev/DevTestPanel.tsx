@@ -1,72 +1,30 @@
 /**
  * Developer Test Panel for Card Effects Testing
  * Only available in development mode
- * @version 1.1.0 - Improved UI: "加入手牌" button label
+ * @version 1.3.0 - Add "直接召喚" button to trigger ON_TAME effects
  */
-console.log('[components/dev/DevTestPanel.tsx] v1.1.0 loaded')
+console.log('[components/dev/DevTestPanel.tsx] v1.3.0 loaded')
 
 import { useState, useEffect } from 'react'
-import { getBaseCardById, getAllCards } from '@/data/cards'
+import { getBaseCardById, getAllBaseCards } from '@/data/cards'
 import type { CardTemplate } from '@/types/cards'
-
-interface TestScenario {
-  id: string
-  name: string
-  description: string
-  fieldCards: string[]
-  cardToTest: string
-  expectedScoreChange: number
-}
-
-const IFRIT_TEST_SCENARIOS: TestScenario[] = [
-  {
-    id: 'ifrit-empty',
-    name: 'Ifrit - Empty Field',
-    description: '空場測試：只有伊夫利特自己',
-    fieldCards: [],
-    cardToTest: 'F007',
-    expectedScoreChange: 1,
-  },
-  {
-    id: 'ifrit-3cards',
-    name: 'Ifrit - 3 Cards Field',
-    description: '3 張卡測試：場上已有 3 張卡',
-    fieldCards: ['F001', 'F002', 'F003'],
-    cardToTest: 'F007',
-    expectedScoreChange: 4,
-  },
-  {
-    id: 'ifrit-5cards',
-    name: 'Ifrit - 5 Cards Field',
-    description: '5 張卡測試：場上已有 5 張卡',
-    fieldCards: ['F001', 'F002', 'F003', 'F004', 'F005'],
-    cardToTest: 'F007',
-    expectedScoreChange: 6,
-  },
-  {
-    id: 'ifrit-full',
-    name: 'Ifrit - Full Field (10 cards)',
-    description: '滿場測試：場上已有 9 張卡',
-    fieldCards: ['F001', 'F002', 'F003', 'F004', 'F005', 'F006', 'F008', 'F009', 'F010'],
-    cardToTest: 'F007',
-    expectedScoreChange: 10,
-  },
-]
 
 interface DevTestPanelProps {
   onClose: () => void
   onSummonCard?: (cardId: string) => void
+  onTameCard?: (cardId: string) => void  // NEW: Directly tame card to field (triggers ON_TAME)
   onResetGame?: () => void
   onClearField?: () => void
-  onRunScenario?: (scenario: TestScenario) => void
+  onAddStones?: (stoneType: 'ONE' | 'THREE' | 'SIX', amount: number) => void
 }
 
 export function DevTestPanel({
   onClose,
   onSummonCard,
+  onTameCard,
   onResetGame,
   onClearField,
-  onRunScenario,
+  onAddStones,
 }: DevTestPanelProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCard, setSelectedCard] = useState<CardTemplate | null>(null)
@@ -75,14 +33,9 @@ export function DevTestPanel({
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [isMinimized, setIsMinimized] = useState(false)
-  const [lastTestResult, setLastTestResult] = useState<{
-    passed: boolean
-    expected: number
-    actual: number
-  } | null>(null)
 
   useEffect(() => {
-    const cards = getAllCards()
+    const cards = getAllBaseCards()
     setAllCards([...cards]) // Convert readonly to mutable array
   }, [])
 
@@ -134,29 +87,16 @@ export function DevTestPanel({
 
   const handleSummonCard = () => {
     if (selectedCard && onSummonCard) {
-      console.log(`[TEST] 🃏 Summoning card: ${selectedCard.id} - ${selectedCard.nameTw}`)
+      console.log(`[TEST] 🃏 Summoning card to hand: ${selectedCard.id} - ${selectedCard.nameTw}`)
       onSummonCard(selectedCard.id)
     }
   }
 
-  const handleRunScenario = (scenario: TestScenario) => {
-    console.log(`[TEST] 🧪 Running scenario: ${scenario.name}`)
-    console.log(`[TEST] 📋 Field cards: ${scenario.fieldCards.join(', ')}`)
-    console.log(`[TEST] 🎯 Card to test: ${scenario.cardToTest}`)
-    console.log(`[TEST] 📊 Expected score change: +${scenario.expectedScoreChange}`)
-
-    if (onRunScenario) {
-      onRunScenario(scenario)
+  const handleTameCard = () => {
+    if (selectedCard && onTameCard) {
+      console.log(`[TEST] ⚡ Taming card directly (triggers ON_TAME): ${selectedCard.id} - ${selectedCard.nameTw}`)
+      onTameCard(selectedCard.id)
     }
-
-    // Simulate test result (in real implementation, this would come from the game state)
-    setTimeout(() => {
-      setLastTestResult({
-        passed: true,
-        expected: scenario.expectedScoreChange,
-        actual: scenario.expectedScoreChange,
-      })
-    }, 1000)
   }
 
   if (isMinimized) {
@@ -226,19 +166,35 @@ export function DevTestPanel({
 
           {/* Search Results */}
           {searchTerm && filteredCards.length > 0 && (
-            <div className="mt-2 bg-gray-800 border border-gray-700 rounded max-h-40 overflow-y-auto">
-              {filteredCards.slice(0, 5).map((card) => (
-                <div
-                  key={card.id}
-                  onClick={() => handleCardSelect(card.id)}
-                  className="px-3 py-2 hover:bg-gray-700 cursor-pointer border-b border-gray-700 last:border-b-0"
-                >
-                  <div className="font-semibold">
-                    {card.id} - {card.nameTw}
+            <div className="mt-2 bg-gray-800 border border-gray-700 rounded max-h-60 overflow-y-auto">
+              {filteredCards.slice(0, 10).map((card) => {
+                const hasImplementedEffects = card.effects.some(e => e.isImplemented === true)
+                const allEffectsImplemented = card.effects.every(e => e.isImplemented === true)
+
+                return (
+                  <div
+                    key={card.id}
+                    onClick={() => handleCardSelect(card.id)}
+                    className="px-3 py-2 hover:bg-gray-700 cursor-pointer border-b border-gray-700 last:border-b-0"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="font-semibold">
+                        {card.id} - {card.nameTw}
+                      </div>
+                      <div className="text-xs">
+                        {allEffectsImplemented ? (
+                          <span className="text-green-400">✅ 已實現</span>
+                        ) : hasImplementedEffects ? (
+                          <span className="text-yellow-400">⚠️ 部分實現</span>
+                        ) : (
+                          <span className="text-red-400">❌ 未實現</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-400">{card.name}</div>
                   </div>
-                  <div className="text-xs text-gray-400">{card.name}</div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
@@ -263,64 +219,66 @@ export function DevTestPanel({
               >
                 🃏 加入手牌
               </button>
+              <button
+                onClick={handleTameCard}
+                className="flex-1 bg-green-600 hover:bg-green-700 px-3 py-2 rounded text-sm font-semibold"
+                data-testid="tame-card-button"
+                title="Directly tame card to field and trigger ON_TAME effects"
+              >
+                ⚡ 直接召喚
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Stone Controls */}
+        {onAddStones && (
+          <div className="mb-4">
+            <div className="text-sm font-semibold mb-2">💎 Add Stones:</div>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => onAddStones('ONE', 5)}
+                className="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded text-sm"
+                data-testid="add-stone-one"
+              >
+                +5 ×1
+              </button>
+              <button
+                onClick={() => onAddStones('THREE', 3)}
+                className="bg-green-600 hover:bg-green-700 px-3 py-2 rounded text-sm"
+                data-testid="add-stone-three"
+              >
+                +3 ×3
+              </button>
+              <button
+                onClick={() => onAddStones('SIX', 2)}
+                className="bg-purple-600 hover:bg-purple-700 px-3 py-2 rounded text-sm"
+                data-testid="add-stone-six"
+              >
+                +2 ×6
+              </button>
             </div>
           </div>
         )}
 
         {/* Game Controls */}
-        <div className="mb-4">
-          <div className="text-sm font-semibold mb-2">Game Controls:</div>
+        <div>
+          <div className="text-sm font-semibold mb-2">🎮 Game Controls:</div>
           <div className="flex gap-2">
             <button
               onClick={onResetGame}
               className="flex-1 bg-red-600 hover:bg-red-700 px-3 py-2 rounded text-sm"
             >
-              Reset Game
+              🔄 Reset Game
             </button>
             <button
               onClick={onClearField}
               className="flex-1 bg-orange-600 hover:bg-orange-700 px-3 py-2 rounded text-sm"
             >
-              Clear Field
+              🗑️ Clear Field
             </button>
           </div>
         </div>
-
-        {/* Test Scenarios */}
-        <div className="mb-4">
-          <div className="text-sm font-semibold mb-2">📋 Test Scenarios (Ifrit):</div>
-          <div className="space-y-2">
-            {IFRIT_TEST_SCENARIOS.map((scenario) => (
-              <button
-                key={scenario.id}
-                onClick={() => handleRunScenario(scenario)}
-                className="w-full bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded px-3 py-2 text-left"
-                data-testid={`scenario-${scenario.id}`}
-              >
-                <div className="font-semibold text-sm">{scenario.name}</div>
-                <div className="text-xs text-gray-400">{scenario.description}</div>
-                <div className="text-xs text-purple-400 mt-1">
-                  Expected: +{scenario.expectedScoreChange} score
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Last Test Result */}
-        {lastTestResult && (
-          <div className="bg-gray-800 border border-green-500 rounded p-3">
-            <div className="text-sm font-semibold mb-2">📊 Last Test Result:</div>
-            <div
-              className={`text-sm ${lastTestResult.passed ? 'text-green-400' : 'text-red-400'}`}
-            >
-              {lastTestResult.passed ? '✅ PASS' : '❌ FAIL'}
-              <div className="text-xs text-gray-400 mt-1">
-                Score: {lastTestResult.actual} (Expected: {lastTestResult.expected})
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )
@@ -334,11 +292,14 @@ export function useDevTestPanel() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Changed to Ctrl + Shift + D (D for Debug/Dev)
-      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+      // Ctrl + Shift + D (D for Debug/Dev)
+      // Check both e.key and e.code for better compatibility across browsers
+      const isDKey = e.key === 'D' || e.key === 'd' || e.code === 'KeyD'
+      if (e.ctrlKey && e.shiftKey && isDKey) {
         e.preventDefault()
-        setIsOpen((prev) => !prev)
-        console.log('[TEST] 🧪 Dev Test Panel toggled:', !isOpen)
+        const newState = !isOpen
+        setIsOpen(newState)
+        console.log('[TEST] 🧪 Dev Test Panel toggled:', newState)
       }
     }
 

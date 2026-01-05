@@ -1,9 +1,9 @@
 /**
  * Wind Family Cards (15 cards)
  * Complete card data with Stone Economy System
- * @version 3.0.0
+ * @version 3.4.0 - Fixed A003 (Tengu) added missing Earn (6) effect based on card image verification
  */
-console.log('[data/cards/wind-cards.ts] v3.0.0 loaded')
+console.log('[data/cards/wind-cards.ts] v3.4.0 loaded')
 
 import {
   type CardTemplate,
@@ -114,6 +114,13 @@ export const WIND_CARDS: readonly CardTemplate[] = [
     cost: 3,
     baseScore: 5,
     effects: [
+      {
+        type: EffectType.EARN_STONES,
+        trigger: EffectTrigger.ON_TAME,
+        stones: [{ type: StoneType.SIX, amount: 1 }],
+        description: 'Earn 6.',
+        descriptionTw: '獲得 1 個 6 點石頭。',
+      },
       {
         type: EffectType.PUT_ON_DECK_TOP,
         trigger: EffectTrigger.ON_TAME,
@@ -335,11 +342,11 @@ export const WIND_CARDS: readonly CardTemplate[] = [
     effects: [
       {
         type: EffectType.EARN_PER_ELEMENT,
-        trigger: EffectTrigger.ON_TAME,
-        targetElement: Element.WIND,
-        stones: [{ type: StoneType.THREE, amount: 1 }],
-        description: 'Earn 3 for each card with Wind in your area.',
-        descriptionTw: '你場上每張風卡獲得 1 個 3 點石頭。',
+        trigger: EffectTrigger.ON_SCORE,
+        value: 1, // 1 point per card with ON_SCORE effect
+        description: 'Earn 1 point for each card with ON_SCORE effect in your area.',
+        descriptionTw: '你場上每張有回合結束效果的卡，獲得 1 分。',
+        isImplemented: true,
       },
     ],
     flavorText: 'Goddess of love and war.',

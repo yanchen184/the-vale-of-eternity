@@ -127,9 +127,19 @@ const MyInfoCard = memo(function MyInfoCard({
                 你
               </span>
             </h4>
-            <span className="text-xs text-slate-400">
-              玩家 #{player.index + 1}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400">
+                玩家 #{player.index + 1}
+              </span>
+              {player.score > 0 && (
+                <>
+                  <span className="text-xs text-slate-600">•</span>
+                  <span className="text-xs font-bold text-amber-300">
+                    {player.score} 分
+                  </span>
+                </>
+              )}
+            </div>
           </div>
         </div>
 

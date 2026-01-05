@@ -1,9 +1,9 @@
 /**
  * Dragon Family Cards (10 cards)
  * Complete card data with Stone Economy System
- * @version 3.0.0
+ * @version 3.1.0 - Fixed D009 (Willow) added missing Earn 3 points effect
  */
-console.log('[data/cards/dragon-cards.ts] v3.0.0 loaded')
+console.log('[data/cards/dragon-cards.ts] v3.1.0 loaded')
 
 import {
   type CardTemplate,
@@ -259,6 +259,13 @@ export const DRAGON_CARDS: readonly CardTemplate[] = [
         ],
         description: 'Earn 1, 3, and 6.',
         descriptionTw: '獲得 1 點、3 點和 6 點石頭各一個。',
+      },
+      {
+        type: EffectType.CONDITIONAL_EARN,
+        trigger: EffectTrigger.ON_TAME,
+        value: 3,
+        description: 'Earn 3 points.',
+        descriptionTw: '獲得 3 分。',
       },
       {
         type: EffectType.DRAW_CARD,

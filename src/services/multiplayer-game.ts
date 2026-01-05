@@ -1,16 +1,16 @@
 /**
  * Multiplayer Game Service for The Vale of Eternity
  * Handles Firebase Realtime Database synchronization for 2-4 player games
- * @version 4.24.0 - Fixed: RECOVER_CARD effects must be activated (No = defer, not skip)
+ * @version 4.27.0 - Fixed EARN_STONES effect execution with proper EffectContext
  */
-console.log('[services/multiplayer-game.ts] v4.24.0 loaded')
+console.log('[services/multiplayer-game.ts] v4.27.0 loaded')
 
 import { ref, set, get, update, onValue, off, runTransaction } from 'firebase/database'
 import { database } from '@/lib/firebase'
 import { getAllBaseCards, getBaseCardById } from '@/data/cards'
-import type { CardInstance, CardTemplate } from '@/types/cards'
+import type { CardInstance, CardTemplate, CardEffect } from '@/types/cards'
 import { CardLocation, StoneType, Element, EffectType, EffectTrigger } from '@/types/cards'
-import { effectProcessor } from './effect-processor'
+import { effectProcessor, EffectProcessor, type EffectContext } from './effect-processor'
 import { scoreCalculator, type ScoreBreakdown } from './score-calculator'
 import { type PlayerColor, getColorByIndex } from '@/types/player-color'
 import type { ScoreHistoryEntry } from '@/types/game'
@@ -224,7 +224,7 @@ export interface GameRoom {
   // UI state synchronization
   showScoreModal?: boolean  // Synchronized modal state controlled by current turn player
 
-  // Lightning Effect (v6.15.0) - Synchronized across all players
+  // Lightning Effect (v6.15.0) - Synchronized across all players (for ON_TAME effects like Ifrit)
   lightningEffect?: {
     isActive: boolean
     cardName: string
@@ -232,6 +232,17 @@ export interface GameRoom {
     scoreChange: number
     reason: string
     showScoreModal: boolean
+    imageUrl?: string
+    timestamp: number  // For deduplication and ordering
+  } | null
+
+  // Score Gain Effect (v6.30.0) - Synchronized across all players (for ON_SCORE effects)
+  scoreGainEffect?: {
+    isActive: boolean
+    cardName: string
+    cardNameTw: string
+    scoreChange: number
+    reason: string
     imageUrl?: string
     timestamp: number  // For deduplication and ordering
   } | null
@@ -259,6 +270,8 @@ export interface CardInstanceData extends Omit<CardInstance, 'effects'> {
   acquiredInRound?: number
   /** Whether this card was acquired via hunting phase (only these can be sold) */
   acquiredViaHunting?: boolean
+  /** Whether this card's ON_SCORE effect has been activated this round (stops breathing animation) */
+  hasActivatedEffect?: boolean
 }
 
 // ============================================
@@ -2389,15 +2402,64 @@ export class MultiplayerGameService {
       return game
     })
 
-    // After transaction: Identify resolution cards if we just entered RESOLUTION phase
+    // After transaction: Process RESOLUTION phase initialization if we just entered it
     if (shouldIdentifyResolutionCards) {
+      // Reset hasActivatedEffect for all cards at the start of RESOLUTION phase
+      console.log(`[MultiplayerGame] Entering RESOLUTION phase, resetting hasActivatedEffect for all cards...`)
+      const cardsRef = ref(database, `games/${gameId}/cards`)
+      const cardsSnapshot = await get(cardsRef)
+      if (cardsSnapshot.exists()) {
+        const cards = cardsSnapshot.val() as { [instanceId: string]: CardInstanceData }
+        const updates: { [path: string]: any } = {}
+        Object.keys(cards).forEach((cardInstanceId) => {
+          const card = cards[cardInstanceId]
+          if (card.hasActivatedEffect) {
+            console.log(`[MultiplayerGame] Resetting hasActivatedEffect for card ${cardInstanceId} (${card.cardId})`)
+          }
+          updates[`games/${gameId}/cards/${cardInstanceId}/hasActivatedEffect`] = false
+        })
+        if (Object.keys(updates).length > 0) {
+          await update(ref(database), updates)
+          console.log(`[MultiplayerGame] ✅ Reset hasActivatedEffect for ${Object.keys(updates).length} cards at start of RESOLUTION phase`)
+        }
+      }
+
+      // Identify all ON_SCORE cards (F002, F005, F006, W003, W008, A012, etc.)
+      // Each card will show its own modal when clicked
       await this.identifyResolutionCards(gameId)
     }
   }
 
   /**
-   * Identify cards with RECOVER_CARD PERMANENT effects for all players
+   * Check if a conditional effect can be activated based on player's current state
+   * @param effect The conditional effect to check
+   * @param player The player's current state
+   * @returns true if the effect can be activated, false otherwise
+   */
+  private canActivateConditionalEffect(effect: CardEffect, player: PlayerState): boolean {
+    // F009 Burning Skull: Requires at least one 1-stone
+    if (effect.type === EffectType.EXCHANGE_STONES) {
+      if (effect.stones && effect.stones.length > 0) {
+        const requiredStone = effect.stones[0]
+        // Check if player has the required stone (negative amount means discard)
+        if (requiredStone.amount < 0) {
+          const stoneType = requiredStone.type as StoneType
+          const playerStoneCount = player.stones[stoneType] || 0
+          const requiredCount = Math.abs(requiredStone.amount)
+          return playerStoneCount >= requiredCount
+        }
+      }
+    }
+
+    // Add more conditional checks for other effect types here as needed
+    // For now, default to true (can activate)
+    return true
+  }
+
+  /**
+   * Identify cards with ON_SCORE effects for all players
    * Called after entering RESOLUTION phase
+   * Includes: EARN_STONES, RECOVER_CARD, and any other effects with ON_SCORE trigger
    */
   private async identifyResolutionCards(gameId: string): Promise<void> {
     const gameRef = ref(database, `games/${gameId}`)
@@ -2427,18 +2489,34 @@ export class MultiplayerGameService {
         const template = getAllBaseCards().find(c => c.id === card.cardId)
         if (!template) continue
 
-        // Check if has RECOVER_CARD PERMANENT effect (like Imp F002)
-        const hasRecoverEffect = template.effects.some(
-          effect => effect.type === EffectType.RECOVER_CARD && effect.trigger === EffectTrigger.PERMANENT
+        // Check if has any ON_SCORE effect with isImplemented: true
+        const hasOnScoreEffect = template.effects.some(
+          effect => effect.trigger === EffectTrigger.ON_SCORE && effect.isImplemented === true
         )
 
-        if (hasRecoverEffect) {
-          pendingCards[pid].push(cardInstanceId)
+        if (hasOnScoreEffect) {
+          // Check if all ON_SCORE effects are conditional and none can be activated
+          const onScoreEffects = template.effects.filter(
+            effect => effect.trigger === EffectTrigger.ON_SCORE && effect.isImplemented === true
+          )
+
+          const hasAnyActivatableEffect = onScoreEffects.some(effect => {
+            // If not conditional, always activatable
+            if (!effect.isConditional) return true
+
+            // Check condition for conditional effects
+            return this.canActivateConditionalEffect(effect, player)
+          })
+
+          // Only add to pending if at least one effect can be activated
+          if (hasAnyActivatableEffect) {
+            pendingCards[pid].push(cardInstanceId)
+          }
         }
       }
 
       processedCards[pid] = []
-      console.log(`[MultiplayerGame] Player ${pid} has ${pendingCards[pid].length} resolution cards:`, pendingCards[pid])
+      console.log(`[MultiplayerGame] Player ${pid} has ${pendingCards[pid].length} ON_SCORE cards:`, pendingCards[pid])
     }
 
     // Update resolution state - use set to ensure complete initialization
@@ -2446,6 +2524,75 @@ export class MultiplayerGameService {
       pendingCards,
       processedCards
     })
+  }
+
+  /**
+   * Re-check conditional ON_SCORE cards for a specific player
+   * Called after processing an ON_SCORE effect that might have changed player state (e.g., earned stones)
+   * This allows cards like F009 (Burning Skull) to light up if conditions are now met
+   */
+  private async recheckConditionalCards(gameId: string, playerId: string): Promise<void> {
+    const gameRef = ref(database, `games/${gameId}`)
+    const gameSnapshot = await get(gameRef)
+    if (!gameSnapshot.exists()) return
+
+    const game = gameSnapshot.val() as GameRoom
+    if (!game.resolutionState) return
+
+    // Get current pending and processed cards
+    const currentPending = game.resolutionState.pendingCards?.[playerId] || []
+    const currentProcessed = game.resolutionState.processedCards?.[playerId] || []
+
+    // Get updated player state (with new stones)
+    const playerRef = ref(database, `games/${gameId}/players/${playerId}`)
+    const playerSnapshot = await get(playerRef)
+    if (!playerSnapshot.exists()) return
+
+    const player = playerSnapshot.val() as PlayerState
+    const newPending: string[] = [...currentPending]
+
+    // Check all cards in player's field for conditional effects that can now be activated
+    for (const cardInstanceId of player.field) {
+      // Skip if already pending or already processed
+      if (currentPending.includes(cardInstanceId) || currentProcessed.includes(cardInstanceId)) {
+        continue
+      }
+
+      const cardRef = ref(database, `games/${gameId}/cards/${cardInstanceId}`)
+      const cardSnapshot = await get(cardRef)
+      if (!cardSnapshot.exists()) continue
+
+      const card = cardSnapshot.val() as CardInstanceData
+      const template = getAllBaseCards().find(c => c.id === card.cardId)
+      if (!template) continue
+
+      // Check if has conditional ON_SCORE effects
+      const onScoreEffects = template.effects.filter(
+        effect => effect.trigger === EffectTrigger.ON_SCORE &&
+                  effect.isImplemented === true &&
+                  effect.isConditional === true
+      )
+
+      if (onScoreEffects.length > 0) {
+        // Check if any conditional effect can now be activated
+        const canActivateNow = onScoreEffects.some(effect =>
+          this.canActivateConditionalEffect(effect, player)
+        )
+
+        if (canActivateNow) {
+          newPending.push(cardInstanceId)
+          console.log(`[MultiplayerGame] 🔥 Conditional card ${cardInstanceId} (${card.cardId}) can now activate! Adding to pending list.`)
+        }
+      }
+    }
+
+    // Update pending list if changed
+    if (newPending.length > currentPending.length) {
+      await update(ref(database, `games/${gameId}/resolutionState/pendingCards`), {
+        [playerId]: newPending
+      })
+      console.log(`[MultiplayerGame] ✅ Updated pending cards for player ${playerId}: ${currentPending.length} → ${newPending.length}`)
+    }
   }
 
   /**
@@ -2492,34 +2639,226 @@ export class MultiplayerGameService {
     }
 
     if (activate) {
-      // Get player data
-      const playerRef = ref(database, `games/${gameId}/players/${playerId}`)
-      const playerSnapshot = await get(playerRef)
-      if (!playerSnapshot.exists()) {
-        throw new Error('Player not found')
+      // Get card data to determine effect type
+      const cardRef = ref(database, `games/${gameId}/cards/${cardInstanceId}`)
+      const cardSnapshot = await get(cardRef)
+      if (!cardSnapshot.exists()) {
+        throw new Error('Card not found')
       }
-      const player = playerSnapshot.val() as PlayerState
-
-      // Return card to hand
-      const cardIndex = player.field.indexOf(cardInstanceId)
-      if (cardIndex === -1) {
-        throw new Error('Card not found on field')
+      const cardData = cardSnapshot.val() as CardInstanceData
+      const template = getAllBaseCards().find(c => c.id === cardData.cardId)
+      if (!template) {
+        throw new Error('Card template not found')
       }
 
-      player.field.splice(cardIndex, 1)
-      player.hand.push(cardInstanceId)
+      // Find ALL ON_SCORE effects (some cards like F005 have multiple)
+      const onScoreEffects = template.effects.filter(e => e.trigger === EffectTrigger.ON_SCORE && e.isImplemented === true)
+      if (onScoreEffects.length === 0) {
+        throw new Error('Card does not have implemented ON_SCORE effects')
+      }
 
-      // Update player and game state
       const updates: { [path: string]: any } = {}
-      updates[`games/${gameId}/players/${playerId}/field`] = player.field
-      updates[`games/${gameId}/players/${playerId}/hand`] = player.hand
-      updates[`games/${gameId}/cards/${cardInstanceId}/location`] = CardLocation.HAND
+      let allSuccessful = true
+      let hasStoneChange = false
+
+      // Check if any effect is RECOVER_CARD type
+      const hasRecoverEffect = onScoreEffects.some(e => e.type === EffectType.RECOVER_CARD)
+
+      if (hasRecoverEffect) {
+        // RECOVER_CARD: Return card to hand (only process this effect, ignore others)
+        const playerRef = ref(database, `games/${gameId}/players/${playerId}`)
+        const playerSnapshot = await get(playerRef)
+        if (!playerSnapshot.exists()) {
+          throw new Error('Player not found')
+        }
+        const player = playerSnapshot.val() as PlayerState
+
+        const cardIndex = player.field.indexOf(cardInstanceId)
+        if (cardIndex === -1) {
+          throw new Error('Card not found on field')
+        }
+
+        player.field.splice(cardIndex, 1)
+        player.hand.push(cardInstanceId)
+
+        updates[`games/${gameId}/players/${playerId}/field`] = player.field
+        updates[`games/${gameId}/players/${playerId}/hand`] = player.hand
+        updates[`games/${gameId}/cards/${cardInstanceId}/location`] = CardLocation.HAND
+
+        console.log(`[MultiplayerGame] RECOVER_CARD: ${cardInstanceId} returned to hand for player ${playerId}`)
+      } else {
+        // Execute ALL non-RECOVER_CARD ON_SCORE effects (e.g., F005 has EARN_STONES + CONDITIONAL_AREA)
+        // First, get all required data for EffectContext
+        const playersRef = ref(database, `games/${gameId}/players`)
+        const cardsRef = ref(database, `games/${gameId}/cards`)
+        const [playersSnapshot, cardsSnapshot] = await Promise.all([
+          get(playersRef),
+          get(cardsRef)
+        ])
+
+        if (!playersSnapshot.exists() || !cardsSnapshot.exists()) {
+          throw new Error('Game data not found')
+        }
+
+        const allPlayers = playersSnapshot.val() as { [playerId: string]: PlayerState }
+        const gameCards = cardsSnapshot.val() as { [instanceId: string]: CardInstanceData }
+
+        const currentPlayerState = allPlayers[playerId]
+        if (!currentPlayerState) {
+          throw new Error('Player not found in game')
+        }
+
+        // Create proper EffectContext
+        const effectContext: EffectContext = {
+          gameId,
+          playerId,
+          cardInstanceId,
+          currentPlayerState,
+          allPlayers,
+          gameCards,
+        }
+
+        // Execute ALL ON_SCORE effects in sequence
+        const effectProcessor = new EffectProcessor()
+        let totalScoreChange = 0
+        // Note: allSuccessful and hasStoneChange are already declared in outer scope
+
+        for (const onScoreEffect of onScoreEffects) {
+          console.log(`[MultiplayerGame] Processing ON_SCORE effect: ${onScoreEffect.type} for card ${cardInstanceId}`)
+          const result = await effectProcessor.processEffect(onScoreEffect, effectContext)
+
+          if (result.success) {
+            console.log(`[MultiplayerGame] ✅ ${onScoreEffect.type}: Effect executed successfully for ${cardInstanceId}`, result)
+            // Accumulate score changes
+            if (result.scoreChange) {
+              totalScoreChange += result.scoreChange
+            }
+            // Track if any stones were earned (for re-checking conditional cards)
+            if (result.stonesGained) {
+              const stonesGainedTotal = Object.values(result.stonesGained).reduce((sum, val) => sum + (val || 0), 0)
+              if (stonesGainedTotal > 0) {
+                hasStoneChange = true
+              }
+            }
+          } else {
+            console.error(`[MultiplayerGame] ❌ ${onScoreEffect.type}: Effect execution failed for ${cardInstanceId}`, result.error)
+            allSuccessful = false
+          }
+        }
+
+        // Add to score history and trigger visual effects (lightning + score track)
+        if (allSuccessful && totalScoreChange > 0) {
+          // Get current player data and game state
+          const playerRef = ref(database, `games/${gameId}/players/${playerId}`)
+          const playerSnapshot = await get(playerRef)
+
+          if (playerSnapshot.exists()) {
+            const playerData: PlayerState = playerSnapshot.val()
+            const currentHistory = playerData.scoreHistory || []
+
+            // Get card info for history
+            const cardData = gameCards[cardInstanceId]
+            const cardTemplate = cardData ? getBaseCardById(cardData.cardId) : null
+            const cardName = cardTemplate?.nameTw || cardTemplate?.name || '未知卡片'
+            const cardNameEn = cardTemplate?.name || 'Unknown Card'
+            const cardImageUrl = cardTemplate?.imageUrl
+
+            // Previous score is current score minus the change that was just applied
+            const newScore = playerData.score || 0
+            const previousScore = newScore - totalScoreChange
+
+            // Add to score history with proper ScoreHistoryEntry format
+            const newHistoryEntry: ScoreHistoryEntry = {
+              timestamp: Date.now(),
+              round: game.currentRound,
+              previousScore,
+              newScore,
+              delta: totalScoreChange,
+              reason: `${cardName} 回合結束效果`,
+            }
+
+            const updatedHistory = [...currentHistory, newHistoryEntry]
+
+            // Update player's score history
+            updates[`games/${gameId}/players/${playerId}/scoreHistory`] = updatedHistory
+
+            // Set score gain effect on GameRoom for synchronized visual effects
+            updates[`games/${gameId}/scoreGainEffect`] = {
+              isActive: true,
+              cardName: cardNameEn,
+              cardNameTw: cardName,
+              scoreChange: totalScoreChange,
+              reason: `${cardName} 回合結束效果`,
+              imageUrl: cardImageUrl,
+              timestamp: Date.now(),
+            }
+
+            console.log(`[MultiplayerGame] ✅ Added ON_SCORE to scoreHistory + score gain effect: ${cardName} +${totalScoreChange} points (${previousScore} → ${newScore})`)
+          }
+        }
+
+        // Mark this card's effect as activated (stops breathing animation) if all effects succeeded
+        if (allSuccessful) {
+          updates[`games/${gameId}/cards/${cardInstanceId}/hasActivatedEffect`] = true
+          console.log(`[MultiplayerGame] ✅ All ${onScoreEffects.length} ON_SCORE effects executed successfully, marked hasActivatedEffect=true`)
+        }
+
+        // Add action log entry for ON_SCORE effects (v6.31.0)
+        if (allSuccessful) {
+          const cardData = gameCards[cardInstanceId]
+          const cardTemplate = cardData ? getBaseCardById(cardData.cardId) : null
+          const cardName = cardTemplate?.nameTw || cardTemplate?.name || '未知卡片'
+
+          // Get player name
+          const playerRef = ref(database, `games/${gameId}/players/${playerId}`)
+          const playerSnapshot = await get(playerRef)
+          const playerData = playerSnapshot.exists() ? playerSnapshot.val() as PlayerState : null
+          const playerName = playerData?.name || '未知玩家'
+
+          // Build details string based on effects
+          const effectDetails: string[] = []
+          for (const effect of onScoreEffects) {
+            if (effect.type === EffectType.EARN_STONES && effect.stones) {
+              const stoneStr = effect.stones.map(s => `${s.amount}×${s.type}`).join(' + ')
+              effectDetails.push(`獲得 ${stoneStr} 石頭`)
+            } else if (effect.type === EffectType.CONDITIONAL_AREA && effect.value) {
+              effectDetails.push(`獲得 ${effect.value} 分`)
+            } else if (effect.type === EffectType.EXCHANGE_STONES && effect.value) {
+              effectDetails.push(`棄掉 1×ONE 石頭，獲得 ${effect.value} 分`)
+            } else if (effect.type === EffectType.RECOVER_CARD) {
+              effectDetails.push(`回手牌`)
+            }
+          }
+
+          const newLogEntry: ActionLogEntry = {
+            id: `${Date.now()}_${playerId}_resolution`,
+            timestamp: Date.now(),
+            round: game.currentRound,
+            playerId,
+            playerName,
+            action: 'resolution',
+            cardName,
+            details: effectDetails.join('、'),
+          }
+
+          const currentLog = game.actionLog || []
+          updates[`games/${gameId}/actionLog`] = [...currentLog, newLogEntry]
+          console.log(`[MultiplayerGame] ✅ Added resolution action to log: ${playerName} - ${cardName} (${effectDetails.join('、')})`)
+        }
+      }
+
+      // Mark card as processed
       updates[`games/${gameId}/resolutionState/processedCards/${playerId}`] = [...processed, cardInstanceId]
       updates[`games/${gameId}/updatedAt`] = Date.now()
 
       await update(ref(database), updates)
 
-      console.log(`[MultiplayerGame] Resolution activated: ${cardInstanceId} returned to hand for player ${playerId}`)
+      // After processing, re-check conditional cards if player state changed (earned stones)
+      // This allows F009 (Burning Skull) to light up if player now has 1-stone after F005 gave them one
+      if (allSuccessful && hasStoneChange) {
+        console.log(`[MultiplayerGame] Player ${playerId} gained stones, re-checking conditional cards...`)
+        await this.recheckConditionalCards(gameId, playerId)
+      }
     } else {
       // Card stays on field, NOT marked as processed
       // Player must eventually choose "Yes" for all RECOVER_CARD effects

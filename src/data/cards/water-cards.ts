@@ -1,9 +1,9 @@
 /**
  * Water Family Cards (15 cards)
  * Complete card data with Stone Economy System
- * @version 3.0.0
+ * @version 3.5.0 - Fixed W003, W008 to use ON_SCORE trigger for resolution phase effects
  */
-console.log('[data/cards/water-cards.ts] v3.0.0 loaded')
+console.log('[data/cards/water-cards.ts] v3.5.0 loaded')
 
 import {
   type CardTemplate,
@@ -52,7 +52,7 @@ export const WATER_CARDS: readonly CardTemplate[] = [
     nameTw: '河童',
     element: Element.WATER,
     cost: 1,
-    baseScore: 2,
+    baseScore: 1,
     effects: [
       {
         type: EffectType.EARN_ON_SUMMON,
@@ -76,10 +76,11 @@ export const WATER_CARDS: readonly CardTemplate[] = [
     effects: [
       {
         type: EffectType.EARN_STONES,
-        trigger: EffectTrigger.PERMANENT,
+        trigger: EffectTrigger.ON_SCORE,
         stones: [{ type: StoneType.ONE, amount: 1 }],
         description: 'Earn 1 for each your Water stone.',
-        descriptionTw: '每個水石頭獲得 1 個 1 點石頭。',
+        descriptionTw: '回合結束：每個水石頭獲得 1 個 1 點石頭。',
+        isImplemented: true,
       },
     ],
     flavorText: 'Whispers of the deep.',
@@ -194,10 +195,11 @@ export const WATER_CARDS: readonly CardTemplate[] = [
     effects: [
       {
         type: EffectType.EARN_STONES,
-        trigger: EffectTrigger.ON_TAME,
+        trigger: EffectTrigger.ON_SCORE,
         stones: [{ type: StoneType.WATER, amount: 1 }],
         description: 'Earn Water stone.',
-        descriptionTw: '獲得 1 個水石頭。',
+        descriptionTw: '回合結束獲得 1 個水石頭。',
+        isImplemented: true,
       },
     ],
     flavorText: 'Ruler of water spirits.',
@@ -372,10 +374,11 @@ export const WATER_CARDS: readonly CardTemplate[] = [
       {
         type: EffectType.EARN_PER_ELEMENT,
         trigger: EffectTrigger.ON_TAME,
-        stones: [{ type: StoneType.THREE, amount: 1 }],
         targetElement: Element.WATER,
-        description: 'Earn 3 for each Water card in your area.',
-        descriptionTw: '你場上每張水卡獲得 1 個 3 點石頭。',
+        value: 3, // 3 points per WATER card
+        description: 'Earn 3 points for each Water card in your area.',
+        descriptionTw: '你場上每張水元素卡，獲得 3 分。',
+        isImplemented: true,
       },
     ],
     flavorText: 'God of the seas.',

@@ -1,15 +1,16 @@
 /**
  * Resolution Confirm Modal Component
- * Modal for confirming resolution phase card effects (e.g., Imp's RECOVER_CARD)
- * @version 1.4.0 - Restored rule: effect must be activated (No = defer, not skip)
+ * Modal for confirming resolution phase card effects
+ * @version 3.0.0 - Show different UI based on effect type (RECOVER_CARD vs EARN_STONES)
  */
-console.log('[components/game/ResolutionConfirmModal.tsx] v1.4.0 loaded')
+console.log('[components/game/ResolutionConfirmModal.tsx] v3.0.0 loaded')
 
-import { memo } from 'react'
+import { memo, useMemo } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
-import { RotateCcw, X, Sparkles } from 'lucide-react'
+import { RotateCcw, X, Sparkles, Coins } from 'lucide-react'
 import type { CardInstance } from '@/types/cards'
+import { EffectType, EffectTrigger } from '@/types/cards'
 import { getCardImagePath } from '@/lib/card-images'
 
 export interface ResolutionConfirmModalProps {
@@ -35,6 +36,65 @@ export const ResolutionConfirmModal = memo(function ResolutionConfirmModal({
   if (!card) return null
 
   const cardImagePath = getCardImagePath(card.cardId)
+
+  // Determine effect type to show different UI
+  const effectInfo = useMemo(() => {
+    if (!card.effects || card.effects.length === 0) {
+      return {
+        type: 'unknown',
+        message: '未知效果',
+        description: '',
+        showSkip: false,
+        confirmText: '確認',
+        skipText: '',
+      }
+    }
+
+    // Find the ON_SCORE effect
+    const onScoreEffect = card.effects.find(
+      (e) => e.trigger === EffectTrigger.ON_SCORE
+    )
+    if (!onScoreEffect) {
+      return {
+        type: 'unknown',
+        message: '未知效果',
+        description: '',
+        showSkip: false,
+        confirmText: '確認',
+        skipText: '',
+      }
+    }
+
+    switch (onScoreEffect.type) {
+      case EffectType.RECOVER_CARD:
+        return {
+          type: 'recover',
+          message: `是否要讓 ${card.nameTw} 回到手上？`,
+          description: onScoreEffect.descriptionTw || '可被回收。',
+          showSkip: true,
+          confirmText: '是，回到手上',
+          skipText: '否，留在場上',
+        }
+      case EffectType.EARN_STONES:
+        return {
+          type: 'earn_stones',
+          message: `是否要執行 ${card.nameTw} 的回合結束效果？`,
+          description: onScoreEffect.descriptionTw || '獲得石頭',
+          showSkip: true,
+          confirmText: '是，執行效果',
+          skipText: '否，暫時跳過',
+        }
+      default:
+        return {
+          type: 'other',
+          message: `${card.nameTw} 的回合結束效果`,
+          description: onScoreEffect.descriptionTw || '執行效果',
+          showSkip: false,
+          confirmText: '確認執行',
+          skipText: '',
+        }
+    }
+  }, [card])
 
   return (
     <Modal
@@ -77,40 +137,53 @@ export const ResolutionConfirmModal = memo(function ResolutionConfirmModal({
           <p className="text-sm text-slate-400">{card.name}</p>
         </div>
 
-        {/* Question */}
+        {/* Question / Effect Description */}
         <div className="text-center px-4">
-          <p className="text-lg text-slate-200">
-            是否要讓 <span className="text-amber-400 font-semibold">{card.nameTw}</span> 回到手上？
+          <p className="text-lg text-slate-200">{effectInfo.message}</p>
+          <p className="text-sm text-emerald-400 mt-2 font-medium">
+            {effectInfo.description}
           </p>
-          <p className="text-sm text-amber-400 mt-2 font-semibold">
-            ⚠️ 此效果最終必須發動才能結束回合
-          </p>
-          <p className="text-xs text-slate-500 mt-1">
-            選「否」可以暫時跳過，決定回收順序（但最終都要回收）
-          </p>
+          {effectInfo.showSkip && (
+            <>
+              <p className="text-sm text-amber-400 mt-3 font-semibold">
+                ⚠️ 此效果最終必須發動才能結束回合
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                選「否」可以暫時跳過，決定回收順序（但最終都要回收）
+              </p>
+            </>
+          )}
         </div>
 
         {/* Action buttons */}
         <div className="flex gap-4 w-full px-4">
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={onSkip}
-            className="flex-1 border-slate-600 hover:border-slate-500 hover:bg-slate-800"
-            data-testid="resolution-skip-button"
-          >
-            <X className="w-5 h-5 mr-2" />
-            <span>否，留在場上</span>
-          </Button>
+          {effectInfo.showSkip && (
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={onSkip}
+              className="flex-1 border-slate-600 hover:border-slate-500 hover:bg-slate-800"
+              data-testid="resolution-skip-button"
+            >
+              <X className="w-5 h-5 mr-2" />
+              <span>{effectInfo.skipText}</span>
+            </Button>
+          )}
           <Button
             variant="primary"
             size="lg"
             onClick={onConfirm}
-            className="flex-1 bg-amber-600 hover:bg-amber-500 border-amber-500"
+            className={`${
+              effectInfo.showSkip ? 'flex-1' : 'w-full'
+            } bg-amber-600 hover:bg-amber-500 border-amber-500`}
             data-testid="resolution-confirm-button"
           >
-            <RotateCcw className="w-5 h-5 mr-2" />
-            <span>是，回到手上</span>
+            {effectInfo.type === 'recover' ? (
+              <RotateCcw className="w-5 h-5 mr-2" />
+            ) : (
+              <Coins className="w-5 h-5 mr-2" />
+            )}
+            <span>{effectInfo.confirmText}</span>
           </Button>
         </div>
       </div>

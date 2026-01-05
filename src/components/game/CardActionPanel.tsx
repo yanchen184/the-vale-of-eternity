@@ -109,7 +109,7 @@ export const CardActionPanel = memo(function CardActionPanel({
         <ActionButton
           icon={<Wand2 className="w-5 h-5" />}
           label="召喚"
-          description={canTame ? '將此卡片召喚至場上' : '魔力不足'}
+          description={canTame ? '將此卡片召喚至場上' : '場上格子已滿'}
           disabled={!canTame}
           variant="success"
           onClick={onTame}

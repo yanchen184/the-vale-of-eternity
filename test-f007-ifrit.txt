@@ -1,0 +1,49 @@
+
+Running 1 test using 1 worker
+
+
+[TEST] PHASE 1: Navigating to Single Player Game
+[TEST] Game loaded successfully
+
+[TEST] PHASE 2: Checking for Artifacts Phase
+[TEST] Artifacts phase handled
+
+[TEST] PHASE 3: Completing card selection to reach ACTION phase
+[TEST] Reached ACTION phase
+
+[TEST] PHASE 4: Setting up field with multiple cards before taming F007
+  ✘  1 [chromium] › tests\e2e\cards\F007-ifrit.spec.ts:214:3 › F007 - 伊夫利特 (Ifrit) - Complete Card Test › ON_TAME Effect Test - CONDITIONAL_AREA (Stones per card) (10.9s)
+
+
+  1) [chromium] › tests\e2e\cards\F007-ifrit.spec.ts:214:3 › F007 - 伊夫利特 (Ifrit) - Complete Card Test › ON_TAME Effect Test - CONDITIONAL_AREA (Stones per card) 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('button[title="開發測試面板"]').first()
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for locator('button[title="開發測試面板"]').first()[22m
+
+
+      130 |     await page.waitForTimeout(500)
+      131 |   }
+    > 132 |   await expect(devButton).toBeVisible()
+          |                           ^
+      133 | }
+      134 |
+      135 | /**
+        at openDevTestPanel (D:\claude-mode\the-vale-of-eternity\tests\e2e\cards\F007-ifrit.spec.ts:132:27)
+        at D:\claude-mode\the-vale-of-eternity\tests\e2e\cards\F007-ifrit.spec.ts:223:5
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\cards-F007-ifrit-F007---伊夫-a10b0-IONAL-AREA-Stones-per-card--chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\cards-F007-ifrit-F007---伊夫-a10b0-IONAL-AREA-Stones-per-card--chromium\error-context.md
+
+  1 failed
+    [chromium] › tests\e2e\cards\F007-ifrit.spec.ts:214:3 › F007 - 伊夫利特 (Ifrit) - Complete Card Test › ON_TAME Effect Test - CONDITIONAL_AREA (Stones per card) 

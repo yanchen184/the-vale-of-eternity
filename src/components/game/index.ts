@@ -156,6 +156,10 @@ export type { FreeStoneSelectionModalProps } from './FreeStoneSelectionModal'
 export { LightningEffect } from './LightningEffect'
 export type { LightningEffectProps } from './LightningEffect'
 
+// Score Gain Effect for ON_SCORE cards (v6.30.0)
+export { ScoreGainEffect } from './ScoreGainEffect'
+export type { ScoreGainEffectProps } from './ScoreGainEffect'
+
 // Score History component (v6.8.0)
 export { ScoreHistory } from './ScoreHistory'
 export type { ScoreHistoryProps, PlayerHistoryData } from './ScoreHistory'

@@ -1,0 +1,91 @@
+
+Running 1 test using 1 worker
+
+
+[TEST] PHASE 1: Navigating to game
+[BROWSER] [MultiplayerGame] Created room 779135 (game_1767590064304_l27i4dq0c)
+[BROWSER] [MultiplayerGame] Created room 384055 (game_1767590064306_8zrlo3e9p)
+[BROWSER] [MultiplayerGame] Game game_1767590064304_l27i4dq0c started with 1 players
+[BROWSER] [MultiplayerGame] disabledArtifacts calculation: {sanctuaryCount: 0, hasSanctuaryCards: false, disabled: Array(1)}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 0, playerIds: Array(0), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] disabledArtifacts calculation: {sanctuaryCount: 0, hasSanctuaryCards: false, disabled: Array(1)}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 0, playerIds: Array(0), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Setting up Firebase listeners for game: game_1767590064304_l27i4dq0c
+[BROWSER] [MultiplayerGame] Setting up Firebase listeners for game: game_1767590064304_l27i4dq0c
+[BROWSER] [MultiplayerGame] Game game_1767590064306_8zrlo3e9p started with 1 players
+[BROWSER] [MultiplayerGame] Setting up Firebase listeners for game: game_1767590064306_8zrlo3e9p
+[BROWSER] [MultiplayerGame] Game update: {status: HUNTING, currentPlayerIndex: 0, isComplete: undefined}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[TEST] Game loaded
+
+[TEST] PHASE 2: Handling artifacts
+
+[TEST] PHASE 3: Moving market cards to hand
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[TEST] Found 0 "上手" buttons
+[TEST] Moved market cards to hand
+
+[TEST] PHASE 4: Taming F005 via DevTestPanel
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] Dev-taming card directly to field (will trigger ON_TAME): {instanceId: F005_test_1767590070772_lxvst2vvr, cardId: F005, name: Salamander, nameTw: 火蜥蜴, element: FIRE}
+[BROWSER] [MultiplayerGame] Game update: {status: HUNTING, currentPlayerIndex: 0, isComplete: undefined}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] Card added to field, now processing ON_TAME effects...
+[BROWSER] [MultiplayerGame] Calling EffectProcessor.processOnTameEffects()...
+[BROWSER] [EffectProcessor] ========== processOnTameEffects START ==========
+[BROWSER] [EffectProcessor] Card instance ID: F005_test_1767590070772_lxvst2vvr
+[BROWSER] [EffectProcessor] Card: {baseScore: 2, cardId: F005, cost: 1, element: FIRE, hasUsedAbility: false}
+[BROWSER] [EffectProcessor] Template: 火蜥蜴 F005
+[BROWSER] [EffectProcessor] ON_TAME effects found: 0
+[BROWSER] [EffectProcessor] No ON_TAME effects to process
+[BROWSER] [MultiplayerGame] ON_TAME effect results: [Object]
+[BROWSER] [MultiplayerGame] ✅ Card tamed successfully with ON_TAME effects triggered!
+[TEST] Directly tamed F005
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[TEST] F005 is now in field
+
+[TEST] PHASE 5: Clicking End Turn
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[TEST] Clicked End Turn
+
+[TEST] PHASE 6: Clicking glowing F005 card
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+  ✘  1 [chromium] › tests\e2e\cards\F005-salamander.spec.ts:205:3 › F005 - 火蜥蜴 - ON_SCORE Test › ON_SCORE: Earn 1 stone and 1 point (25.1s)
+
+
+  1) [chromium] › tests\e2e\cards\F005-salamander.spec.ts:205:3 › F005 - 火蜥蜴 - ON_SCORE Test › ON_SCORE: Earn 1 stone and 1 point 
+
+    TimeoutError: locator.click: Timeout 10000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('.animate-resolution-breathing').first()[22m
+
+
+      173 |     await glowingCard.click()
+      174 |   } else {
+    > 175 |     await altGlowingCard.click()
+          |                          ^
+      176 |   }
+      177 |
+      178 |   await page.waitForTimeout(1000)
+        at clickGlowingCard (D:\claude-mode\the-vale-of-eternity\tests\e2e\cards\F005-salamander.spec.ts:175:26)
+        at D:\claude-mode\the-vale-of-eternity\tests\e2e\cards\F005-salamander.spec.ts:258:5
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\cards-F005-salamander-F005-36c47-RE-Earn-1-stone-and-1-point-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\cards-F005-salamander-F005-36c47-RE-Earn-1-stone-and-1-point-chromium\error-context.md
+
+  1 failed
+    [chromium] › tests\e2e\cards\F005-salamander.spec.ts:205:3 › F005 - 火蜥蜴 - ON_SCORE Test › ON_SCORE: Earn 1 stone and 1 point 

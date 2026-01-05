@@ -120,11 +120,11 @@ export enum EffectType {
 export enum EffectTrigger {
   /** No trigger */
   NONE = 'NONE',
-  /** Triggered when card is tamed */
+  /** Triggered when card is tamed (⚡ Instant) */
   ON_TAME = 'ON_TAME',
-  /** Always active while on field */
+  /** Always active while on field (∞ Permanent) */
   PERMANENT = 'PERMANENT',
-  /** Calculated during score phase */
+  /** Triggered at turn end / resolution phase (⌛ Active) */
   ON_SCORE = 'ON_SCORE',
 }
 
@@ -168,12 +168,16 @@ export interface CardEffect {
   targetElement?: Element
   /** Numerical value (for counters, limits, etc.) */
   value?: number
+  /** Score filter (for CONDITIONAL_AREA effects that check card scores) */
+  scoreFilter?: number
   /** Effect description in English */
   description: string
   /** Effect description in Traditional Chinese */
   descriptionTw: string
   /** Whether this effect is fully implemented (default: false) */
   isImplemented?: boolean
+  /** Whether this effect has activation conditions (e.g., requires specific stones). If true, won't show breathing animation or block turn end when condition not met. */
+  isConditional?: boolean
 }
 
 /**

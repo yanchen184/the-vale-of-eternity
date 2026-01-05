@@ -1,9 +1,9 @@
 /**
  * Effect Implementation Status Checker
  * Tracks which card effects have been implemented in the game
- * @version 3.0.0 - Use effect.isImplemented property instead of white/blacklists
+ * @version 3.3.0 - Added: F004 Firefox CONDITIONAL_HAND effect implemented
  */
-console.log('[utils/effect-implementation-status.ts] v3.0.0 loaded')
+console.log('[utils/effect-implementation-status.ts] v3.3.0 loaded')
 
 import type { CardInstance } from '@/types/cards'
 import { EffectType } from '@/types/cards'

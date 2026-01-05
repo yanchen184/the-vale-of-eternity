@@ -1,0 +1,50 @@
+
+Running 1 test using 1 worker
+
+
+[TEST] PHASE 1-3: Setup game
+[BROWSER] [MultiplayerGame] Created room 147753 (game_1767568012841_fqywb3p1e)
+[BROWSER] [MultiplayerGame] Created room 595208 (game_1767568012843_hbshynik2)
+[BROWSER] [MultiplayerGame] Game game_1767568012841_fqywb3p1e started with 1 players
+[BROWSER] [MultiplayerGame] disabledArtifacts calculation: {sanctuaryCount: 0, hasSanctuaryCards: false, disabled: Array(1)}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 0, playerIds: Array(0), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] disabledArtifacts calculation: {sanctuaryCount: 0, hasSanctuaryCards: false, disabled: Array(1)}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 0, playerIds: Array(0), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Setting up Firebase listeners for game: game_1767568012841_fqywb3p1e
+[BROWSER] [MultiplayerGame] Setting up Firebase listeners for game: game_1767568012841_fqywb3p1e
+[BROWSER] [MultiplayerGame] Game game_1767568012843_hbshynik2 started with 1 players
+[BROWSER] [MultiplayerGame] Setting up Firebase listeners for game: game_1767568012843_hbshynik2
+[BROWSER] [MultiplayerGame] Game update: {status: HUNTING, currentPlayerIndex: 0, isComplete: undefined}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+  ✘  1 [chromium] › tests\e2e\cards\F007-ifrit.spec.ts:59:3 › F007 - 伊夫利特 (Ifrit) - Complete Card Test › ON_TAME Effect Test - CONDITIONAL_AREA (Stones per card) (30.1s)
+
+
+  1) [chromium] › tests\e2e\cards\F007-ifrit.spec.ts:59:3 › F007 - 伊夫利特 (Ifrit) - Complete Card Test › ON_TAME Effect Test - CONDITIONAL_AREA (Stones per card) 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: page.waitForTimeout: Target page, context or browser has been closed
+
+       at cards\card-test-helpers.ts:107
+
+      105 |
+      106 |     attempts++
+    > 107 |     await page.waitForTimeout(500)
+          |                ^
+      108 |   }
+      109 |
+      110 |   throw new Error(`Failed to reach ACTION phase after ${MAX_ATTEMPTS} attempts`)
+        at completeHuntingPhase (D:\claude-mode\the-vale-of-eternity\tests\e2e\cards\card-test-helpers.ts:107:16)
+        at D:\claude-mode\the-vale-of-eternity\tests\e2e\cards\F007-ifrit.spec.ts:63:5
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\cards-F007-ifrit-F007---伊夫-a10b0-IONAL-AREA-Stones-per-card--chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\cards-F007-ifrit-F007---伊夫-a10b0-IONAL-AREA-Stones-per-card--chromium\error-context.md
+
+  1 failed
+    [chromium] › tests\e2e\cards\F007-ifrit.spec.ts:59:3 › F007 - 伊夫利特 (Ifrit) - Complete Card Test › ON_TAME Effect Test - CONDITIONAL_AREA (Stones per card) 

@@ -1,0 +1,116 @@
+
+Running 4 tests using 4 workers
+
+  -  1 [chromium] › tests\e2e\cards\F002-imp.spec.ts:487:10 › F002 - 小惡魔 (Imp) - Complete Card Test › Individual Effect Tests › ON_TAME: Should earn 2 x 1-point stones
+  -  2 [chromium] › tests\e2e\cards\F002-imp.spec.ts:492:10 › F002 - 小惡魔 (Imp) - Complete Card Test › Individual Effect Tests › ON_SCORE: Card should glow after turn end
+  -  3 [chromium] › tests\e2e\cards\F002-imp.spec.ts:497:10 › F002 - 小惡魔 (Imp) - Complete Card Test › Individual Effect Tests › RECOVER_CARD: Should return to hand when clicked
+
+[TEST] PHASE 1: Navigating to Single Player Game
+[BROWSER] [MultiplayerGame] Created room 589309 (game_1767553613284_v00iteb3v)
+[BROWSER] [MultiplayerGame] Created room 563431 (game_1767553613286_iqczgjq6v)
+[BROWSER] [MultiplayerGame] Game game_1767553613284_v00iteb3v started with 1 players
+[BROWSER] [MultiplayerGame] disabledArtifacts calculation: {sanctuaryCount: 0, hasSanctuaryCards: false, disabled: Array(1)}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 0, playerIds: Array(0), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] disabledArtifacts calculation: {sanctuaryCount: 0, hasSanctuaryCards: false, disabled: Array(1)}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 0, playerIds: Array(0), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Setting up Firebase listeners for game: game_1767553613284_v00iteb3v
+[BROWSER] [MultiplayerGame] Setting up Firebase listeners for game: game_1767553613284_v00iteb3v
+[BROWSER] [MultiplayerGame] Game game_1767553613286_iqczgjq6v started with 1 players
+[BROWSER] [MultiplayerGame] Setting up Firebase listeners for game: game_1767553613286_iqczgjq6v
+[BROWSER] [MultiplayerGame] Game update: {status: HUNTING, currentPlayerIndex: 0, isComplete: undefined}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[TEST] Game loaded successfully
+
+[TEST] PHASE 2: Checking for Artifacts Phase
+[TEST] Artifacts phase handled
+
+[TEST] PHASE 3: Completing card selection to reach ACTION phase
+[TEST] Reached ACTION phase
+
+[TEST] PHASE 4: Directly taming F002 via Dev Panel (triggers ON_TAME)
+[TEST] getStoneCount(ONE): Found 0 stones
+[TEST] Stones BEFORE taming (1-point): 0
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] Dev-taming card directly to field (will trigger ON_TAME): {instanceId: F002_test_1767553618262_atnrqqo8m, cardId: F002, name: Imp, nameTw: 小惡魔, element: FIRE}
+[BROWSER] [MultiplayerGame] Game update: {status: HUNTING, currentPlayerIndex: 0, isComplete: undefined}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] Card added to field, now processing ON_TAME effects...
+[BROWSER] [MultiplayerGame] Calling EffectProcessor.processOnTameEffects()...
+[BROWSER] [EffectProcessor] ========== processOnTameEffects START ==========
+[BROWSER] [EffectProcessor] Card instance ID: F002_test_1767553618262_atnrqqo8m
+[BROWSER] [EffectProcessor] Card: {baseScore: 2, cardId: F002, cost: 1, element: FIRE, hasUsedAbility: false}
+[BROWSER] [EffectProcessor] Template: 小惡魔 F002
+[BROWSER] [EffectProcessor] ON_TAME effects found: 1
+[BROWSER] [EffectProcessor] Processing effect: EARN_STONES isImplemented: true
+[BROWSER] [EffectProcessor] processEarnStones called
+[BROWSER] [EffectProcessor] effect.stones: [Object]
+[BROWSER] [EffectProcessor] Processing stone: type=ONE, amount=2
+[BROWSER] [EffectProcessor] Total stones to gain: {ONE: 2}
+[BROWSER] [EffectProcessor] Current stones BEFORE: {EARTH: 0, FIRE: 0, ONE: 0, SIX: 0, THREE: 0}
+[BROWSER] [EffectProcessor] Adding 2 to ONE: 0 → 2
+[BROWSER] [EffectProcessor] Updated stones AFTER: {EARTH: 0, FIRE: 0, ONE: 2, SIX: 0, THREE: 0}
+[BROWSER] [MultiplayerGame] Game update: {status: HUNTING, currentPlayerIndex: 0, isComplete: undefined}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] artifactSelectorPlayer lookup: {artifactSelectorPlayerId: , playersCount: 1, playerIds: Array(1), foundPlayer: undefined, playerName: undefined}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [EffectProcessor] ✅ Firebase updated successfully
+[BROWSER] [EffectProcessor] Effect result: {success: true, stonesGained: Object, message: Gained stones: {"ONE":2}}
+[BROWSER] [EffectProcessor] ========== processOnTameEffects END ==========
+[BROWSER] [EffectProcessor] Total results: 1
+[BROWSER] [MultiplayerGame] ON_TAME effect results: [Object]
+[BROWSER] [MultiplayerGame] ✅ Card tamed successfully with ON_TAME effects triggered!
+[TEST] Directly tamed F002 (ON_TAME triggered)
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[BROWSER] [MultiplayerGame] Rendering PlayersFieldArea in Modal with callbacks: {hasHandleMoveCurrentDrawnCardToHand: true, hasHandleSellCurrentDrawnCard: true}
+[TEST] F002 tamed to field
+
+[TEST] PHASE 5: Verifying ON_TAME Effect
+[TEST] getStoneCount(ONE): Found 2 stones
+[TEST] Stones AFTER taming (1-point): 2
+[TEST] ✅ ON_TAME Effect Verified: Gained 2 x 1-point stones
+
+[TEST] PHASE 6: Ending Turn and Checking for Glow
+  ✘  4 [chromium] › tests\e2e\cards\F002-imp.spec.ts:308:3 › F002 - 小惡魔 (Imp) - Complete Card Test › should complete full card lifecycle test (14.3s)
+
+
+  1) [chromium] › tests\e2e\cards\F002-imp.spec.ts:308:3 › F002 - 小惡魔 (Imp) - Complete Card Test › should complete full card lifecycle test 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('button').filter({ hasText: /結束回合|End Turn|End Round|下一回合/i }).first()
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for locator('button').filter({ hasText: /結束回合|End Turn|End Round|下一回合/i }).first()[22m
+
+
+      237 |   }).first()
+      238 |
+    > 239 |   await expect(endButton).toBeVisible()
+          |                           ^
+      240 |   await endButton.click()
+      241 |   await page.waitForTimeout(1000)
+      242 |
+        at endTurn (D:\claude-mode\the-vale-of-eternity\tests\e2e\cards\F002-imp.spec.ts:239:27)
+        at D:\claude-mode\the-vale-of-eternity\tests\e2e\cards\F002-imp.spec.ts:423:11
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\cards-F002-imp-F002---小惡魔--b1e33-te-full-card-lifecycle-test-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\cards-F002-imp-F002---小惡魔--b1e33-te-full-card-lifecycle-test-chromium\error-context.md
+
+  1 failed
+    [chromium] › tests\e2e\cards\F002-imp.spec.ts:308:3 › F002 - 小惡魔 (Imp) - Complete Card Test › should complete full card lifecycle test 
+  3 skipped

@@ -1,9 +1,9 @@
 /**
  * MultiplayerGame Page
  * Main multiplayer game interface with Firebase real-time synchronization
- * @version 6.26.0 - Fixed optional chaining in handleFieldCardClickInResolution
+ * @version 6.29.0 - Added handleDevTameCard to trigger ON_TAME effects in testing
  */
-console.log('[pages/MultiplayerGame.tsx] v6.26.0 loaded')
+console.log('[pages/MultiplayerGame.tsx] v6.29.0 loaded')
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -17,6 +17,7 @@ import {
   getElementSellValue,
 } from '@/services/multiplayer-game'
 import { getCardById } from '@/data/cards/base-cards'
+import { EffectProcessor } from '@/services/effect-processor'
 import { ARTIFACTS_BY_ID } from '@/data/artifacts'
 import { DevTestPanel, useDevTestPanel } from '@/components/dev/DevTestPanel'
 import { hasLightningEffect, getLightningEffectDescription } from '@/data/lightning-effect-cards'
@@ -32,6 +33,7 @@ import {
   HuntingPhaseUI,
   ActionPhaseUI,
   LightningEffect,
+  ScoreGainEffect,
   ArtifactEffectModal,
   ArtifactActionPanel,
   StoneUpgradeModal,
@@ -52,6 +54,8 @@ import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { cn } from '@/lib/utils'
 import type { CardInstance } from '@/types/cards'
+import { Element, EffectTrigger } from '@/types/cards'
+import { getBaseCardById } from '@/data/cards'
 import { type PlayerColor, PLAYER_COLORS } from '@/types/player-color'
 import { createEmptyStonePool, type StonePool } from '@/types/game'
 import { StoneType } from '@/types/cards'
@@ -802,10 +806,16 @@ export function MultiplayerGame() {
   }, [gameRoom?.lightningEffect])
 
   // Calculate pending resolution cards for current player (v6.13.0)
+  // Filter out cards that have already activated their effects (hasActivatedEffect: true)
   const pendingResolutionCards = useMemo(() => {
     if (!gameRoom || gameRoom.status !== 'RESOLUTION' || !playerId) return []
-    return gameRoom.resolutionState?.pendingCards?.[playerId] || []
-  }, [gameRoom, playerId])
+    const allPending = gameRoom.resolutionState?.pendingCards?.[playerId] || []
+    // Only include cards that haven't activated their effects yet
+    return allPending.filter(cardId => {
+      const cardData = cards[cardId]
+      return !cardData?.hasActivatedEffect
+    })
+  }, [gameRoom, playerId, cards])
 
   const processedResolutionCards = useMemo(() => {
     if (!gameRoom || gameRoom.status !== 'RESOLUTION' || !playerId) return []
@@ -901,6 +911,7 @@ export function MultiplayerGame() {
           )
 
           // v6.15.0: Check for lightning effect cards (synchronized across all players)
+          // v6.27.0: Extended to support F008, F010, W015, A012 score-based effects
           if (hasLightningEffect(card.cardId)) {
             // Important: Need to fetch updated player state from Firebase to get the NEW field count
             const playerRef = ref(database, `games/${gameId}/players/${playerId}`)
@@ -908,17 +919,95 @@ export function MultiplayerGame() {
 
             if (playerSnapshot.exists()) {
               const updatedPlayerState = playerSnapshot.val()
-              const fieldCardCount = updatedPlayerState.field?.length || 0
-              const effectValue = card.cardId === 'F007' ? fieldCardCount : 2 // Ifrit vs Imp
-              // IMPORTANT: For Ifrit (F007), the effect has already been applied, so subtract it to get original score
+              const fieldCardIds = updatedPlayerState.field || []
+              const fieldCardCount = fieldCardIds.length
+
+              // Calculate effect value and match count based on card type
+              let effectValue = 0
+              let matchCount = 0
+              let showScoreModal = false
+
+              switch (card.cardId) {
+                case 'F002': // Imp - 2 ONE stones
+                  effectValue = 2
+                  break
+                case 'F007': // Ifrit - 1 point per card in area
+                  matchCount = fieldCardCount
+                  effectValue = fieldCardCount
+                  showScoreModal = true
+                  break
+                case 'F008': // Incubus - 2 points per card with cost <= 2
+                  for (const fid of fieldCardIds) {
+                    const fieldCard = cards[fid]
+                    if (fieldCard) {
+                      const fieldCardTemplate = getBaseCardById(fieldCard.cardId)
+                      if (fieldCardTemplate && fieldCardTemplate.cost <= 2) {
+                        matchCount++
+                      }
+                    }
+                  }
+                  effectValue = matchCount * 2
+                  showScoreModal = true
+                  break
+                case 'F010': // Lava Giant - 2 points per FIRE card
+                  for (const fid of fieldCardIds) {
+                    const fieldCard = cards[fid]
+                    if (fieldCard) {
+                      const fieldCardTemplate = getBaseCardById(fieldCard.cardId)
+                      if (fieldCardTemplate && fieldCardTemplate.element === Element.FIRE) {
+                        matchCount++
+                      }
+                    }
+                  }
+                  effectValue = matchCount * 2
+                  showScoreModal = true
+                  break
+                case 'W015': // Poseidon - 3 points per WATER card
+                  for (const fid of fieldCardIds) {
+                    const fieldCard = cards[fid]
+                    if (fieldCard) {
+                      const fieldCardTemplate = getBaseCardById(fieldCard.cardId)
+                      if (fieldCardTemplate && fieldCardTemplate.element === Element.WATER) {
+                        matchCount++
+                      }
+                    }
+                  }
+                  effectValue = matchCount * 3
+                  showScoreModal = true
+                  break
+                case 'A012': // Freyja - 1 point per card with PERMANENT effect
+                  for (const fid of fieldCardIds) {
+                    const fieldCard = cards[fid]
+                    if (fieldCard) {
+                      const fieldCardTemplate = getBaseCardById(fieldCard.cardId)
+                      if (fieldCardTemplate) {
+                        const hasPermanent = fieldCardTemplate.effects.some(
+                          e => e.trigger === EffectTrigger.PERMANENT
+                        )
+                        if (hasPermanent) {
+                          matchCount++
+                        }
+                      }
+                    }
+                  }
+                  effectValue = matchCount * 1
+                  showScoreModal = true
+                  break
+                default:
+                  effectValue = 0
+              }
+
+              // Calculate score before effect for display
               const scoreAfterEffect = updatedPlayerState.score || 0
-              const scoreBeforeEffect = card.cardId === 'F007' ? scoreAfterEffect - effectValue : scoreAfterEffect
+              const scoreBeforeEffect = showScoreModal ? scoreAfterEffect - effectValue : scoreAfterEffect
+
               const description = getLightningEffectDescription(
                 card.cardId,
                 cardTemplate?.name || '',
                 cardTemplate?.nameTw || '',
                 effectValue,
-                scoreBeforeEffect // Pass score BEFORE effect for accurate display
+                scoreBeforeEffect, // Pass score BEFORE effect for accurate display
+                matchCount // Pass match count for specific card logic
               )
 
               // Trigger lightning effect via Firebase (all players will see it)
@@ -928,12 +1017,12 @@ export function MultiplayerGame() {
                 description.cardNameTw,
                 effectValue,
                 description.reason,
-                card.cardId === 'F007', // Only Ifrit shows score modal
+                showScoreModal,
                 cardTemplate?.imageUrl // Card image URL
               )
             }
           }
-          // Note: Ifrit (F007) effect is handled by effect-processor.ts
+          // Note: F007, F008, F010, W015, A012 effects are handled by effect-processor.ts
           // Score updates and history will be automatically processed by effect processor
         }
       } catch (err: any) {
@@ -2027,6 +2116,81 @@ export function MultiplayerGame() {
     }
   }, [gameId, playerId])
 
+  // NEW v6.29.0: Directly tame card to field (triggers ON_TAME effects) - only in DEV mode
+  const handleDevTameCard = useCallback(async (cardId: string) => {
+    if (!import.meta.env.DEV) return
+    if (!gameId || !playerId) return
+
+    const cardTemplate = getCardById(cardId)
+    if (!cardTemplate) {
+      console.error('[MultiplayerGame] Card not found:', cardId)
+      return
+    }
+
+    try {
+      // 1. Create card instance DIRECTLY on field (skip hand to avoid triggering game state changes)
+      const uniqueInstanceId = `${cardId}_test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+
+      const cardData = {
+        instanceId: uniqueInstanceId,
+        cardId: cardTemplate.id,
+        name: cardTemplate.name,
+        nameTw: cardTemplate.nameTw,
+        element: cardTemplate.element,
+        cost: cardTemplate.cost,
+        baseScore: cardTemplate.baseScore,
+        ownerId: playerId,
+        location: 'FIELD' as const,  // Directly to field (skip hand)
+        isRevealed: true,
+        scoreModifier: 0,
+        hasUsedAbility: false,
+      } as CardInstanceData
+
+      console.log('[MultiplayerGame] Dev-taming card directly to field (will trigger ON_TAME):', cardData)
+
+      // 2. Add card to field in single atomic update
+      const playerFieldRef = ref(database, `games/${gameId}/players/${playerId}/field`)
+      const fieldSnapshot = await get(playerFieldRef)
+      const currentField = fieldSnapshot.exists() ? fieldSnapshot.val() : []
+
+      const updates: Record<string, any> = {}
+      updates[`games/${gameId}/cards/${uniqueInstanceId}`] = cardData
+      updates[`games/${gameId}/players/${playerId}/field`] = [...currentField, uniqueInstanceId]
+
+      await update(ref(database), updates)
+
+      console.log('[MultiplayerGame] Card added to field, now processing ON_TAME effects...')
+
+      // 3. Directly process ON_TAME effects (bypass game state checks for DEV testing)
+      const gameCardsRef = ref(database, `games/${gameId}/cards`)
+      const playersRef = ref(database, `games/${gameId}/players`)
+      const [cardsSnapshot, playersSnapshot] = await Promise.all([
+        get(gameCardsRef),
+        get(playersRef)
+      ])
+      const gameCards = cardsSnapshot.exists() ? cardsSnapshot.val() : {}
+      const allPlayers = playersSnapshot.exists() ? playersSnapshot.val() : {}
+
+      const effectProcessor = new EffectProcessor()
+      const effectContext = {
+        gameId,
+        playerId,
+        cardInstanceId: uniqueInstanceId,
+        gameCards,
+        currentPlayerState: allPlayers[playerId],
+        allPlayers,
+      }
+
+      console.log('[MultiplayerGame] Calling EffectProcessor.processOnTameEffects()...')
+      const effectResults = await effectProcessor.processOnTameEffects(effectContext)
+      console.log('[MultiplayerGame] ON_TAME effect results:', effectResults)
+
+      console.log('[MultiplayerGame] ✅ Card tamed successfully with ON_TAME effects triggered!')
+    } catch (err) {
+      console.error('[MultiplayerGame] Failed to dev-tame card:', err)
+    }
+  }, [gameId, playerId])
+
   // Clear error after timeout
   useEffect(() => {
     if (error) {
@@ -2848,7 +3012,23 @@ export function MultiplayerGame() {
         />
       </div>
 
-      {/* Lightning Effect - v6.14.0 */}
+      {/* Discard Pile Button - Fixed position in bottom-right */}
+      <div className="fixed bottom-4 right-4 z-50">
+        <button
+          type="button"
+          onClick={() => setShowMarketDiscardModal(true)}
+          className="flex items-center gap-2 px-4 py-3 rounded-lg bg-purple-600/90 border-2 border-purple-400/50 hover:bg-purple-500 hover:border-purple-300 hover:scale-105 active:scale-95 transition-all duration-200 shadow-xl"
+          data-testid="discard-pile-button"
+        >
+          <span className="text-sm font-semibold text-white">🗑️ 棄置牌堆</span>
+          <div className="flex items-center gap-1 bg-white/20 px-2 py-1 rounded-full">
+            <span className="text-sm text-amber-300 font-bold">{discardedCards.length}</span>
+            <span className="text-xs text-white">張</span>
+          </div>
+        </button>
+      </div>
+
+      {/* Lightning Effect - v6.14.0 (for ON_TAME effects like Ifrit) */}
       <LightningEffect
         isActive={lightningEffect.isActive}
         cardName={lightningEffect.cardName}
@@ -2865,11 +3045,32 @@ export function MultiplayerGame() {
         }}
       />
 
-      {/* Dev Test Panel (v6.18.0) - Only in DEV mode */}
+      {/* Score Gain Effect - v6.30.0 (for ON_SCORE effects like F005, F006, F008, etc.) */}
+      {gameRoom?.scoreGainEffect && (
+        <ScoreGainEffect
+          isActive={gameRoom.scoreGainEffect.isActive}
+          cardName={gameRoom.scoreGainEffect.cardName}
+          cardNameTw={gameRoom.scoreGainEffect.cardNameTw}
+          scoreChange={gameRoom.scoreGainEffect.scoreChange}
+          reason={gameRoom.scoreGainEffect.reason}
+          imageUrl={gameRoom.scoreGainEffect.imageUrl}
+          onEffectComplete={async () => {
+            // Clear score gain effect from Firebase (all players will see it cleared)
+            if (gameId) {
+              await update(ref(database, `games/${gameId}`), {
+                scoreGainEffect: null,
+              })
+            }
+          }}
+        />
+      )}
+
+      {/* Dev Test Panel (v6.29.0) - Only in DEV mode */}
       {import.meta.env.DEV && isDevTestPanelOpen && (
         <DevTestPanel
           onClose={() => setDevTestPanelOpen(false)}
           onSummonCard={handleSummonCard}
+          onTameCard={handleDevTameCard}
           onResetGame={() => {
             // Navigate back to multiplayer lobby
             navigate('/multiplayer')

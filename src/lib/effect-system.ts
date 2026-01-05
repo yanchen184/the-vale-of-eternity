@@ -529,7 +529,7 @@ export function getEffectTriggerName(
     [EffectTrigger.NONE]: { en: 'None', tw: '無' },
     [EffectTrigger.ON_TAME]: { en: 'On Tame', tw: '馴服時' },
     [EffectTrigger.PERMANENT]: { en: 'Permanent', tw: '永久' },
-    [EffectTrigger.ON_SCORE]: { en: 'On Score', tw: '計分時' },
+    [EffectTrigger.ON_SCORE]: { en: 'Turn End', tw: '回合結束' },
   }
 
   return useChinese ? names[trigger].tw : names[trigger].en

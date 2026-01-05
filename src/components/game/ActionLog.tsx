@@ -2,9 +2,9 @@
  * ActionLog Component
  * Displays game action history in bottom-left corner
  * Shows recent actions with player colors and details
- * @version 1.1.0 - Added minimize/expand functionality
+ * @version 1.2.0 - Added resolution action type for ON_SCORE effects
  */
-console.log('[components/game/ActionLog.tsx] v1.1.0 loaded')
+console.log('[components/game/ActionLog.tsx] v1.2.0 loaded')
 
 import { memo, useMemo, useRef, useEffect, useState } from 'react'
 import { PlayerMarker } from './PlayerMarker'
@@ -47,6 +47,7 @@ function getActionLabel(action: string): string {
     move_from_sanctuary: '從棲息地移回',
     select_artifact: '選擇神器',
     toggle_zone: '切換區域',
+    resolution: '結算效果',
   }
   return actionMap[action] || action
 }
@@ -67,6 +68,7 @@ function getActionColor(action: string): string {
     move_from_sanctuary: 'text-indigo-400',
     select_artifact: 'text-yellow-400',
     toggle_zone: 'text-pink-400',
+    resolution: 'text-orange-400',
   }
   return colorMap[action] || 'text-slate-300'
 }

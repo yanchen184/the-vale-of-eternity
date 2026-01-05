@@ -1,0 +1,316 @@
+/**
+ * Score Gain Effect Styles v1.0.0
+ * Beautiful golden score increase animation
+ */
+
+/* ============================================
+   OVERLAY & CONTAINER
+   ============================================ */
+
+.score-gain-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fade-in 0.3s ease-out;
+  cursor: pointer;
+}
+
+.score-gain-container {
+  position: relative;
+  max-width: 600px;
+  padding: 3rem 2rem;
+  text-align: center;
+  animation: slide-up-bounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ============================================
+   FLOATING PARTICLES
+   ============================================ */
+
+.score-gain-particles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.score-gain-particle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: radial-gradient(circle, #fbbf24 0%, #f59e0b 50%, transparent 100%);
+  border-radius: 50%;
+  animation: particle-float 3s ease-in-out infinite;
+  opacity: 0;
+}
+
+@keyframes particle-float {
+  0% {
+    transform: translateY(100vh) scale(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-20vh) scale(1.5);
+    opacity: 0;
+  }
+}
+
+/* ============================================
+   CARD IMAGE
+   ============================================ */
+
+.score-gain-card-wrapper {
+  margin-bottom: 2rem;
+  animation: scale-bounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.score-gain-card-image {
+  width: 200px;
+  height: auto;
+  margin: 0 auto;
+  border-radius: 0.75rem;
+  box-shadow:
+    0 0 40px rgba(251, 191, 36, 0.6),
+    0 20px 60px rgba(0, 0, 0, 0.5);
+  border: 4px solid rgba(251, 191, 36, 0.4);
+  animation: golden-pulse 2s ease-in-out infinite;
+}
+
+@keyframes golden-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 40px rgba(251, 191, 36, 0.6),
+      0 20px 60px rgba(0, 0, 0, 0.5);
+  }
+  50% {
+    box-shadow:
+      0 0 60px rgba(251, 191, 36, 0.9),
+      0 0 80px rgba(251, 191, 36, 0.6),
+      0 20px 60px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* ============================================
+   SCORE ICON
+   ============================================ */
+
+.score-gain-icon {
+  margin-bottom: 1.5rem;
+  animation: bounce-rotate 1s ease-out;
+}
+
+.score-gain-icon-star {
+  font-size: 4rem;
+  display: inline-block;
+  filter: drop-shadow(0 0 20px rgba(251, 191, 36, 0.8));
+  animation: star-twinkle 2s ease-in-out infinite;
+}
+
+@keyframes star-twinkle {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    filter: drop-shadow(0 0 20px rgba(251, 191, 36, 0.8));
+  }
+  50% {
+    transform: scale(1.2) rotate(180deg);
+    filter: drop-shadow(0 0 30px rgba(251, 191, 36, 1));
+  }
+}
+
+@keyframes bounce-rotate {
+  0% {
+    transform: translateY(-200px) rotate(-180deg) scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(10px) rotate(10deg) scale(1.1);
+  }
+  80% {
+    transform: translateY(-5px) rotate(-5deg) scale(0.95);
+  }
+  100% {
+    transform: translateY(0) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+}
+
+/* ============================================
+   TITLE & REASON
+   ============================================ */
+
+.score-gain-title {
+  font-size: 2rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+  text-shadow:
+    0 0 20px rgba(251, 191, 36, 0.8),
+    0 4px 8px rgba(0, 0, 0, 0.5);
+  animation: fade-in-up 0.5s ease-out 0.2s both;
+}
+
+.score-gain-title-tw {
+  color: #fbbf24;
+  display: inline-block;
+  margin-right: 0.5rem;
+}
+
+.score-gain-title-en {
+  color: #fcd34d;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.score-gain-reason {
+  font-size: 1.1rem;
+  color: #fef3c7;
+  margin-bottom: 2rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  animation: fade-in-up 0.5s ease-out 0.3s both;
+}
+
+/* ============================================
+   SCORE BADGE
+   ============================================ */
+
+.score-gain-score-badge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 1.5rem 3rem;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  border-radius: 2rem;
+  box-shadow:
+    0 0 40px rgba(251, 191, 36, 0.6),
+    0 10px 30px rgba(0, 0, 0, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.3);
+  margin-bottom: 2rem;
+  animation:
+    fade-in-up 0.5s ease-out 0.4s both,
+    score-pulse 1.5s ease-in-out infinite 0.8s;
+  border: 3px solid rgba(254, 243, 199, 0.4);
+}
+
+.score-gain-score-plus {
+  font-size: 3.5rem;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    0 0 20px rgba(255, 255, 255, 0.5);
+  letter-spacing: -0.05em;
+}
+
+.score-gain-score-label {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #fef3c7;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes score-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 40px rgba(251, 191, 36, 0.6),
+      0 10px 30px rgba(0, 0, 0, 0.3),
+      inset 0 2px 4px rgba(255, 255, 255, 0.3);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow:
+      0 0 60px rgba(251, 191, 36, 0.9),
+      0 0 80px rgba(251, 191, 36, 0.5),
+      0 10px 30px rgba(0, 0, 0, 0.3),
+      inset 0 2px 4px rgba(255, 255, 255, 0.5);
+  }
+}
+
+/* ============================================
+   DISMISS HINT
+   ============================================ */
+
+.score-gain-dismiss-hint {
+  margin-top: 2rem;
+  text-align: center;
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+  animation: fade-in-up 0.5s ease-out 1s both;
+}
+
+.score-gain-dismiss-hint:hover {
+  opacity: 1;
+}
+
+/* ============================================
+   SHARED ANIMATIONS
+   ============================================ */
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-up-bounce {
+  0% {
+    opacity: 0;
+    transform: translateY(100px) scale(0.8);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-10px) scale(1.05);
+  }
+  80% {
+    transform: translateY(5px) scale(0.98);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes scale-bounce {
+  0% {
+    transform: scale(0);
+  }
+  60% {
+    transform: scale(1.1);
+  }
+  80% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

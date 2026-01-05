@@ -1,5 +1,5 @@
 /**
- * Lightning Effect Component v1.2.0
+ * Lightning Effect Component v1.3.0
  * Dramatic lightning animation for Ifrit card effect
  * Features:
  * - SVG lightning bolt animation from top to bottom
@@ -8,9 +8,10 @@
  * - Animated text display with glow effects
  * - Card image display with amber glow
  * - Lightning sound effect
- * @version 1.2.0 - Added card image display
+ * - Click to dismiss (or auto-dismiss after 7s)
+ * @version 1.3.0 - Added click to dismiss functionality
  */
-console.log('[components/game/LightningEffect.tsx] v1.2.0 loaded')
+console.log('[components/game/LightningEffect.tsx] v1.3.0 loaded')
 
 import { useState, useEffect, useCallback } from 'react'
 import { useSound } from '@/hooks/useSound'
@@ -104,6 +105,16 @@ export function LightningEffect({
 
   // Parse reason text for animation
   const reasonLines = reason.split('\n')
+
+  // Handle click to dismiss
+  const handleDismiss = useCallback(() => {
+    if (showText) {
+      setShowOverlay(false)
+      setShowText(false)
+      setPhase('complete')
+      onEffectComplete?.()
+    }
+  }, [showText, onEffectComplete])
 
   // Reset when isActive changes
   useEffect(() => {
@@ -259,10 +270,10 @@ export function LightningEffect({
 
       {/* Full-screen blocking overlay */}
       {showOverlay && (
-        <div className="lightning-overlay">
+        <div className="lightning-overlay" onClick={handleDismiss}>
           {/* Animated text display */}
           {showText && (
-            <div className="lightning-text-container">
+            <div className="lightning-text-container" onClick={handleDismiss}>
               {/* Card Image */}
               {imageUrl && (
                 <div className="mb-6 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
@@ -321,6 +332,19 @@ export function LightningEffect({
                   <span className="lightning-score-label">分</span>
                 </div>
               )}
+
+              {/* Click to dismiss hint */}
+              <div
+                className="mt-8 text-center animate-fade-in-up opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
+                style={{ animationDelay: '1.5s' }}
+              >
+                <p className="text-sm text-slate-300">
+                  點擊畫面關閉
+                </p>
+                <p className="text-xs text-slate-400 mt-1">
+                  或等待自動消失
+                </p>
+              </div>
             </div>
           )}
         </div>
