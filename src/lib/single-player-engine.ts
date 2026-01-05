@@ -1,10 +1,10 @@
 /**
- * Single Player Game Engine for Vale of Eternity v7.25.0
+ * Single Player Game Engine for Vale of Eternity v7.26.0
  * Core game logic for single-player mode with Stone Economy System
  * Based on GAME_FLOW.md specifications
- * @version 7.25.0 - Resolution effects MUST be activated: choosing "No" doesn't process the effect
+ * @version 7.26.0 - Effect processing now checks isImplemented flag (consistent with EffectProcessor)
  */
-console.log('[lib/single-player-engine.ts] v7.25.0 loaded - Resolution effects must be activated')
+console.log('[lib/single-player-engine.ts] v7.26.0 loaded - Effect processing checks isImplemented flag')
 
 import type { CardInstance, CardEffect, StoneConfig } from '@/types/cards'
 import { CardLocation, Element, EffectType, EffectTrigger, StoneType } from '@/types/cards'
@@ -1055,12 +1055,20 @@ export class SinglePlayerEngine {
     const newSourceArray = sourceArray.filter(c => c.instanceId !== cardInstanceId)
 
     // Process ON_TAME effects
+    // Note: Using local implementation instead of EffectProcessor due to Firebase dependency
+    console.log(`[SinglePlayerEngine] ======== tameCreature: Processing ON_TAME effects ========`)
+    console.log(`[SinglePlayerEngine] Card being tamed:`, tamedCard.nameTw, tamedCard.cardId)
+    console.log(`[SinglePlayerEngine] Current stones BEFORE effect:`, this.state.player.stones)
     const effectResult = this.processOnTameEffects(tamedCard)
 
     // Apply stones gained from effects (no cost deduction)
     let newStones = this.state.player.stones
+    console.log(`[SinglePlayerEngine] Stones from effect:`, effectResult.stonesGained)
     if (effectResult.stonesGained) {
       newStones = addStonesToPool(newStones, effectResult.stonesGained)
+      console.log(`[SinglePlayerEngine] New stones AFTER adding effect stones:`, newStones)
+    } else {
+      console.log(`[SinglePlayerEngine] ⚠️ No stones gained from effect!`)
     }
 
     // Apply instant score bonus from effects (like Ifrit)
@@ -2098,10 +2106,16 @@ export class SinglePlayerEngine {
 
   /**
    * Process ON_TAME effects for a card
+   * Note: This is the single-player implementation. It mirrors EffectProcessor logic
+   * but works locally without Firebase dependency.
    * @param card Card being tamed
    * @returns Effect processing result
    */
   private processOnTameEffects(card: CardInstance): EffectProcessingResult {
+    console.log(`[SinglePlayerEngine] ========== processOnTameEffects START ==========`)
+    console.log(`[SinglePlayerEngine] Card: ${card.nameTw} (${card.cardId})`)
+    console.log(`[SinglePlayerEngine] Total effects on card: ${card.effects.length}`)
+
     const result: EffectProcessingResult = {
       success: true,
       message: '',
@@ -2109,11 +2123,22 @@ export class SinglePlayerEngine {
 
     // Process each effect on the card
     for (const effect of card.effects) {
+      console.log(`[SinglePlayerEngine] Checking effect:`, effect.type, `trigger:`, effect.trigger, `isImplemented:`, effect.isImplemented)
+
       if (effect.trigger !== EffectTrigger.ON_TAME) {
+        console.log(`[SinglePlayerEngine] ❌ Skipping - not ON_TAME trigger`)
         continue
       }
 
+      // Check if effect is fully implemented (consistent with EffectProcessor)
+      if (effect.isImplemented !== true) {
+        console.log(`[SinglePlayerEngine] ❌ Effect ${effect.type} is not marked as implemented (isImplemented=${effect.isImplemented}), skipping execution`)
+        continue
+      }
+
+      console.log(`[SinglePlayerEngine] ✅ Processing ON_TAME effect:`, effect.type)
       const effectResult = this.processSingleEffect(effect, card)
+      console.log(`[SinglePlayerEngine] Effect result:`, effectResult)
 
       // Merge results
       if (effectResult.stonesGained) {
@@ -2142,6 +2167,8 @@ export class SinglePlayerEngine {
       }
     }
 
+    console.log(`[SinglePlayerEngine] ========== processOnTameEffects END ==========`)
+    console.log(`[SinglePlayerEngine] Final result:`, result)
     return result
   }
 
@@ -2162,14 +2189,20 @@ export class SinglePlayerEngine {
 
     switch (effect.type) {
       case EffectType.EARN_STONES:
+        console.log(`[SinglePlayerEngine] EARN_STONES case triggered`)
+        console.log(`[SinglePlayerEngine] effect.stones:`, effect.stones)
         if (effect.stones) {
           const additions: Partial<StonePool> = {}
           for (const stone of effect.stones) {
             const key = stoneTypeToPoolKey(stone.type)
             additions[key] = (additions[key] ?? 0) + stone.amount
+            console.log(`[SinglePlayerEngine] Adding stone: type=${stone.type}, amount=${stone.amount}, key=${key}`)
           }
           result.stonesGained = additions
           result.message = `Earned stones`
+          console.log(`[SinglePlayerEngine] Final additions:`, additions)
+        } else {
+          console.log(`[SinglePlayerEngine] ⚠️ effect.stones is undefined!`)
         }
         break
 
@@ -2334,6 +2367,41 @@ export class SinglePlayerEngine {
         break
 
       case EffectType.EARN_PER_FAMILY:
+        // EARN_PER_FAMILY with ON_TAME trigger - F015 Surtr
+        // Earn 2 points per unique element (family) in area
+        if (this.state && effect.trigger === EffectTrigger.ON_TAME) {
+          // Count unique elements (families) in player's field
+          const uniqueElements = new Set<Element>()
+
+          // Add elements from cards already in field
+          for (const card of this.state.player.field) {
+            uniqueElements.add(card.element)
+          }
+
+          // Add the element of the card being tamed (it's not in field yet during ON_TAME)
+          uniqueElements.add(_sourceCard.element)
+
+          const familyCount = uniqueElements.size
+          const pointsPerFamily = effect.value ?? 2 // Default 2 points per family for F015 Surtr
+          const totalPoints = familyCount * pointsPerFamily
+
+          if (totalPoints > 0) {
+            result.scoreModifier = totalPoints
+            result.message = `Earned ${totalPoints} points (${familyCount} families x ${pointsPerFamily} points)`
+          }
+
+          console.log('[SinglePlayerEngine] EARN_PER_FAMILY ON_TAME effect processed:', {
+            familyCount,
+            uniqueElements: Array.from(uniqueElements),
+            pointsPerFamily,
+            scoreModifier: result.scoreModifier,
+          })
+        } else {
+          // ON_SCORE trigger - will be processed at game end
+          result.message = 'Scoring effect registered'
+        }
+        break
+
       case EffectType.CONDITIONAL_EARN:
         // ON_SCORE effects - processed at game end
         result.message = 'Scoring effect registered'

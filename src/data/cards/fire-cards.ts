@@ -1,9 +1,9 @@
 /**
  * Fire Family Cards (15 cards)
  * Complete card data with Stone Economy System
- * @version 3.1.0 - Added isImplemented flags to F002 and F007
+ * @version 3.9.0 - Fixed F015 (Surtr) effect: earn 2 points per unique element in area
  */
-console.log('[data/cards/fire-cards.ts] v3.1.0 loaded')
+console.log('[data/cards/fire-cards.ts] v3.9.0 loaded')
 
 import {
   type CardTemplate,
@@ -64,7 +64,7 @@ export const FIRE_CARDS: readonly CardTemplate[] = [
       },
       {
         type: EffectType.RECOVER_CARD,
-        trigger: EffectTrigger.PERMANENT,
+        trigger: EffectTrigger.ON_SCORE,
         description: 'Recover.',
         descriptionTw: '可被回收。',
         isImplemented: true,
@@ -90,6 +90,7 @@ export const FIRE_CARDS: readonly CardTemplate[] = [
           'If cards with written cost of 1, 2, 3, and 4 are all in your area, earn 10.',
         descriptionTw:
           '如果你的場上同時有 cost 1、2、3、4 的卡片，獲得 10 分。',
+        isImplemented: true,
       },
     ],
     flavorText: 'Beauty can be deceiving.',
@@ -107,9 +108,10 @@ export const FIRE_CARDS: readonly CardTemplate[] = [
       {
         type: EffectType.CONDITIONAL_HAND,
         trigger: EffectTrigger.ON_TAME,
-        stones: [{ type: StoneType.ONE, amount: 1 }],
-        description: 'Earn 1 for each card in your hand.',
-        descriptionTw: '你手牌中的每張卡獲得 1 個 1 點石頭。',
+        value: 1,  // 1 point per card in hand
+        description: 'Earn 1 point for each card in your hand.',
+        descriptionTw: '手牌每張卡獲得 1 分。',
+        isImplemented: true,
       },
     ],
     flavorText: 'Nine tails blaze in the night.',
@@ -126,13 +128,19 @@ export const FIRE_CARDS: readonly CardTemplate[] = [
     effects: [
       {
         type: EffectType.EARN_STONES,
-        trigger: EffectTrigger.PERMANENT,
-        stones: [
-          { type: StoneType.THREE, amount: 1 },
-          { type: StoneType.ONE, amount: 1 },
-        ],
-        description: 'Earn 3 and 1.',
-        descriptionTw: '持續獲得 1 個 3 點石頭和 1 個 1 點石頭。',
+        trigger: EffectTrigger.ON_SCORE,
+        stones: [{ type: StoneType.ONE, amount: 1 }],
+        description: 'Earn 1.',
+        descriptionTw: '回合結束獲得 1 個 1 點石頭。',
+        isImplemented: true,
+      },
+      {
+        type: EffectType.CONDITIONAL_AREA,
+        trigger: EffectTrigger.ON_SCORE,
+        value: 1,
+        description: 'Earn 1 point.',
+        descriptionTw: '回合結束獲得 1 分。',
+        isImplemented: true,
       },
     ],
     flavorText: 'Born from the flames themselves.',
@@ -153,10 +161,11 @@ export const FIRE_CARDS: readonly CardTemplate[] = [
     effects: [
       {
         type: EffectType.EARN_STONES,
-        trigger: EffectTrigger.PERMANENT,
-        stones: [{ type: StoneType.THREE, amount: 4 }],
-        description: 'Earn 3 3 3 3.',
-        descriptionTw: '持續獲得 4 個 3 點石頭。',
+        trigger: EffectTrigger.ON_SCORE,
+        stones: [{ type: StoneType.ONE, amount: 4 }],
+        description: 'Earn 1 1 1 1.',
+        descriptionTw: '回合結束獲得 4 個 1 點石頭。',
+        isImplemented: true,
       },
     ],
     flavorText: 'Ancient and powerful.',
@@ -174,9 +183,9 @@ export const FIRE_CARDS: readonly CardTemplate[] = [
       {
         type: EffectType.CONDITIONAL_AREA,
         trigger: EffectTrigger.ON_TAME,
-        value: 1,
+        value: 1, // 1 point per card
         description: 'Earn 1 point for each card in your area.',
-        descriptionTw: '你場上的每張卡立即獲得 1 分。',
+        descriptionTw: '你場上的每張卡獲得 1 分。',
         isImplemented: true,
       },
     ],
@@ -199,10 +208,11 @@ export const FIRE_CARDS: readonly CardTemplate[] = [
       {
         type: EffectType.CONDITIONAL_AREA,
         trigger: EffectTrigger.ON_TAME,
-        value: 2,
+        value: 2, // 2 points per matching card
         description:
-          'Earn 2 for each card with a written cost of 2 or less in your area.',
-        descriptionTw: '你場上每張 cost 2 或更低的卡，獲得 2 個石頭。',
+          'Earn 2 points for each card with a written cost of 2 or less in your area.',
+        descriptionTw: '你場上每張 cost 2 或更低的卡，獲得 2 分。',
+        isImplemented: true,
       },
     ],
     flavorText: 'Haunter of dreams.',
@@ -219,13 +229,15 @@ export const FIRE_CARDS: readonly CardTemplate[] = [
     effects: [
       {
         type: EffectType.EXCHANGE_STONES,
-        trigger: EffectTrigger.PERMANENT,
+        trigger: EffectTrigger.ON_SCORE,
         stones: [
-          { type: StoneType.THREE, amount: -1 },
-          { type: StoneType.ONE, amount: 1 },
+          { type: StoneType.ONE, amount: -1 },  // Discard 1-stone
         ],
-        description: 'Discard one of your 3, then earn 1.',
-        descriptionTw: '棄掉 1 個 3 點石頭，然後獲得 1 個 1 點石頭。',
+        value: 3,  // Earn 3 points
+        description: 'Discard one of your 1, then earn 3 points.',
+        descriptionTw: '棄掉 1 個 1 點石頭，然後獲得 3 分。',
+        isImplemented: true,
+        isConditional: true, // Requires at least one 1-stone to activate
       },
     ],
     flavorText: 'Flames of vengeance.',
@@ -241,15 +253,17 @@ export const FIRE_CARDS: readonly CardTemplate[] = [
     baseScore: 8,
     effects: [
       {
-        type: EffectType.CONDITIONAL_AREA,
+        type: EffectType.EARN_PER_ELEMENT,
         trigger: EffectTrigger.ON_TAME,
+        targetElement: Element.FIRE,
         value: 2,
-        description: 'Earn 2 for each 6 card in your area.',
-        descriptionTw: '你場上每張 6 分卡獲得 2 個石頭。',
+        description: 'Earn 2 points for each Fire card in your area.',
+        descriptionTw: '你場上每張火屬性卡獲得 2 分。',
+        isImplemented: true,
       },
     ],
     flavorText: 'Molten rock given form.',
-    flavorTextTw: '由熔岩凝聚而成的巨大存在，獎勵高分卡策略。',
+    flavorTextTw: '由熔岩凝聚而成的巨大存在，獎勵火屬性卡策略。',
     imageUrl: '200px-Lavagiant.webp',
   },
   {
@@ -349,9 +363,10 @@ export const FIRE_CARDS: readonly CardTemplate[] = [
       {
         type: EffectType.EARN_PER_FAMILY,
         trigger: EffectTrigger.ON_TAME,
-        value: 2,
+        value: 2, // 2 points per family
         description: 'Earn 2 for each card family in your area.',
-        descriptionTw: '你場上每個不同的卡片家族獲得 2 個石頭。',
+        descriptionTw: '你場上每個不同的卡片家族獲得 2 分。',
+        isImplemented: true,
       },
     ],
     flavorText: 'Bringer of Ragnarok.',

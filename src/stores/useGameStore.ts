@@ -1,10 +1,10 @@
 /**
- * Game State Store for Single Player Mode v3.11.0
+ * Game State Store for Single Player Mode v3.12.0
  * Using Zustand for state management
  * Supports single-player game with Stone Economy System
- * @version 3.11.0 - Fixed infinite loops: added shallow comparison to resolution card hooks
+ * @version 3.12.0 - Added F015 Surtr lightning effect support
  */
-console.log('[stores/useGameStore.ts] v3.11.0 loaded')
+console.log('[stores/useGameStore.ts] v3.12.0 loaded')
 
 import { create } from 'zustand'
 import { devtools, subscribeWithSelector } from 'zustand/middleware'
@@ -405,6 +405,18 @@ export const useGameStore = create<GameStore>()(
                 effectValue = 2
                 reason = `獲得 ${effectValue} 個 1 點石頭`
                 showScoreModal = false // Don't show score modal for Imp
+              } else if (card.cardId === 'F015') {
+                // Surtr (蘇爾特爾): Earn 2 points per unique element (SCORE EFFECT)
+                // Count unique elements in field (including the newly tamed card which is already in field)
+                const field = get().gameState?.player.field || []
+                const uniqueElements = new Set<string>()
+                for (const c of field) {
+                  uniqueElements.add(c.element)
+                }
+                const familyCount = uniqueElements.size
+                effectValue = familyCount * 2
+                reason = `場上有 ${familyCount} 種不同的家族\n蘇爾特爾獲得 +${effectValue} 分加成！`
+                showScoreModal = true // Show score modal for score effects
               }
 
               // Set flag for UI to detect lightning effect (triggers visual effect)
