@@ -1,9 +1,9 @@
 /**
- * Single Player Game Page v9.15.0
+ * Single Player Game Page v9.16.0
  * Main gameplay interface for single-player mode - With artifact action UI
- * @version 9.15.0 - Added DevTestPanel integration for card testing
+ * @version 9.16.0 - Removed resolution card check for end turn button
  */
-console.log('[pages/SinglePlayerGame.tsx] v9.15.0 loaded - DevTestPanel integration')
+console.log('[pages/SinglePlayerGame.tsx] v9.16.0 loaded')
 
 
 import { useEffect, useCallback, useMemo, useState } from 'react'
@@ -210,9 +210,6 @@ export default function SinglePlayerGame() {
     return useGameStore.getState().hasPendingResolutionEffect(cardId)
   }, [])
 
-  const allResolutionCardsProcessed = useCallback(() => {
-    return useGameStore.getState().allResolutionCardsProcessed()
-  }, [])
 
   console.log('[SinglePlayerGame] artifactSelectionPhase:', artifactSelectionPhase)
   console.log('[SinglePlayerGame] selectedArtifact:', selectedArtifact)
@@ -501,13 +498,9 @@ export default function SinglePlayerGame() {
   // Handle complete settlement (SCORE → next DRAW)
   const handleCompleteSettlement = useCallback(() => {
     if (phase !== SinglePlayerPhase.SCORE) return
-    // Check if all resolution cards have been processed
-    if (!allResolutionCardsProcessed()) {
-      console.log('[SinglePlayerGame] Cannot complete settlement: unprocessed resolution cards')
-      return
-    }
+    // Allow completing settlement at any time (user can skip resolution cards)
     completeSettlement()
-  }, [phase, completeSettlement, allResolutionCardsProcessed])
+  }, [phase, completeSettlement])
 
   // Handle field card click during resolution phase (v9.7.0)
   const handleFieldCardClickInResolution = useCallback((cardId: string) => {

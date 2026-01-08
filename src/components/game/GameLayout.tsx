@@ -2,9 +2,9 @@
  * GameLayout Component
  * Symmetric layout container for multiplayer game
  * Fixed height, no scroll, left-right balanced design
- * @version 1.7.0 - Added resolution phase card restriction for end turn button
+ * @version 1.8.0 - Removed resolution card restriction for end turn button
  */
-console.log('[components/game/GameLayout.tsx] v1.7.0 loaded')
+console.log('[components/game/GameLayout.tsx] v1.8.0 loaded')
 
 import { memo, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
@@ -200,8 +200,6 @@ export const GameHeader = memo(function GameHeader({
   onConfirmSelection,
   showConfirmSelection = false,
   confirmSelectionDisabled = false,
-  unprocessedActionCards = 0,
-  unprocessedResolutionCards = 0,
   cardScaleControls,
 }: GameHeaderProps) {
   return (
@@ -292,52 +290,27 @@ export const GameHeader = memo(function GameHeader({
           )}
 
           {/* End Turn Button - Action/Resolution Phase */}
-          {showPassTurn && isYourTurn && onPassTurn && (() => {
-            // Check both action cards and resolution cards
-            const canEndTurn = unprocessedActionCards === 0 && unprocessedResolutionCards === 0
-            const getTooltip = () => {
-              if (unprocessedActionCards > 0) {
-                return `還有 ${unprocessedActionCards} 張行動階段卡片未處理（需上手或賣出）`
-              }
-              if (unprocessedResolutionCards > 0) {
-                return `還有 ${unprocessedResolutionCards} 張結算效果卡片待處理（點擊發光卡片決定是否回手）`
-              }
-              return '結束你的回合'
-            }
-            return (
-              <button
-                type="button"
-                onClick={canEndTurn ? onPassTurn : undefined}
-                disabled={!canEndTurn}
-                title={getTooltip()}
-                className={cn(
-                  'px-6 py-2.5 text-sm font-black rounded-lg border-2 shadow-lg transition-all duration-200',
-                  canEndTurn
-                    ? [
-                        'bg-gradient-to-br from-red-600 to-red-700',
-                        'hover:from-red-500 hover:to-red-600',
-                        'active:from-red-700 active:to-red-800',
-                        'text-white',
-                        'border-red-400/70',
-                        'shadow-red-900/50',
-                        'hover:scale-110 active:scale-95',
-                        'animate-pulse',
-                        'cursor-pointer',
-                      ]
-                    : [
-                        'bg-gradient-to-br from-slate-600 to-slate-700',
-                        'text-slate-400',
-                        'border-slate-500/50',
-                        'shadow-slate-900/50',
-                        'cursor-not-allowed',
-                        'opacity-50',
-                      ]
-                )}
-              >
-                🔚 回合結束
-              </button>
-            )
-          })()}
+          {showPassTurn && isYourTurn && onPassTurn && (
+            <button
+              type="button"
+              onClick={onPassTurn}
+              title="結束你的回合"
+              className={cn(
+                'px-6 py-2.5 text-sm font-black rounded-lg border-2 shadow-lg transition-all duration-200',
+                'bg-gradient-to-br from-red-600 to-red-700',
+                'hover:from-red-500 hover:to-red-600',
+                'active:from-red-700 active:to-red-800',
+                'text-white',
+                'border-red-400/70',
+                'shadow-red-900/50',
+                'hover:scale-110 active:scale-95',
+                'animate-pulse',
+                'cursor-pointer'
+              )}
+            >
+              🔚 回合結束
+            </button>
+          )}
         </div>
       )}
 
